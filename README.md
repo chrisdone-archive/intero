@@ -5,6 +5,32 @@ This is GHCi plus extra goodies. It is a direct codebase copy from the
 GHC codebase of GHCi with modifications to be buildable as a Hackage
 package.
 
+## Features
+
+The features additional to normal GHCi function in the latest GHC
+(7.8.3) release are:
+
+* The `:set +c` command: collect information about modules after
+  they've been loaded, and remember it between loads (including failed
+  ones).
+
+* The `:type-at` command: show the type at the given position in the
+  module. Example:
+
+        *X> :type-at X.hs 6 6 6 7 f
+        Int -> Int
+
+  This can be useful to get the type of a pattern variable or an
+  arbitrary selected expression.
+
+* The `:loc-at` command: get the location of the thing at the given
+  position in the module. Example:
+
+        *X> :loc-at X.hs 6 14 6 16 mu
+        X.hs:8:7-8:9
+
+  This is useful for goto-definition features of editors and IDEs.
+
 ## Installing
 
 From source:
