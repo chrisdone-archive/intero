@@ -1546,11 +1546,27 @@ locationAt str =
 -- | Parse a span: <module-name/filepath> <sl> <sc> <el> <ec> <string>
 parseSpan :: String -> Either String (FilePath,Int,Int,Int,Int,String)
 parseSpan s =
-  case words s of
-    [fp,reads -> [(line,_)],reads -> [(col,_)],reads -> [(line',_)],reads -> [(col',_)],string] ->
-      Right (fp,line,col,line',col',string)
-    _ ->
-      Left "expected: <filepath> <start-line> <start-column> <end-line> <end-column> <string>"
+  case result of
+    Left err -> Left err
+    Right r -> Right r
+  where result =
+          case span (/= ' ') s of
+            (fp,s') ->
+              do (sl,s1) <- extractInt s'
+                 (sc,s2) <- extractInt s1
+                 (el,s3) <- extractInt s2
+                 (ec,st) <- extractInt s3
+                 Right (fp,sl,sc,el,ec,st)
+        extractInt s' =
+          case span (/= ' ') (dropWhile1 (== ' ') s') of
+            (reads -> [(i,_)],s) ->
+              Right (i,dropWhile1 (== ' ') s)
+            _ ->
+              Left ("Expected integer in " ++ s')
+          where dropWhile1 _ [] = []
+                dropWhile1 p xs@(x:xs')
+                  | p x = xs'
+                  | otherwise = xs
 
 -----------------------------------------------------------------------------
 -- :kind
