@@ -77,6 +77,14 @@ Plain GHCi process type:
 (setq haskell-process-path-ghci "ghci-ng")
 ```
 
+Commands that use GHCi-ng:
+
+* `M-x haskell-mode-show-type-at`
+* `M-x haskell-mode-goto-loc`
+
+Make sure to run `:set +c` in GHCi to enable collection of info, then
+load some modules and the above commands will work.
+
 ## Supported GHC versions
 
 This project should ideally support the current major GHC version and
