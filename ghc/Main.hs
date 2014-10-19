@@ -569,7 +569,7 @@ mode_flags =
   , Flag "M"            (PassFlag (setMode doMkDependHSMode))
   , Flag "E"            (PassFlag (setMode (stopBeforeMode anyHsc)))
   , Flag "C"            (PassFlag (setMode (stopBeforeMode HCc)))
-  , Flag "S"            (PassFlag (setMode (stopBeforeMode As)))
+  , Flag "S"            (PassFlag (setMode (stopBeforeMode (as False))))
   , Flag "-make"        (PassFlag (setMode doMakeMode))
   , Flag "-interactive" (PassFlag (setMode doInteractiveMode))
   , Flag "-abi-hash"    (PassFlag (setMode doAbiHashMode))
@@ -636,7 +636,7 @@ doMake srcs  = do
         haskellish (f,Nothing) =
           looksLikeModuleName f || isHaskellUserSrcFilename f || '.' `notElem` f
         haskellish (_,Just phase) =
-          phase `notElem` [As, Cc, Cobjc, Cobjcpp, CmmCpp, Cmm, StopLn]
+          phase `notElem` [as True, Cc, Cobjc, Cobjcpp, CmmCpp, Cmm, StopLn]
 
     hsc_env <- GHC.getSession
 
@@ -850,3 +850,11 @@ link statically.
 
 foreign import ccall safe "initGCStatistics"
   initGCStatistics :: IO ()
+
+-- | Compatibility between GHC 7.8.2 -> GHC 7.8.3.
+as :: Bool -> Phase
+#if MIN_VERSION_ghc(7,8,3)
+as = As
+#else
+as _ = As
+#endif
