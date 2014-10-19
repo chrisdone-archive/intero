@@ -20,7 +20,7 @@ executable ghci-ng
   hs-source-dirs:   ghc/
   ghc-options:      -Wall -O2
   c-sources:        ghc/hschooks.c
-  other-modules:    InteractiveUI, GhciMonad, GhciTags
+  other-modules:    InteractiveUI, GhciMonad, GhciTags, GhciTypes
   ghc-options:      -Wall -fno-warn-name-shadowing -threaded
   cpp-options:      -DGHCI
   default-language: Haskell2010
