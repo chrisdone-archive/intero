@@ -1,0 +1,3 @@
+-- | ghci
+
+module Main where

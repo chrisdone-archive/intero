@@ -1,0 +1,51 @@
+name:          ghci-ng
+version:       0.0
+synopsis:      Next generation GHCi
+description:   GHCi plus extra goodies.
+license:       BSD3
+homepage:      https://chrisdone.github.io/ghci-ng
+license-file:  LICENSE
+author:        The GHC Team, Chris Done
+maintainer:    chrisdone@gmail.com
+copyright:     2005 The University of Glasgow, 2014 Chris Done
+category:      Development
+build-type:    Simple
+stability:     Experimental
+cabal-version: >= 1.14
+
+extra-source-files: ghc/HsVersions.h rts/PosixSource.h
+
+executable ghci-ng
+  main-is:          Main.hs
+  hs-source-dirs:   ghc/
+  ghc-options:      -Wall -O2
+  c-sources:        ghc/hschooks.c
+  other-modules:    InteractiveUI, GhciMonad, GhciTags
+  ghc-options:      -Wall -fno-warn-name-shadowing -threaded
+  cpp-options:      -DGHCI
+  default-language: Haskell2010
+  default-extensions:
+    CPP
+    FlexibleInstances
+    MagicHash
+    NondecreasingIndentation
+    UnboxedTuples
+  build-depends:
+    base,
+    array,
+    bytestring,
+    directory,
+    filepath,
+    ghc,
+    ghc-paths,
+    haskeline,
+    process,
+    transformers
+  if os(windows)
+      build-depends: Win32
+  else
+      build-depends: unix
+
+source-repository head
+  type:     git
+  location: git://github.com/chrisdone/ghci-ng.git
