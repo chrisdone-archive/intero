@@ -1,9 +1,11 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RankNTypes #-}
 
 -- | Get information on modules, identifiers, etc.
 
 module GhciInfo (collectInfo,getModInfo,showppr) where
 
+import           Control.Exception
 import           Control.Monad
 import qualified CoreUtils
 import qualified Data.ByteString.Char8 as S8
@@ -26,11 +28,17 @@ import           TcHsSyn
 collectInfo :: (GhcMonad m)
             => Map ModuleName ModInfo -> [ModuleName] -> m (Map ModuleName ModInfo)
 collectInfo ms loaded =
-  foldM (\m name ->
-           do info <- getModInfo name
-              return (M.insert name info m))
-        ms
-        loaded
+  do df <- getSessionDynFlags
+     foldM (\m name ->
+              gcatch (do info <- getModInfo name
+                         return (M.insert name info m))
+                     (\(e :: SomeException) ->
+                        do liftIO (putStrLn ("Error while getting type info from " ++
+                                             showppr df name ++
+                                             ": " ++ show e))
+                           return m))
+           ms
+           loaded
 
 -- | Get info about the module: summary, types, etc.
 getModInfo :: (GhcMonad m) => ModuleName -> m ModInfo
