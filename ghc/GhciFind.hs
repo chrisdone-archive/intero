@@ -33,29 +33,28 @@ findVar infos fp _string sl sc el ec =
   do mname <- guessModule infos fp
      case mname of
        Nothing ->
-         return ()
-       _ -> return ()
-     case mname >>=
-          flip M.lookup infos of
-       Nothing ->
-         return (Left ("No module info for the current file! Try loading it?"))
-       Just info ->
-         do d <- getSessionDynFlags
-            case resolveName (modinfoSpans info)
-                             sl
-                             sc
-                             el
-                             ec of
-              Nothing ->
-                return (Left "Couldn't resolve name.")
-              Just name ->
-                case getSrcSpan name of
-                  UnhelpfulSpan{} ->
-                    return (Left ("Found a name, but no location information. The module is: " ++
-                                  maybe "<unknown>"
-                                        (showppr d . moduleName)
-                                        (nameModule_maybe (getName name))))
-                  _ -> return (Right name)
+         return (Left "Couldn't guess that module name. Does it exist?")
+       Just name ->
+         case M.lookup name infos of
+           Nothing ->
+             return (Left ("No module info for the current file! Try loading it?"))
+           Just info ->
+             do d <- getSessionDynFlags
+                case resolveName (modinfoSpans info)
+                                 sl
+                                 sc
+                                 el
+                                 ec of
+                  Nothing ->
+                    return (Left "Couldn't resolve name.")
+                  Just name ->
+                    case getSrcSpan name of
+                      UnhelpfulSpan{} ->
+                        return (Left ("Found a name, but no location information. The module is: " ++
+                                      maybe "<unknown>"
+                                            (showppr d . moduleName)
+                                            (nameModule_maybe (getName name))))
+                      _ -> return (Right name)
 
 -- | Try to find the location of the given identifier at the given
 -- position in the module.
@@ -72,25 +71,27 @@ findLoc infos fp string sl sc el ec =
   do mname <- guessModule infos fp
      case mname of
        Nothing ->
-         return ()
-       _ -> return ()
-     case mname >>=
-          flip M.lookup infos of
-       Nothing ->
-         return (Left ("No module info for the current file! Try loading it?"))
-       Just info ->
-         do mname' <- findName infos info string sl sc el ec
-            d <- getSessionDynFlags
-            case mname' of
-              Left reason -> return (Left reason)
-              Right name ->
-                case getSrcSpan name of
-                  UnhelpfulSpan{} ->
-                    return (Left ("Found a name, but no location information. The module is: " ++
-                                  maybe "<unknown>"
-                                        (showppr d . moduleName)
-                                        (nameModule_maybe name)))
-                  span' -> return (Right span')
+         return (Left "Couldn't guess that module name. Does it exist?")
+       Just name ->
+         case M.lookup name infos of
+           Nothing ->
+             return (Left ("No module info for the current file! Try loading it?"))
+           Just info ->
+             do mname' <- findName infos info string sl sc el ec
+                d <- getSessionDynFlags
+                case mname' of
+                  Left reason ->
+                    return (Left reason)
+                  Right name ->
+                    case getSrcSpan name of
+                      UnhelpfulSpan{} ->
+                        return (Left ("Found a name, but no location information. The module is: " ++
+                                      maybe "<unknown>"
+                                            (showppr d . moduleName)
+                                            (nameModule_maybe name)))
+                      span' ->
+                        return (Right span')
+
 
 -- | Try to resolve the name located at the given position, or
 -- otherwise resolve based on the current module's scope.
@@ -213,12 +214,9 @@ guessModule infos fp =
   do target <- guessTarget fp Nothing
      case targetId target of
        TargetModule mn -> return (Just mn)
-       _ ->
+       TargetFile fp _ ->
          case find ((Just fp ==) .
-                    ml_hs_file .
-                    ms_location .
-                    modinfoSummary .
-                    snd)
+                    ml_hs_file . ms_location . modinfoSummary . snd)
                    (M.toList infos) of
            Just (mn,_) -> return (Just mn)
            Nothing ->
@@ -229,12 +227,8 @@ guessModule infos fp =
                     return (Just mn)
                   _ ->
                     case find ((Just fp' ==) .
-                               ml_hs_file .
-                               ms_location .
-                               modinfoSummary .
-                               snd)
+                               ml_hs_file . ms_location . modinfoSummary . snd)
                               (M.toList infos) of
                       Just (mn,_) ->
                         return (Just mn)
-                      Nothing ->
-                        return Nothing
+                      Nothing -> return Nothing
