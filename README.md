@@ -12,7 +12,7 @@ The features additional to normal GHCi function in the latest GHC
 
 * The `:set +c` command: collect information about modules after
   they've been loaded, and remember it between loads (including failed
-  ones).
+  ones).¹
 
 * The `:type-at` command: show the type at the given position in the
   module. Example:
@@ -30,6 +30,11 @@ The features additional to normal GHCi function in the latest GHC
         X.hs:8:7-8:9
 
   This is useful for goto-definition features of editors and IDEs.
+
+¹Currently, this will re-collect info every time, because I'm not
+(yet) doing a last-modified check on the interfaces of the
+modules. Once that's done, only the current module's type/location
+info will need to be regenerated.
 
 ## Installing
 
