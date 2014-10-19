@@ -2,7 +2,7 @@
 
 -- | Get information on modules, identifiers, etc.
 
-module GhciInfo (collectInfo,getModInfo) where
+module GhciInfo (collectInfo,getModInfo,showppr) where
 
 import           Control.Monad
 import qualified CoreUtils

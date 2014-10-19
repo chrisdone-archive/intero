@@ -1,4 +1,6 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ViewPatterns #-}
+
 {-# OPTIONS -fno-cse #-}
 -- -fno-cse is needed for GLOBAL_VAR's to behave properly
 
@@ -25,6 +27,7 @@ import qualified Paths_ghci_ng
 import           Data.Version (showVersion)
 import qualified Data.Map as M
 import           GhciInfo
+import           GhciFind
 import           GHC (getModuleGraph)
 
 -- GHCi
@@ -191,6 +194,8 @@ ghciCommands = [
   ("steplocal", keepGoing stepLocalCmd,         completeIdentifier),
   ("stepmodule",keepGoing stepModuleCmd,        completeIdentifier),
   ("type",      keepGoing' typeOfExpr,          completeExpression),
+  ("type-at",   keepGoing' typeAt,              completeExpression),
+  ("loc-at",    keepGoing' locationAt,          completeExpression),
   ("trace",     keepGoing traceCmd,             completeExpression),
   ("undef",     keepGoing undefineMacro,        completeMacro),
   ("unset",     keepGoing unsetOptions,         completeSetOptions)
@@ -1492,6 +1497,60 @@ typeOfExpr str
   $ do
        ty <- GHC.exprType str
        printForUser $ sep [text str, nest 2 (dcolon <+> pprTypeForUser ty)]
+
+-----------------------------------------------------------------------------
+-- :type-at
+
+typeAt :: String -> InputT GHCi ()
+typeAt str =
+  handleSourceError GHC.printException $
+  case parseSpan str of
+    Left err -> liftIO (putStr err)
+    Right (fp,sl,sc,el,ec,sample) ->
+      do infos <- fmap mod_infos (lift getGHCiState)
+         result <- findType infos fp sample sl sc el ec
+         case result of
+           Left err -> liftIO (putStrLn err)
+           Right ty -> liftIO (putStrLn ty)
+
+-----------------------------------------------------------------------------
+-- :loc-at
+
+locationAt :: String -> InputT GHCi ()
+locationAt str =
+  handleSourceError GHC.printException $
+  case parseSpan str of
+    Left err -> liftIO (putStr err)
+    Right (fp,sl,sc,el,ec,sample) ->
+      do infos <- fmap mod_infos (lift getGHCiState)
+         result <- findLoc infos fp sample sl sc el ec
+         case result of
+           Left err -> liftIO (putStrLn err)
+           Right sp ->
+             case sp of
+               RealSrcSpan rs ->
+                 liftIO (putStrLn (showSpan rs))
+               UnhelpfulSpan fs ->
+                 liftIO (putStrLn (unpackFS fs))
+  where showSpan span' =
+          unpackFS (srcSpanFile span')  ++ ":" ++
+          show (srcSpanStartLine span')  ++ ":" ++
+          show (srcSpanStartCol span' - 1)  ++
+          "-" ++
+          show (srcSpanEndLine span')  ++ ":" ++
+          show (srcSpanEndCol span' - 1)
+
+-----------------------------------------------------------------------------
+-- Helpers for locationAt/typeAt
+
+-- | Parse a span: <module-name/filepath> <sl> <sc> <el> <ec> <string>
+parseSpan :: String -> Either String (FilePath,Int,Int,Int,Int,String)
+parseSpan s =
+  case words s of
+    [fp,reads -> [(line,_)],reads -> [(col,_)],reads -> [(line',_)],reads -> [(col',_)],string] ->
+      Right (fp,line,col,line',col',string)
+    _ ->
+      Left "expected: <filepath> <start-line> <start-column> <end-line> <end-column> <string>"
 
 -----------------------------------------------------------------------------
 -- :kind

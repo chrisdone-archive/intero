@@ -25,6 +25,7 @@ executable ghci-ng
                     GhciTags
                     GhciTypes
                     GhciInfo
+                    GhciFind
   ghc-options:      -Wall -fno-warn-name-shadowing -threaded
   cpp-options:      -DGHCI
   default-language: Haskell2010
