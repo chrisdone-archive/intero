@@ -18,11 +18,38 @@ From Hackage:
     $ cabal update
     $ cabal install ghci-ng
 
+## Check it
+
+It should say `GHCi-ng` on the welcome message:
+
+    $ ghci-ng
+    GHCi-ng, version 7.8.2 [NG/0.0]: http://www.haskell.org/ghc/  :? for help
+
+You're now using the next generation GHCi!
+
 ## Using with cabal repl
 
 Run `cabal repl` in the following way:
 
     $ cabal repl --with-ghc=ghci-ng
+
+## Using with haskell-mode
+
+Using with haskell-mode is very easy, it's a drop-in replacement for
+the normal use of GHCi.
+
+If you use the `cabal-repl` process type, use:
+
+``` lisp
+(setq haskell-process-args-cabal-repl
+      '("--ghc-option=-ferror-spans" "--with-ghc=ghci-ng"))
+```
+
+Plain GHCi process type:
+
+``` lisp
+(setq haskell-process-path-ghci "ghci-ng")
+```
 
 ## Supported GHC versions
 
