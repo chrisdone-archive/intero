@@ -19,6 +19,9 @@ import GHC              ( -- DynFlags(..), HscTarget(..),
                           LoadHowMuch(..) )
 import CmdLineParser
 
+-- ghci-ng
+import qualified GHC.Paths
+
 -- Implementations of the various modes (--show-iface, mkdependHS. etc.)
 import LoadIface        ( showIface )
 import HscMain          ( newHscEnv )
@@ -82,7 +85,7 @@ main = do
    hSetBuffering stderr LineBuffering
    GHC.defaultErrorHandler defaultFatalMessager defaultFlushOut $ do
     -- 1. extract the -B flag from the args
-    argv0 <- getArgs
+    argv0 <- fmap (("--interactive" :) . (("-B" ++ GHC.Paths.libdir) :)) getArgs
 
     let (minusB_args, argv1) = partition ("-B" `isPrefixOf`) argv0
         mbMinusB | null minusB_args = Nothing
@@ -819,7 +822,7 @@ unknownFlagsErr fs = throwGhcException $ UsageError $ concatMap oneError fs
         "unrecognised flag: " ++ f ++ "\n" ++
         (case fuzzyMatch f (nub allFlags) of
             [] -> ""
-            suggs -> "did you mean one of:\n" ++ unlines (map ("  " ++) suggs)) 
+            suggs -> "did you mean one of:\n" ++ unlines (map ("  " ++) suggs))
 
 {- Note [-Bsymbolic and hooks]
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
