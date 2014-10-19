@@ -19,6 +19,10 @@ module InteractiveUI (
 
 #include "HsVersions.h"
 
+-- GHCi-ng
+import qualified Paths_ghci_ng
+import Data.Version (showVersion)
+
 -- GHCi
 import qualified GhciMonad ( args, runStmt )
 import GhciMonad hiding ( args, runStmt )
@@ -33,7 +37,7 @@ import GHC ( LoadHowMuch(..), Target(..),  TargetId(..), InteractiveImport(..),
              TyThing(..), Phase, BreakIndex, Resume, SingleStep, Ghc,
              handleSourceError )
 import HsImpExp
-import HscTypes ( tyThingParent_maybe, handleFlagWarnings, getSafeMode, hsc_IC, 
+import HscTypes ( tyThingParent_maybe, handleFlagWarnings, getSafeMode, hsc_IC,
                   setInteractivePrintName )
 import Module
 import Name
@@ -125,7 +129,8 @@ defaultGhciSettings =
     }
 
 ghciWelcomeMsg :: String
-ghciWelcomeMsg = "GHCi, version " ++ cProjectVersion ++
+ghciWelcomeMsg = "GHCi-ng, version " ++ cProjectVersion ++
+                 " [NG/" ++ showVersion Paths_ghci_ng.version ++ "]" ++
                  ": http://www.haskell.org/ghc/  :? for help"
 
 cmdName :: Command -> String
@@ -668,7 +673,7 @@ installInteractivePrint Nothing _  = return ()
 installInteractivePrint (Just ipFun) exprmode = do
   ok <- trySuccess $ do
                 (name:_) <- GHC.parseName ipFun
-                modifySession (\he -> let new_ic = setInteractivePrintName (hsc_IC he) name 
+                modifySession (\he -> let new_ic = setInteractivePrintName (hsc_IC he) name
                                       in he{hsc_IC = new_ic})
                 return Succeeded
 
@@ -1802,7 +1807,7 @@ restoreContextOnFailure do_this = do
 
 checkAdd :: InteractiveImport -> GHCi ()
 checkAdd ii = do
-  dflags <- getDynFlags 
+  dflags <- getDynFlags
   let safe = safeLanguageOn dflags
   case ii of
     IIModule modname
