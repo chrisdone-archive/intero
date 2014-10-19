@@ -84,8 +84,13 @@ getTypeLHsBind :: (GhcMonad m)
                => TypecheckedModule
                -> LHsBind Id
                -> m (Maybe (Maybe Id,SrcSpan,Type))
+#if MIN_VERSION_ghc(7,8,3)
+getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ _}) =
+  return (Just (Just (unLoc pid),spn,typ))
+#else
 getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ}) =
   return (Just (Just (unLoc pid),spn,typ))
+#endif
 getTypeLHsBind _ _ = return Nothing
 
 getTypeLHsExpr :: (GhcMonad m)
