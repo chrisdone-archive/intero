@@ -39,10 +39,7 @@ From source:
     $ cd ghci-ng
     $ cabal install
 
-From Hackage:
-
-    $ cabal update
-    $ cabal install ghci-ng
+This version is not available on Hackage yet.
 
 ## Check it
 
