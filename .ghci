@@ -1,0 +1,3 @@
+:set -XCPP -XFlexibleInstances -XMagicHash -XNondecreasingIndentation -XUnboxedTuples
+:set -ighc -idist/build/autogen
+:set -package ghc
