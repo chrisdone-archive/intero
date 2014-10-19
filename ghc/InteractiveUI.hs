@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# OPTIONS -fno-cse #-}
 -- -fno-cse is needed for GLOBAL_VAR's to behave properly
 
@@ -20,7 +21,6 @@ module InteractiveUI (
 #include "HsVersions.h"
 
 -- GHCi-ng
-import           Control.Concurrent.STM (newTVar,atomically)
 import qualified Paths_ghci_ng
 import           Data.Version (showVersion)
 import qualified Data.Map as M
@@ -408,7 +408,6 @@ interactiveUI config srcs maybe_exprs = do
 #endif
 
    default_editor <- liftIO $ findEditor
-   infosVar <- liftIO (atomically (newTVar M.empty))
 
    startGHCi (runGHCi srcs maybe_exprs)
         GHCiState{ progname       = default_progname,
@@ -430,7 +429,7 @@ interactiveUI config srcs maybe_exprs = do
                    ghc_e          = isJust maybe_exprs,
                    short_help     = shortHelpText config,
                    long_help      = fullHelpText config,
-                   mod_infos      = infosVar
+                   mod_infos      = M.empty
                  }
 
    return ()
@@ -1340,7 +1339,8 @@ loadModule' files = do
       loaded <- getModuleGraph >>= filterM GHC.isLoaded . map GHC.ms_mod_name
       v <- lift (fmap mod_infos getGHCiState)
       liftIO (putStrLn ("Collecting type info for " ++ show (length loaded) ++ " module(s) ... "))
-      collectInfo v loaded
+      !newInfos <- collectInfo v loaded
+      lift (modifyGHCiState (\s -> s { mod_infos = newInfos }))
     _ -> return ()
   return flag
 

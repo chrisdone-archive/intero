@@ -28,8 +28,7 @@ module GhciMonad (
 
 -- ghci-ng
 import GhciTypes
-import Data.Map (Map)
-import Control.Concurrent.STM.TVar
+import Data.Map.Strict (Map)
 
 import qualified GHC
 import GhcMonad         hiding (liftIO)
@@ -110,7 +109,7 @@ data GHCiState = GHCiState
         -- help text to display to a user
         short_help :: String,
         long_help  :: String,
-        mod_infos :: TVar (Map ModuleName ModInfo)
+        mod_infos :: !(Map ModuleName ModInfo)
      }
 
 type TickArray = Array Int [(BreakIndex,SrcSpan)]

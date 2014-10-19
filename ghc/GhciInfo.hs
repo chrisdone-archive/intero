@@ -4,14 +4,13 @@
 
 module GhciInfo (collectInfo,getModInfo) where
 
-import           Control.Concurrent.STM
 import           Control.Monad
 import qualified CoreUtils
 import qualified Data.ByteString.Char8 as S8
 import           Data.Generics (GenericQ, mkQ, extQ, gmapQ)
 import           Data.List
-import           Data.Map (Map)
-import qualified Data.Map as M
+import           Data.Map.Strict (Map)
+import qualified Data.Map.Strict as M
 import           Data.Maybe
 import           Data.Monoid
 import           Data.Typeable
@@ -25,14 +24,13 @@ import           TcHsSyn
 
 -- | Collect type info data for the loaded modules.
 collectInfo :: (GhcMonad m)
-            => TVar (Map ModuleName ModInfo) -> [ModuleName] -> m ()
-collectInfo var loaded =
-  forM_ loaded
-        (\name ->
+            => Map ModuleName ModInfo -> [ModuleName] -> m (Map ModuleName ModInfo)
+collectInfo ms loaded =
+  foldM (\m name ->
            do info <- getModInfo name
-              liftIO (atomically
-                        (modifyTVar var
-                                    (M.insert name info))))
+              return (M.insert name info m))
+        ms
+        loaded
 
 -- | Get info about the module: summary, types, etc.
 getModInfo :: (GhcMonad m) => ModuleName -> m ModInfo

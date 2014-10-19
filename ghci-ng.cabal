@@ -51,7 +51,6 @@ executable ghci-ng
       process,
       transformers,
       syb,
-      stm,
       containers
   if os(windows)
       build-depends: Win32
