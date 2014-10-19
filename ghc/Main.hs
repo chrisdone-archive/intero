@@ -85,7 +85,11 @@ main = do
    hSetBuffering stderr LineBuffering
    GHC.defaultErrorHandler defaultFatalMessager defaultFlushOut $ do
     -- 1. extract the -B flag from the args
-    argv0 <- fmap (("--interactive" :) . (("-B" ++ GHC.Paths.libdir) :)) getArgs
+    argv00 <- getArgs
+    let argv0 = ("-B" ++ GHC.Paths.libdir) :
+                if any (`elem` argv00) ["--info", "--interactive", "--make", "-c"]
+                  then argv00 -- needed for "cabal repl --with-ghc=ghci-ng"
+                  else "--interactive" : argv00
 
     let (minusB_args, argv1) = partition ("-B" `isPrefixOf`) argv0
         mbMinusB | null minusB_args = Nothing
