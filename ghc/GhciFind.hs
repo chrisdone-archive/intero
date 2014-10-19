@@ -175,25 +175,28 @@ findType :: GhcMonad m
          -> m (Either String String)
 findType infos fp string sl sc el ec =
   do mname <- guessModule infos fp
-     case mname >>=
-          flip M.lookup infos of
+     case mname of
        Nothing ->
-         return (Left ("Didn't find any module info. Is this module loaded?"))
-       Just info ->
-         do let !mty =
-                  resolveType (modinfoSpans info)
-                              sl
-                              sc
-                              el
-                              ec
-            case mty of
-              Just ty ->
-                return (Right (S8.unpack ty))
-              Nothing ->
-                do d <- getSessionDynFlags
-                   fmap (Right . showppr d)
-                        (exprType
-                        string)
+         return (Left "Couldn't guess that module name. Does it exist?")
+       Just name ->
+         case M.lookup name infos of
+           Nothing ->
+             return (Left ("Couldn't guess the module nameIs this module loaded?"))
+           Just info ->
+             do let !mty =
+                      resolveType (modinfoSpans info)
+                                  sl
+                                  sc
+                                  el
+                                  ec
+                case mty of
+                  Just ty ->
+                    return (Right (S8.unpack ty))
+                  Nothing ->
+                    do d <- getSessionDynFlags
+                       fmap (Right . showppr d)
+                            (exprType string)
+
 
 -- | Try to resolve the type display from the given span.
 resolveType :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe ByteString
