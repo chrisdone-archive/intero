@@ -26,6 +26,11 @@ module GhciMonad (
 
 #include "HsVersions.h"
 
+-- ghci-ng
+import GhciTypes
+import Data.Map (Map)
+import Control.Concurrent.STM.TVar
+
 import qualified GHC
 import GhcMonad         hiding (liftIO)
 import Outputable       hiding (printForUser, printForUserPartWay)
@@ -104,7 +109,8 @@ data GHCiState = GHCiState
 
         -- help text to display to a user
         short_help :: String,
-        long_help  :: String
+        long_help  :: String,
+        mod_infos :: TVar (Map ModuleName ModInfo)
      }
 
 type TickArray = Array Int [(BreakIndex,SrcSpan)]
@@ -114,6 +120,7 @@ data GHCiOption
         | ShowType              -- show the type of expressions
         | RevertCAFs            -- revert CAFs after every evaluation
         | Multiline             -- use multiline commands
+        | CollectInfo           -- collect and cache information about modules after load
         deriving Eq
 
 data BreakLocation
@@ -386,4 +393,3 @@ getHandle :: IORef (Ptr ()) -> IO Handle
 getHandle ref = do
   (Ptr addr) <- readIORef ref
   case addrToAny# addr of (# hval #) -> return (unsafeCoerce# hval)
-

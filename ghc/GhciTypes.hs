@@ -2,26 +2,8 @@
 
 module GhciTypes where
 
-import Control.Concurrent.STM
 import Data.ByteString (ByteString)
-import Data.Map (Map)
 import GHC
-
---------------------------------------------------------------------------------
--- Project state
--- $state
---
--- All state is stored in one pure value which has 'TVar' slots. It is
--- passed to all command handlers as a reader value. The value itself
--- should never change for a given instance of ghc-server.
-
--- | Project-wide state.
-data State =
-  State {stateModuleInfos :: !(TVar (Map ModuleName ModInfo))
-         -- ^ A mapping from local module names to information about that
-         -- module such as scope, types, exports, imports, etc.  Regenerated
-         -- after every module reload.
-        }
 
 -- | Info about a module. This information is generated every time a
 -- module is loaded.

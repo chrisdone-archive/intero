@@ -20,8 +20,12 @@ module InteractiveUI (
 #include "HsVersions.h"
 
 -- GHCi-ng
+import           Control.Concurrent.STM (newTVar,atomically)
 import qualified Paths_ghci_ng
-import Data.Version (showVersion)
+import           Data.Version (showVersion)
+import qualified Data.Map as M
+import           GhciInfo
+import           GHC (getModuleGraph)
 
 -- GHCi
 import qualified GhciMonad ( args, runStmt )
@@ -404,6 +408,7 @@ interactiveUI config srcs maybe_exprs = do
 #endif
 
    default_editor <- liftIO $ findEditor
+   infosVar <- liftIO (atomically (newTVar M.empty))
 
    startGHCi (runGHCi srcs maybe_exprs)
         GHCiState{ progname       = default_progname,
@@ -424,7 +429,8 @@ interactiveUI config srcs maybe_exprs = do
                    transient_ctx  = [],
                    ghc_e          = isJust maybe_exprs,
                    short_help     = shortHelpText config,
-                   long_help      = fullHelpText config
+                   long_help      = fullHelpText config,
+                   mod_infos      = infosVar
                  }
 
    return ()
@@ -1327,8 +1333,16 @@ loadModule' files = do
   _ <- GHC.load LoadAllTargets
 
   GHC.setTargets targets
-  doLoad False LoadAllTargets
-
+  flag <- doLoad False LoadAllTargets
+  doCollectInfo <- lift (isOptionSet CollectInfo)
+  case flag of
+    Succeeded | doCollectInfo -> do
+      loaded <- getModuleGraph >>= filterM GHC.isLoaded . map GHC.ms_mod_name
+      v <- lift (fmap mod_infos getGHCiState)
+      liftIO (putStrLn ("Collecting type info for " ++ show (length loaded) ++ " module(s) ... "))
+      collectInfo v loaded
+    _ -> return ()
+  return flag
 
 -- :add
 addModule :: [FilePath] -> InputT GHCi ()
@@ -2173,6 +2187,7 @@ strToGHCiOpt "m" = Just Multiline
 strToGHCiOpt "s" = Just ShowTiming
 strToGHCiOpt "t" = Just ShowType
 strToGHCiOpt "r" = Just RevertCAFs
+strToGHCiOpt "c" = Just CollectInfo
 strToGHCiOpt _   = Nothing
 
 optToStr :: GHCiOption -> String
@@ -2180,6 +2195,7 @@ optToStr Multiline  = "m"
 optToStr ShowTiming = "s"
 optToStr ShowType   = "t"
 optToStr RevertCAFs = "r"
+optToStr CollectInfo = "c"
 
 
 -- ---------------------------------------------------------------------------
