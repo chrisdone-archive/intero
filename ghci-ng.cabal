@@ -7,7 +7,7 @@ homepage:      https://chrisdone.github.io/ghci-ng
 license-file:  LICENSE
 author:        The GHC Team, Chris Done
 maintainer:    chrisdone@gmail.com
-copyright:     2005 The University of Glasgow, 2014 Chris Done
+copyright:     2005 The University of Glasgow, 2008 Claus Reinke, 2012 Kazu Yamamoto, 2014 Chris Done
 category:      Development
 build-type:    Simple
 stability:     Experimental
