@@ -4,6 +4,7 @@ module GhciTypes where
 
 import Data.ByteString (ByteString)
 import GHC
+import Outputable
 
 -- | Info about a module. This information is generated every time a
 -- module is loaded.
@@ -39,3 +40,17 @@ data SpanInfo =
             -- information about the identifier such as module,
             -- locality, definition location, etc.
            }
+
+instance Outputable SpanInfo where
+  ppr (SpanInfo sl sc el ec ty v) =
+    (int sl <>
+     text ":" <>
+     int sc <>
+     text "-") <>
+    (int el <>
+     text ":" <>
+     int ec <>
+     text ": ") <>
+    (ppr v <>
+     text " :: " <>
+     text (show ty))
