@@ -9,6 +9,7 @@ import           Control.Exception
 import           Control.Monad
 import qualified CoreUtils
 import qualified Data.ByteString.Char8 as S8
+import           Data.Data
 import           Data.Generics (GenericQ, mkQ, extQ, gmapQ)
 import           Data.List
 import           Data.Map.Strict (Map)
@@ -164,7 +165,7 @@ everythingStaged stage k z f x
   | otherwise = foldl k (f x) (gmapQ (everythingStaged stage k z f) x)
   where nameSet    = const (stage `elem` [Parser,TypeChecker]) :: NameSet -> Bool
         postTcType = const (stage<TypeChecker)                 :: PostTcType -> Bool
-        fixity     = const (stage<Renamer)                     :: Fixity -> Bool
+        fixity     = const (stage<Renamer)                     :: GHC.Fixity -> Bool
 
 -- | I prefer to separate vulgar CPP nonsense outside of respectable functions.
 doThatThing :: GhcMonad m
@@ -179,3 +180,35 @@ showppr :: Outputable a
 showppr dflags =
   showSDocForUser dflags neverQualify .
   ppr
+
+
+-- | Generically show something.
+gshow :: Data a => a -> String
+gshow x = gshows x ""
+
+-- | A shows printer which is good for printing Core.
+gshows :: Data a => a -> ShowS
+gshows = render `extQ` (shows :: String -> ShowS) where
+  render t
+    | isTuple = showChar '('
+              . drop 1
+              . commaSlots
+              . showChar ')'
+    | isNull = showString "[]"
+    | isList = showChar '['
+             . drop 1
+             . listSlots
+             . showChar ']'
+    | otherwise = showChar '('
+                . constructor
+                . slots
+                . showChar ')'
+
+    where constructor = showString . showConstr . toConstr $ t
+          slots = foldr (.) id . gmapQ ((showChar ' ' .) . gshows) $ t
+          commaSlots = foldr (.) id . gmapQ ((showChar ',' .) . gshows) $ t
+          listSlots = foldr (.) id . init . gmapQ ((showChar ',' .) . gshows) $ t
+
+          isTuple = all (==',') (filter (not . flip elem "()") (constructor ""))
+          isNull = null (filter (not . flip elem "[]") (constructor ""))
+          isList = constructor "" == "(:)"
