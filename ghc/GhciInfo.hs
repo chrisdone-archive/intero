@@ -111,11 +111,13 @@ getTypeLHsExpr _ e =
      case mbe of
        Nothing -> return Nothing
        Just expr ->
-         return (Just (case unLoc e of
+         return (Just (case unwrapVar (unLoc e) of
                          HsVar i -> Just i
                          _ -> Nothing
                       ,getLoc e
                       ,CoreUtils.exprType expr))
+  where unwrapVar (HsWrap _ var) = var
+        unwrapVar e = e
 
 getTypeLPat :: (GhcMonad m)
             => TypecheckedModule -> LPat Id -> m (Maybe (Maybe Id,SrcSpan,Type))
