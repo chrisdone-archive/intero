@@ -1,10 +1,8 @@
 {-# LANGUAGE BangPatterns #-}
--- |
 
+-- | Find type/location information.
 
 module GhciFind where
-
-
 
 import           Data.List
 import           Data.Map (Map)
