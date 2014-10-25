@@ -62,22 +62,11 @@ processAllTypeCheckedModule tcm =
      bts <- mapM (getTypeLHsBind tcm) bs
      ets <- mapM (getTypeLHsExpr tcm) es
      pts <- mapM (getTypeLPat tcm) ps
-     doThatThing $
-       sortBy cmp $
-       catMaybes $
-       concat [ets,bts,pts]
+     genSpanInfos (sortBy cmp (catMaybes (concat [ets,bts,pts])))
   where cmp (_,a,_) (_,b,_)
           | a `isSubspanOf` b = LT
           | b `isSubspanOf` a = GT
           | otherwise = EQ
-
-toTup :: DynFlags -> (Maybe Id,SrcSpan, Type) -> Maybe SpanInfo
-toTup dflags (n,spn,typ) =
-  fmap (\s ->
-          s {spaninfoVar = n
-            ,spaninfoType =
-               S8.pack (showppr dflags typ)})
-       (getSrcSpan' spn)
 
 getSrcSpan' :: SrcSpan -> Maybe SpanInfo
 getSrcSpan' (RealSrcSpan spn) =
@@ -167,12 +156,23 @@ everythingStaged stage k z f x
         postTcType = const (stage<TypeChecker)                 :: PostTcType -> Bool
         fixity     = const (stage<Renamer)                     :: GHC.Fixity -> Bool
 
--- | I prefer to separate vulgar CPP nonsense outside of respectable functions.
-doThatThing :: GhcMonad m
-            => [(Maybe Id,SrcSpan,Type)] -> m [SpanInfo]
-doThatThing x =
+-- | Generate span infos for id, span, types.
+genSpanInfos :: GhcMonad m
+             => [(Maybe Id,SrcSpan,Type)] -> m [SpanInfo]
+genSpanInfos xs =
   do dflags <- getSessionDynFlags
-     return (mapMaybe (toTup dflags) x)
+     infos <- mapM (toSpanInfo dflags) xs
+     return (catMaybes infos)
+
+-- | Pretty print the types into a 'SpanInfo'.
+toSpanInfo :: GhcMonad m
+           => DynFlags -> (Maybe Id,SrcSpan,Type) -> m (Maybe SpanInfo)
+toSpanInfo dflags (n,spn,typ) =
+  return (fmap (\s ->
+                  s {spaninfoVar = n
+                    ,spaninfoType =
+                       S8.pack (showppr dflags typ)})
+               (getSrcSpan' spn))
 
 -- | Pretty print something to string.
 showppr :: Outputable a
@@ -180,35 +180,3 @@ showppr :: Outputable a
 showppr dflags =
   showSDocForUser dflags neverQualify .
   ppr
-
-
--- | Generically show something.
-gshow :: Data a => a -> String
-gshow x = gshows x ""
-
--- | A shows printer which is good for printing Core.
-gshows :: Data a => a -> ShowS
-gshows = render `extQ` (shows :: String -> ShowS) where
-  render t
-    | isTuple = showChar '('
-              . drop 1
-              . commaSlots
-              . showChar ')'
-    | isNull = showString "[]"
-    | isList = showChar '['
-             . drop 1
-             . listSlots
-             . showChar ']'
-    | otherwise = showChar '('
-                . constructor
-                . slots
-                . showChar ')'
-
-    where constructor = showString . showConstr . toConstr $ t
-          slots = foldr (.) id . gmapQ ((showChar ' ' .) . gshows) $ t
-          commaSlots = foldr (.) id . gmapQ ((showChar ',' .) . gshows) $ t
-          listSlots = foldr (.) id . init . gmapQ ((showChar ',' .) . gshows) $ t
-
-          isTuple = all (==',') (filter (not . flip elem "()") (constructor ""))
-          isNull = null (filter (not . flip elem "[]") (constructor ""))
-          isList = constructor "" == "(:)"
