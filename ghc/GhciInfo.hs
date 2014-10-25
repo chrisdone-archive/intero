@@ -24,6 +24,7 @@ import           GhciTypes
 import           NameSet
 import           Outputable
 import           TcHsSyn
+import           Var
 
 -- | Collect type info data for the loaded modules.
 collectInfo :: (GhcMonad m)
@@ -73,11 +74,11 @@ getTypeLHsBind :: (GhcMonad m)
                -> LHsBind Id
                -> m (Maybe (Maybe Id,SrcSpan,Type))
 #if MIN_VERSION_ghc(7,8,3)
-getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ _}) =
-  return (Just (Just (unLoc pid),spn,typ))
+getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ _}) = do
+  return (Just (Just (unLoc pid),getLoc pid,varType (unLoc pid)))
 #else
-getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ}) =
-  return (Just (Just (unLoc pid),spn,typ))
+getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ}) = do
+  return (Just (Just (unLoc pid),getLoc pid,varType (unLoc pid)))
 #endif
 getTypeLHsBind _ _ = return Nothing
 
