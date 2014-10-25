@@ -4,8 +4,8 @@
 
 module GhciFind where
 
-import           Data.ByteString (ByteString)
-import qualified Data.ByteString.Char8 as S8
+
+
 import           Data.List
 import           Data.Map (Map)
 import qualified Data.Map as M
@@ -173,7 +173,7 @@ findType :: GhcMonad m
          -> Int
          -> Int
          -> Int
-         -> m (Either String String)
+         -> m (Either String Type)
 findType infos fp string sl sc el ec =
   do mname <- guessModule infos fp
      case mname of
@@ -191,16 +191,13 @@ findType infos fp string sl sc el ec =
                                   el
                                   ec
                 case mty of
-                  Just ty ->
-                    return (Right (S8.unpack ty))
+                  Just ty -> return (Right ty)
                   Nothing ->
                     do d <- getSessionDynFlags
-                       fmap (Right . showppr d)
-                            (exprType string)
-
+                       fmap Right (exprType string)
 
 -- | Try to resolve the type display from the given span.
-resolveType :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe ByteString
+resolveType :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe Type
 resolveType spans' sl sc el ec =
   fmap spaninfoType (find inside (reverse spans'))
   where inside (SpanInfo sl' sc' el' ec' _ _) =

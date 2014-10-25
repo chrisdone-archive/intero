@@ -62,21 +62,11 @@ processAllTypeCheckedModule tcm =
      bts <- mapM (getTypeLHsBind tcm) bs
      ets <- mapM (getTypeLHsExpr tcm) es
      pts <- mapM (getTypeLPat tcm) ps
-     genSpanInfos (sortBy cmp (catMaybes (concat [ets,bts,pts])))
+     return (mapMaybe toSpanInfo (sortBy cmp (catMaybes (concat [ets,bts,pts]))))
   where cmp (_,a,_) (_,b,_)
           | a `isSubspanOf` b = LT
           | b `isSubspanOf` a = GT
           | otherwise = EQ
-
-getSrcSpan' :: SrcSpan -> Maybe SpanInfo
-getSrcSpan' (RealSrcSpan spn) =
-  Just (SpanInfo (srcSpanStartLine spn)
-                 (srcSpanStartCol spn - 1)
-                 (srcSpanEndLine spn)
-                 (srcSpanEndCol spn - 1)
-                 mempty
-                 Nothing)
-getSrcSpan' _ = Nothing
 
 getTypeLHsBind :: (GhcMonad m)
                => TypecheckedModule
@@ -156,23 +146,18 @@ everythingStaged stage k z f x
         postTcType = const (stage<TypeChecker)                 :: PostTcType -> Bool
         fixity     = const (stage<Renamer)                     :: GHC.Fixity -> Bool
 
--- | Generate span infos for id, span, types.
-genSpanInfos :: GhcMonad m
-             => [(Maybe Id,SrcSpan,Type)] -> m [SpanInfo]
-genSpanInfos xs =
-  do dflags <- getSessionDynFlags
-     infos <- mapM (toSpanInfo dflags) xs
-     return (catMaybes infos)
-
 -- | Pretty print the types into a 'SpanInfo'.
-toSpanInfo :: GhcMonad m
-           => DynFlags -> (Maybe Id,SrcSpan,Type) -> m (Maybe SpanInfo)
-toSpanInfo dflags (n,spn,typ) =
-  return (fmap (\s ->
-                  s {spaninfoVar = n
-                    ,spaninfoType =
-                       S8.pack (showppr dflags typ)})
-               (getSrcSpan' spn))
+toSpanInfo :: (Maybe Id,SrcSpan,Type) -> Maybe SpanInfo
+toSpanInfo (n,spn,typ) =
+  case spn of
+    RealSrcSpan spn ->
+      Just (SpanInfo (srcSpanStartLine spn)
+                     (srcSpanStartCol spn - 1)
+                     (srcSpanEndLine spn)
+                     (srcSpanEndCol spn - 1)
+                     typ
+                     n)
+    _ -> Nothing
 
 -- | Pretty print something to string.
 showppr :: Outputable a

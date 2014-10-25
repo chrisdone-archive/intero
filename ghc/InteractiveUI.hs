@@ -1503,15 +1503,18 @@ typeOfExpr str
 
 typeAt :: String -> InputT GHCi ()
 typeAt str =
-  handleSourceError GHC.printException $
-  case parseSpan str of
-    Left err -> liftIO (putStr err)
-    Right (fp,sl,sc,el,ec,sample) ->
-      do infos <- fmap mod_infos (lift getGHCiState)
-         result <- findType infos fp sample sl sc el ec
-         case result of
-           Left err -> liftIO (putStrLn err)
-           Right ty -> liftIO (putStrLn ty)
+  handleSourceError
+    GHC.printException
+    (case parseSpan str of
+       Left err -> liftIO (putStr err)
+       Right (fp,sl,sc,el,ec,sample) ->
+         do infos <- fmap mod_infos (lift getGHCiState)
+            result <- findType infos fp sample sl sc el ec
+            case result of
+              Left err -> liftIO (putStrLn err)
+              Right ty ->
+                printForUser
+                  (sep [text sample,nest 2 (dcolon <+> pprTypeForUser ty)]))
 
 -----------------------------------------------------------------------------
 -- :loc-at

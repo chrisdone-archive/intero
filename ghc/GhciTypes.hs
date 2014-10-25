@@ -2,7 +2,6 @@
 
 module GhciTypes where
 
-import Data.ByteString (ByteString)
 import GHC
 import Outputable
 
@@ -32,7 +31,7 @@ data SpanInfo =
             -- ^ End line of the span (absolute).
            ,spaninfoEndCol :: {-# UNPACK #-} !Int
             -- ^ End column of the span (absolute).
-           ,spaninfoType :: {-# UNPACK #-} !ByteString
+           ,spaninfoType :: !Type
             -- ^ A pretty-printed representation fo the type.
            ,spaninfoVar :: !(Maybe Id)
             -- ^ The actual 'Var' associated with the span, if
@@ -53,4 +52,4 @@ instance Outputable SpanInfo where
      text ": ") <>
     (ppr v <>
      text " :: " <>
-     text (show ty))
+     text "TODO")
