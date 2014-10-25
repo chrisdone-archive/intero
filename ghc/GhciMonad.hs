@@ -19,6 +19,7 @@ module GhciMonad (
         getDynFlags,
 
         runStmt, runDecls, resume, timeIt, recordBreak, revertCAFs,
+        printForUserNeverQualify,
 
         printForUser, printForUserPartWay, prettyLocations,
         initInterpBuffering, turnOffBuffering, flushInterpBuffers,
@@ -250,6 +251,11 @@ unsetOption :: GHCiOption -> GHCi ()
 unsetOption opt
  = do st <- getGHCiState
       setGHCiState (st{ options = filter (/= opt) (options st) })
+
+printForUserNeverQualify :: GhcMonad m => SDoc -> m ()
+printForUserNeverQualify doc = do
+  dflags <- getDynFlags
+  liftIO $ Outputable.printForUser dflags stdout (neverQualifyNames,neverQualifyModules) doc
 
 printForUser :: GhcMonad m => SDoc -> m ()
 printForUser doc = do

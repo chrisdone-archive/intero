@@ -1513,7 +1513,7 @@ typeAt str =
             case result of
               Left err -> liftIO (putStrLn err)
               Right ty ->
-                printForUser
+                printForUserNeverQualify
                   (sep [text sample,nest 2 (dcolon <+> pprTypeForUser ty)]))
 
 -----------------------------------------------------------------------------
