@@ -52,4 +52,4 @@ instance Outputable SpanInfo where
      text ": ") <>
     (ppr v <>
      text " :: " <>
-     text "TODO")
+     ppr ty)
