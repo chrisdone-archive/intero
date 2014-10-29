@@ -27,6 +27,7 @@ import qualified Paths_ghci_ng
 import           Data.Version (showVersion)
 import qualified Data.Map as M
 import           GhciInfo
+import           GhciTypes
 import           GhciFind
 import           GHC (getModuleGraph)
 
@@ -195,6 +196,7 @@ ghciCommands = [
   ("stepmodule",keepGoing stepModuleCmd,        completeIdentifier),
   ("type",      keepGoing' typeOfExpr,          completeExpression),
   ("type-at",   keepGoing' typeAt,              completeExpression),
+  ("all-types", keepGoing' allTypes,            completeExpression),
   ("loc-at",    keepGoing' locationAt,          completeExpression),
   ("trace",     keepGoing traceCmd,             completeExpression),
   ("undef",     keepGoing undefineMacro,        completeMacro),
@@ -1515,6 +1517,31 @@ typeAt str =
               Right ty ->
                 printForUserNeverQualify
                   (sep [text sample,nest 2 (dcolon <+> pprTypeForUser ty)]))
+
+-----------------------------------------------------------------------------
+-- :all-types
+
+allTypes :: String -> InputT GHCi ()
+allTypes str =
+  handleSourceError
+    GHC.printException
+    (do infos <- fmap mod_infos (lift getGHCiState)
+        forM_ (M.elems infos)
+              (\mi ->
+                 forM_ (modinfoSpans mi) (printSpan mi)))
+  where printSpan mi (SpanInfo sl sc el ec ty _) =
+          do df <- GHC.getSessionDynFlags
+             case (ml_hs_file (GHC.ms_location (modinfoSummary mi)))  of
+               Just fp ->
+                 liftIO (putStrLn (concat [fp ++":"
+                                          ,show sl ++ ":" ++ show (1+sc)  ++ "-" ++
+                                           show el ++ ":" ++ show ec  ++ ": "
+                                          ,flatten (showSDocForUser
+                                                      df
+                                                      (neverQualifyNames,neverQualifyModules)
+                                                      (pprTypeForUser ty))]))
+               Nothing -> return ()
+          where flatten = unwords . words
 
 -----------------------------------------------------------------------------
 -- :loc-at
