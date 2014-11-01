@@ -16,6 +16,7 @@ import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
 import           Data.Maybe
 import           Data.Monoid
+import           Data.Time
 import           Data.Typeable
 import           Desugar
 import           GHC
@@ -23,6 +24,7 @@ import           GhcMonad
 import           GhciTypes
 import           NameSet
 import           Outputable
+import           System.Directory
 import           TcHsSyn
 import           Var
 
@@ -31,16 +33,34 @@ collectInfo :: (GhcMonad m)
             => Map ModuleName ModInfo -> [ModuleName] -> m (Map ModuleName ModInfo)
 collectInfo ms loaded =
   do df <- getSessionDynFlags
-     foldM (\m name ->
-              gcatch (do info <- getModInfo name
-                         return (M.insert name info m))
-                     (\(e :: SomeException) ->
-                        do liftIO (putStrLn ("Error while getting type info from " ++
-                                             showppr df name ++
-                                             ": " ++ show e))
-                           return m))
-           ms
-           loaded
+     invalidated <- liftIO (filterM cacheInvalid loaded)
+     if null invalidated
+        then return ms
+        else do liftIO (putStrLn ("Collecting type info for " ++
+                                  show (length invalidated) ++
+                                  " module(s) ... "))
+                foldM (\m name ->
+                         gcatch (do info <- getModInfo name
+                                    return (M.insert name info m))
+                                (\(e :: SomeException) ->
+                                   do liftIO (putStrLn ("Error while getting type info from " ++
+                                                        showppr df name ++
+                                                        ": " ++ show e))
+                                      return m))
+                      ms
+                      invalidated
+  where cacheInvalid name =
+          case M.lookup name ms of
+            Nothing -> return True
+            Just mi ->
+              do let fp =
+                       ml_obj_file (ms_location (modinfoSummary mi))
+                     last = modinfoLastUpdate mi
+                 exists <- doesFileExist fp
+                 if exists
+                    then do mod <- getModificationTime fp
+                            return (mod > last)
+                    else return True
 
 -- | Get info about the module: summary, types, etc.
 getModInfo :: (GhcMonad m) => ModuleName -> m ModInfo
@@ -50,7 +70,8 @@ getModInfo name =
      typechecked <- typecheckModule p
      allTypes <- processAllTypeCheckedModule typechecked
      let i = tm_checked_module_info typechecked
-     return (ModInfo m allTypes i)
+     now <- liftIO getCurrentTime
+     return (ModInfo m allTypes i now)
 
 -- | Get ALL source spans in the module.
 processAllTypeCheckedModule :: GhcMonad m

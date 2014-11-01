@@ -1345,7 +1345,6 @@ loadModule' files = do
     Succeeded | doCollectInfo -> do
       loaded <- getModuleGraph >>= filterM GHC.isLoaded . map GHC.ms_mod_name
       v <- lift (fmap mod_infos getGHCiState)
-      liftIO (putStrLn ("Collecting type info for " ++ show (length loaded) ++ " module(s) ... "))
       !newInfos <- collectInfo v loaded
       lift (modifyGHCiState (\s -> s { mod_infos = newInfos }))
     _ -> return ()

@@ -2,6 +2,7 @@
 
 module GhciTypes where
 
+import Data.Time
 import GHC
 import Outputable
 
@@ -18,6 +19,7 @@ data ModInfo =
           ,modinfoInfo :: !ModuleInfo
            -- ^ Again, useful from GHC for accessing information
            -- (exports, instances, scope) from a module.
+          ,modinfoLastUpdate :: !UTCTime
           }
 
 -- | Type of some span of source code. Most of these fields are

@@ -52,7 +52,8 @@ executable ghci-ng
       process,
       transformers,
       syb,
-      containers
+      containers,
+      time
   if os(windows)
       build-depends: Win32
   else
