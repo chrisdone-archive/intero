@@ -31,6 +31,17 @@ The features additional to normal GHCi function in the latest GHC
 
   This is useful for goto-definition features of editors and IDEs.
 
+* The `:all-types` command: list *all* types in the project:
+  expressions, bindings top-level and local. Sort of like `:browse` on
+  steroids.
+
+        ghc/GhciTypes.hs:(38,13)-(38,24): Maybe Id
+        ghc/GhciTypes.hs:(45,10)-(45,29): Outputable SpanInfo
+        ghc/GhciTypes.hs:(45,10)-(45,29): (Rational -> SpanInfo -> SDoc) -> Outputable SpanInfo
+
+Columns start at 1 instead of zero, because this is how GHC now
+outputs its column numbers.
+
 ## Installing
 
 From source:
