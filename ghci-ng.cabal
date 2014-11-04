@@ -1,9 +1,9 @@
 name:          ghci-ng
-version:       0.0
+version:       7.8.3
 synopsis:      Next generation GHCi
-description:   GHCi plus extra goodies.
+description:   GHCi plus extra goodies. See README for feature list: https://github.com/chrisdone/ghci-ng#features
 license:       BSD3
-homepage:      https://chrisdone.github.io/ghci-ng
+homepage:      https://github.com/chrisdone/ghci-ng
 license-file:  LICENSE
 author:        The GHC Team, Chris Done
 maintainer:    chrisdone@gmail.com
