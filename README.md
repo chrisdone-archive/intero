@@ -30,7 +30,7 @@ The features additional to normal GHCi function in the latest GHC
 
   ``` haskell
   *X> :loc-at X.hs 6 14 6 16 mu
-  X.hs:8:7-8:9
+  X.hs:(8,7)-(8,9)
   ```
 
   This is useful for goto-definition features of editors and IDEs.

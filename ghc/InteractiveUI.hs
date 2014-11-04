@@ -1573,12 +1573,12 @@ locationAt str =
                UnhelpfulSpan fs ->
                  liftIO (putStrLn (unpackFS fs))
   where showSpan span' =
-          unpackFS (srcSpanFile span')  ++ ":" ++
-          show (srcSpanStartLine span')  ++ ":" ++
+          unpackFS (srcSpanFile span')  ++ ":(" ++
+          show (srcSpanStartLine span')  ++ "," ++
           show (srcSpanStartCol span')  ++
-          "-" ++
-          show (srcSpanEndLine span')  ++ ":" ++
-          show (srcSpanEndCol span')
+          ")-(" ++
+          show (srcSpanEndLine span')  ++ "," ++
+          show (srcSpanEndCol span') ++ ")"
 
 -----------------------------------------------------------------------------
 -- Helpers for locationAt/typeAt
