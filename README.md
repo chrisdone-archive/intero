@@ -47,8 +47,7 @@ outputs its column numbers.
 From source:
 
     $ git clone git@github.com:chrisdone/ghci-ng.git
-    $ cd ghci-ng
-    $ cabal install
+    $ cabal install ghci-ng/
 
 This version is not available on Hackage yet.
 
