@@ -14,7 +14,7 @@ The features additional to normal GHCi function in the latest GHC
   they've been loaded, and remember it between loads (including failed
   ones).
 
-* The `:type-at` command: show the type at the given position in the
+* The `:type-at` command (requires `+c`): show the type at the given position in the
   module. Example:
 
         *X> :type-at X.hs 6 6 6 7 f
@@ -23,7 +23,7 @@ The features additional to normal GHCi function in the latest GHC
   This can be useful to get the type of a pattern variable or an
   arbitrary selected expression.
 
-* The `:loc-at` command: get the location of the thing at the given
+* The `:loc-at` command (requires `+c`): get the location of the thing at the given
   position in the module. Example:
 
         *X> :loc-at X.hs 6 14 6 16 mu
@@ -31,7 +31,7 @@ The features additional to normal GHCi function in the latest GHC
 
   This is useful for goto-definition features of editors and IDEs.
 
-* The `:all-types` command: list *all* types in the project:
+* The `:all-types` command (requires `+c`): list *all* types in the project:
   expressions, bindings top-level and local. Sort of like `:browse` on
   steroids.
 
