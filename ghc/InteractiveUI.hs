@@ -272,6 +272,15 @@ defFullHelpText =
   "   :run function [<arguments> ...] run the function with the given arguments\n" ++
   "   :script <filename>          run the script <filename>\n" ++
   "   :type <expr>                show the type of <expr>\n" ++
+  "   :type-at <loc>              show the type of <loc> of format: \n" ++
+  "                               <filename> <line> <col> <end-line> <end-col> <text>\n" ++
+  "                               text is used for when the span is out of date\n" ++
+  "   :undef <cmd>                undefine user-defined command :<cmd>\n" ++
+  "   :loc-at <loc>               return the location of the identifier at <loc> of format: \n" ++
+  "                               <filename> <line> <col> <end-line> <end-col> <text>\n" ++
+  "                               text is used for when the span is out of date\n" ++
+  "   :all-types                  return a list of all types in the project including\n" ++
+  "                               sub-expressions and local bindings\n" ++
   "   :undef <cmd>                undefine user-defined command :<cmd>\n" ++
   "   :!<command>                 run the shell command <command>\n" ++
   "\n" ++
@@ -318,6 +327,7 @@ defFullHelpText =
   "    +r            revert top-level expressions after each evaluation\n" ++
   "    +s            print timing/memory stats after each evaluation\n" ++
   "    +t            print type after evaluation\n" ++
+  "    +c            collect type/location info after loading modules\n" ++
   "    -<flags>      most GHC command line flags can also be set here\n" ++
   "                         (eg. -v2, -XFlexibleInstances, etc.)\n" ++
   "                    for GHCi-specific flags, see User's Guide,\n"++
@@ -1533,8 +1543,9 @@ allTypes str =
              case (ml_hs_file (GHC.ms_location (modinfoSummary mi)))  of
                Just fp ->
                  liftIO (putStrLn (concat [fp ++":"
-                                          ,show sl ++ ":" ++ show (1+sc)  ++ "-" ++
-                                           show el ++ ":" ++ show ec  ++ ": "
+                                           -- GHC exposes a 1-based column number because reasons.
+                                          ,"(" ++ show sl ++ "," ++ show (1+sc)  ++ ")-(" ++
+                                           show el ++ "," ++ show (1+ec)  ++ "): "
                                           ,flatten (showSDocForUser
                                                       df
                                                       (neverQualifyNames,neverQualifyModules)
@@ -1564,10 +1575,10 @@ locationAt str =
   where showSpan span' =
           unpackFS (srcSpanFile span')  ++ ":" ++
           show (srcSpanStartLine span')  ++ ":" ++
-          show (srcSpanStartCol span' - 1)  ++
+          show (srcSpanStartCol span')  ++
           "-" ++
           show (srcSpanEndLine span')  ++ ":" ++
-          show (srcSpanEndCol span' - 1)
+          show (srcSpanEndCol span')
 
 -----------------------------------------------------------------------------
 -- Helpers for locationAt/typeAt
@@ -1585,7 +1596,8 @@ parseSpan s =
                  (sc,s2) <- extractInt s1
                  (el,s3) <- extractInt s2
                  (ec,st) <- extractInt s3
-                 Right (fp,sl,sc,el,ec,st)
+                 -- GHC exposes a 1-based column number because reasons.
+                 Right (fp,sl,sc-1,el,ec-1,st)
         extractInt s' =
           case span (/= ' ') (dropWhile1 (== ' ') s') of
             (reads -> [(i,_)],s) ->
