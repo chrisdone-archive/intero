@@ -52,6 +52,9 @@ From source:
 
 This version is not available on Hackage yet.
 
+(Hackage flat out rejects the `-dynamic` flag which is required for
+GHCi to work properly.)
+
 ## Check it
 
 It should say `GHCi-ng` on the welcome message:
