@@ -12,7 +12,7 @@ The features additional to normal GHCi function in the latest GHC
 
 * The `:set +c` command: collect information about modules after
   they've been loaded, and remember it between loads (including failed
-  ones).
+  ones). I recommend adding this line to your `~/.ghci` file.
 
 * The `:type-at` command (requires `+c`): show the type at the given position in the
   module. Example:
