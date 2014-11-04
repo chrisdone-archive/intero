@@ -35,6 +35,7 @@ The features additional to normal GHCi function in the latest GHC
   expressions, bindings top-level and local. Sort of like `:browse` on
   steroids.
 
+        > :all-types
         ghc/GhciTypes.hs:(38,13)-(38,24): Maybe Id
         ghc/GhciTypes.hs:(45,10)-(45,29): Outputable SpanInfo
         ghc/GhciTypes.hs:(45,10)-(45,29): (Rational -> SpanInfo -> SDoc) -> Outputable SpanInfo
