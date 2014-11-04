@@ -100,6 +100,14 @@ Recommended bindings:
 Make sure to run `:set +c` in GHCi to enable collection of info, then
 load some modules and the above commands will work.
 
+## Use with Vim
+
+Patches welcome.
+
+## Use with SublimeText
+
+Patches welcome.
+
 ## Supported GHC versions
 
 This project should ideally support the current major GHC version and
