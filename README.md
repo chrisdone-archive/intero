@@ -25,6 +25,15 @@ The features additional to normal GHCi function in the latest GHC
   This can be useful to get the type of a pattern variable or an
   arbitrary selected expression.
 
+  The parameters are:
+
+        <filename> <line> <col> <end-line> <end-col> <text>
+
+  `text` is used for when the span is out of date, i.e. the file
+  changed and the code has moved, text can be used to confirm the
+  contents of the span matches, and to fallback to a general :t-like
+  lookup.
+
 * The `:loc-at` command (requires `+c`): get the location of the thing at the given
   position in the module. Example:
 
@@ -34,6 +43,8 @@ The features additional to normal GHCi function in the latest GHC
   ```
 
   This is useful for goto-definition features of editors and IDEs.
+
+  Parameters are the same as for `:type-at`.
 
 * The `:all-types` command (requires `+c`): list *all* types in the project:
   expressions, bindings top-level and local. Sort of like `:browse` on
