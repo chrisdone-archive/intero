@@ -17,8 +17,10 @@ The features additional to normal GHCi function in the latest GHC
 * The `:type-at` command (requires `+c`): show the type at the given position in the
   module. Example:
 
-        *X> :type-at X.hs 6 6 6 7 f
-        Int -> Int
+  ``` haskell
+  *X> :type-at X.hs 6 6 6 7 f
+  Int -> Int
+  ```
 
   This can be useful to get the type of a pattern variable or an
   arbitrary selected expression.
@@ -26,8 +28,10 @@ The features additional to normal GHCi function in the latest GHC
 * The `:loc-at` command (requires `+c`): get the location of the thing at the given
   position in the module. Example:
 
-        *X> :loc-at X.hs 6 14 6 16 mu
-        X.hs:8:7-8:9
+  ``` haskell
+  *X> :loc-at X.hs 6 14 6 16 mu
+  X.hs:8:7-8:9
+  ```
 
   This is useful for goto-definition features of editors and IDEs.
 
@@ -35,10 +39,12 @@ The features additional to normal GHCi function in the latest GHC
   expressions, bindings top-level and local. Sort of like `:browse` on
   steroids.
 
-        > :all-types
-        ghc/GhciTypes.hs:(38,13)-(38,24): Maybe Id
-        ghc/GhciTypes.hs:(45,10)-(45,29): Outputable SpanInfo
-        ghc/GhciTypes.hs:(45,10)-(45,29): (Rational -> SpanInfo -> SDoc) -> Outputable SpanInfo
+  ``` haskell
+  > :all-types
+  ghc/GhciTypes.hs:(38,13)-(38,24): Maybe Id
+  ghc/GhciTypes.hs:(45,10)-(45,29): Outputable SpanInfo
+  ghc/GhciTypes.hs:(45,10)-(45,29): (Rational -> SpanInfo -> SDoc) -> Outputable SpanInfo
+  ```
 
 Columns start at 1 instead of zero, because this is how GHC now
 outputs its column numbers.
