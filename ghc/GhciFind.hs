@@ -2,7 +2,9 @@
 
 -- | Find type/location information.
 
-module GhciFind where
+module GhciFind
+  (findType,findLoc)
+  where
 
 import           Data.List
 import           Data.Map (Map)
@@ -191,8 +193,7 @@ findType infos fp string sl sc el ec =
                 case mty of
                   Just ty -> return (Right ty)
                   Nothing ->
-                    do d <- getSessionDynFlags
-                       fmap Right (exprType string)
+                    fmap Right (exprType string)
 
 -- | Try to resolve the type display from the given span.
 resolveType :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe Type

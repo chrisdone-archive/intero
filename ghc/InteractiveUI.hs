@@ -1531,7 +1531,7 @@ typeAt str =
 -- :all-types
 
 allTypes :: String -> InputT GHCi ()
-allTypes str =
+allTypes _ =
   handleSourceError
     GHC.printException
     (do infos <- fmap mod_infos (lift getGHCiState)
