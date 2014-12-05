@@ -110,15 +110,24 @@ Commands that use GHCi-ng:
 * `M-x haskell-mode-show-type-at`
 * `M-x haskell-mode-goto-loc`
 
-Recommended bindings:
+**Make sure to run `:set +c` in GHCi to enable collection of info, then
+load some modules and the above commands will work.**
+
+### Go to definition
 
 ``` lisp
 (define-key interactive-haskell-mode-map (kbd "M-.") 'haskell-mode-goto-loc)
+```
+
+![http://i.imgur.com/wq4mU5L.gif](http://i.imgur.com/wq4mU5L.gif)
+
+### Type info
+
+``` lisp
 (define-key interactive-haskell-mode-map (kbd "C-c C-t") 'haskell-mode-show-type-at)
 ```
 
-Make sure to run `:set +c` in GHCi to enable collection of info, then
-load some modules and the above commands will work.
+![http://i.imgur.com/cu2YGfQ.gif](http://i.imgur.com/cu2YGfQ.gif)
 
 ## Use with Vim
 
