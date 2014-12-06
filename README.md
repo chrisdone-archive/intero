@@ -145,6 +145,16 @@ load some modules and the above commands will work.**
 
 ![http://i.imgur.com/cu2YGfQ.gif](http://i.imgur.com/cu2YGfQ.gif)
 
+### Find uses
+
+Choose a keybinding that suites you best. I am currently using `C-?`.
+
+``` lisp
+(define-key interactive-haskell-mode-map (kbd "C-?") 'haskell-mode-find-uses)
+```
+
+![http://i.imgur.com/Ue7m5pm.gif](http://i.imgur.com/Ue7m5pm.gif)
+
 ## Use with Vim
 
 Patches welcome.
