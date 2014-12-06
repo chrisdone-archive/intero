@@ -197,6 +197,7 @@ ghciCommands = [
   ("type",      keepGoing' typeOfExpr,          completeExpression),
   ("type-at",   keepGoing' typeAt,              completeExpression),
   ("all-types", keepGoing' allTypes,            completeExpression),
+  ("uses",      keepGoing' findAllUses,         completeExpression),
   ("loc-at",    keepGoing' locationAt,          completeExpression),
   ("trace",     keepGoing traceCmd,             completeExpression),
   ("undef",     keepGoing undefineMacro,        completeMacro),
@@ -1526,6 +1527,39 @@ typeAt str =
               Right ty ->
                 printForUserNeverQualify
                   (sep [text sample,nest 2 (dcolon <+> pprTypeForUser ty)]))
+
+-----------------------------------------------------------------------------
+-- :uses
+
+findAllUses :: String -> InputT GHCi ()
+findAllUses str =
+  handleSourceError GHC.printException $
+  case parseSpan str of
+    Left err -> liftIO (putStr err)
+    Right (fp,sl,sc,el,ec,sample) ->
+      do infos <- fmap mod_infos (lift getGHCiState)
+         result <- findNameUses infos fp sample sl sc el ec
+         case result of
+           Left err -> liftIO (putStrLn err)
+           Right uses ->
+             forM_ uses
+                   (\sp ->
+                      case sp of
+                        RealSrcSpan rs ->
+                          liftIO (putStrLn (showSpan rs))
+                        UnhelpfulSpan fs ->
+                          liftIO (putStrLn (unpackFS fs)))
+  where showSpan span' =
+          unpackFS (srcSpanFile span') ++
+          ":(" ++
+          show (srcSpanStartLine span') ++
+          "," ++
+          show (srcSpanStartCol span') ++
+          ")-(" ++
+          show (srcSpanEndLine span') ++
+          "," ++
+          show (srcSpanEndCol span') ++
+          ")"
 
 -----------------------------------------------------------------------------
 -- :all-types

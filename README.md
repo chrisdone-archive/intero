@@ -46,6 +46,22 @@ The features additional to normal GHCi function in the latest GHC
 
   Parameters are the same as for `:type-at`.
 
+* The `:uses` command (requires `+c`): gets all module-local uses of
+  the thing at the given position in the module. Example:
+
+  ``` haskell
+  > :uses /home/chris/Projects/ghci-ng/ghc/GhciFind.hs 53 66 53 70 name
+  /home/chris/Projects/ghci-ng/ghc/GhciFind.hs:(46,25)-(46,29)
+  /home/chris/Projects/ghci-ng/ghc/GhciFind.hs:(47,37)-(47,41)
+  /home/chris/Projects/ghci-ng/ghc/GhciFind.hs:(53,66)-(53,70)
+  /home/chris/Projects/ghci-ng/ghc/GhciFind.hs:(57,62)-(57,66)
+  ```
+
+  This is useful for highlighting and navigating all uses of an
+  identifier in editors and IDEs.
+
+  Parameters are the same as for `:type-at`.
+
 * The `:all-types` command (requires `+c`): list *all* types in the project:
   expressions, bindings top-level and local. Sort of like `:browse` on
   steroids.

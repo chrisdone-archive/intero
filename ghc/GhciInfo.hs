@@ -8,16 +8,13 @@ module GhciInfo (collectInfo,getModInfo,showppr) where
 import           Control.Exception
 import           Control.Monad
 import qualified CoreUtils
-import qualified Data.ByteString.Char8 as S8
 import           Data.Data
 import           Data.Generics (GenericQ, mkQ, extQ, gmapQ)
 import           Data.List
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
 import           Data.Maybe
-import           Data.Monoid
 import           Data.Time
-import           Data.Typeable
 import           Desugar
 import           GHC
 import           GhcMonad
