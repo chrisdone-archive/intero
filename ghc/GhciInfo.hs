@@ -81,7 +81,7 @@ processAllTypeCheckedModule tcm =
      bts <- mapM (getTypeLHsBind tcm) bs
      ets <- mapM (getTypeLHsExpr tcm) es
      pts <- mapM (getTypeLPat tcm) ps
-     return (mapMaybe toSpanInfo (sortBy cmp (catMaybes (concat [ets,bts,pts]))))
+     return (mapMaybe toSpanInfo (sortBy cmp (concat bts ++ catMaybes (concat [ets,pts]))))
   where cmp (_,a,_) (_,b,_)
           | a `isSubspanOf` b = LT
           | b `isSubspanOf` a = GT
@@ -90,15 +90,15 @@ processAllTypeCheckedModule tcm =
 getTypeLHsBind :: (GhcMonad m)
                => TypecheckedModule
                -> LHsBind Id
-               -> m (Maybe (Maybe Id,SrcSpan,Type))
+               -> m [(Maybe Id,SrcSpan,Type)]
 #if MIN_VERSION_ghc(7,8,3)
-getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ _}) = do
-  return (Just (Just (unLoc pid),getLoc pid,varType (unLoc pid)))
+getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ _}) =
+  return (return (Just (unLoc pid),getLoc pid,varType (unLoc pid)))
 #else
-getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ}) = do
-  return (Just (Just (unLoc pid),getLoc pid,varType (unLoc pid)))
+getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ}) =
+  return (return (Just (unLoc pid),getLoc pid,varType (unLoc pid)))
 #endif
-getTypeLHsBind _ _ = return Nothing
+getTypeLHsBind _ _ = return []
 
 getTypeLHsExpr :: (GhcMonad m)
                => TypecheckedModule
