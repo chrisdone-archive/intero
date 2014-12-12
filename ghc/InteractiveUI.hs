@@ -1572,18 +1572,23 @@ allTypes _ =
         forM_ (M.elems infos)
               (\mi ->
                  forM_ (modinfoSpans mi) (printSpan mi)))
-  where printSpan mi (SpanInfo sl sc el ec ty _) =
+  where printSpan mi (SpanInfo sl sc el ec mty _) =
           do df <- GHC.getSessionDynFlags
              case (ml_hs_file (GHC.ms_location (modinfoSummary mi)))  of
                Just fp ->
-                 liftIO (putStrLn (concat [fp ++":"
-                                           -- GHC exposes a 1-based column number because reasons.
-                                          ,"(" ++ show sl ++ "," ++ show (1+sc)  ++ ")-(" ++
-                                           show el ++ "," ++ show (1+ec)  ++ "): "
-                                          ,flatten (showSDocForUser
-                                                      df
-                                                      (neverQualifyNames,neverQualifyModules)
-                                                      (pprTypeForUser ty))]))
+                 case mty of
+                   Nothing -> return ()
+                   Just ty ->
+                     liftIO
+                       (putStrLn
+                          (concat [fp ++":"
+                                   -- GHC exposes a 1-based column number because reasons.
+                                  ,"(" ++ show sl ++ "," ++ show (1+sc)  ++ ")-(" ++
+                                   show el ++ "," ++ show (1+ec)  ++ "): "
+                                  ,flatten (showSDocForUser
+                                              df
+                                              (neverQualifyNames,neverQualifyModules)
+                                              (pprTypeForUser ty))]))
                Nothing -> return ()
           where flatten = unwords . words
 

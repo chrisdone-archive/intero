@@ -6,6 +6,7 @@ module GhciFind
   (findType,findLoc,findNameUses)
   where
 
+import           Control.Monad
 import           Data.List
 import           Data.Map (Map)
 import qualified Data.Map as M
@@ -55,18 +56,17 @@ findNameUses infos fp string sl sc el ec =
                         return (Right (span' :
                                        map makeSrcSpan
                                            (filter ((== Just name) .
-                                                    fmap getName .
-                                                    spaninfoVar)
+                                                    fmap getName . spaninfoVar)
                                                    (modinfoSpans info))))
   where makeSrcSpan (SpanInfo sl sc el ec _ _) =
           RealSrcSpan
             (mkRealSrcSpan
                (mkRealSrcLoc (mkFastString fp)
                              sl
-                             (1+ sc))
+                             (1 + sc))
                (mkRealSrcLoc (mkFastString fp)
                              el
-                             (1+ ec)))
+                             (1 + ec)))
 
 -- | Try to find the location of the given identifier at the given
 -- position in the module.
@@ -209,7 +209,7 @@ findType infos fp string sl sc el ec =
 -- | Try to resolve the type display from the given span.
 resolveType :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe Type
 resolveType spans' sl sc el ec =
-  fmap spaninfoType (find inside (reverse spans'))
+  join (fmap spaninfoType (find inside (reverse spans')))
   where inside (SpanInfo sl' sc' el' ec' _ _) =
           ((sl' == sl && sc' >= sc) || (sl' > sl)) &&
           ((el' == el && ec' <= ec) || (el' < el))

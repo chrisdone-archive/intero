@@ -174,7 +174,7 @@ toSpanInfo (n,spn,typ) =
                      (srcSpanStartCol spn - 1)
                      (srcSpanEndLine spn)
                      (srcSpanEndCol spn - 1)
-                     typ
+                     (Just typ)
                      n)
     _ -> Nothing
 

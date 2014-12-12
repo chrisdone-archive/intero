@@ -33,7 +33,7 @@ data SpanInfo =
             -- ^ End line of the span (absolute).
            ,spaninfoEndCol :: {-# UNPACK #-} !Int
             -- ^ End column of the span (absolute).
-           ,spaninfoType :: !Type
+           ,spaninfoType :: !(Maybe Type)
             -- ^ A pretty-printed representation fo the type.
            ,spaninfoVar :: !(Maybe Id)
             -- ^ The actual 'Var' associated with the span, if
