@@ -118,10 +118,13 @@ getTypeLHsExpr _ e =
   where unwrapVar (HsWrap _ var) = var
         unwrapVar e = e
 
+-- | Get id and type for patterns.
 getTypeLPat :: (GhcMonad m)
             => TypecheckedModule -> LPat Id -> m (Maybe (Maybe Id,SrcSpan,Type))
 getTypeLPat _ (L spn pat) =
-  return (Just (Nothing,spn,hsPatType pat))
+  return (Just (getMaybeId pat,spn,hsPatType pat))
+  where getMaybeId (VarPat id) = Just id
+        getMaybeId _ = Nothing
 
 -- | Get ALL source spans in the source.
 listifyAllSpans :: Typeable a
