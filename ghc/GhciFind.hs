@@ -11,6 +11,7 @@ import           Data.List
 import           Data.Map (Map)
 import qualified Data.Map as M
 import           Data.Maybe
+
 import           FastString
 import           GHC
 import           GhcMonad
@@ -53,11 +54,13 @@ findNameUses infos fp string sl sc el ec =
                                                (showppr d . moduleName)
                                                (nameModule_maybe name)))
                       span' ->
-                        return (Right (span' :
-                                       map makeSrcSpan
-                                           (filter ((== Just name) .
-                                                    fmap getName . spaninfoVar)
-                                                   (modinfoSpans info))))
+                        return (Right (stripSurrounding
+                                         (span' :
+                                          map makeSrcSpan
+                                              (filter ((== Just name) .
+                                                       fmap getName .
+                                                       spaninfoVar)
+                                                      (modinfoSpans info)))))
   where makeSrcSpan (SpanInfo sl sc el ec _ _) =
           RealSrcSpan
             (mkRealSrcSpan
@@ -67,6 +70,24 @@ findNameUses infos fp string sl sc el ec =
                (mkRealSrcLoc (mkFastString fp)
                              el
                              (1 + ec)))
+
+-- | Strip out spans which surrounding other spans in a parent->child
+-- fashion. Those are useless.
+stripSurrounding :: [SrcSpan] -> [SrcSpan]
+stripSurrounding xs =
+  mapMaybe (\x -> if any (\y -> overlaps x y && x /= y) xs
+                     then Nothing
+                     else Just x)
+           xs
+
+-- | Does x overlap y in x `overlaps` y?
+overlaps :: SrcSpan -> SrcSpan -> Bool
+overlaps y x =
+  case (x,y) of
+    (RealSrcSpan x,RealSrcSpan y) ->
+      realSrcSpanStart y <= realSrcSpanStart x &&
+      realSrcSpanEnd y >= realSrcSpanEnd x
+    _ -> False
 
 -- | Try to find the location of the given identifier at the given
 -- position in the module.
