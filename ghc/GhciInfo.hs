@@ -5,6 +5,7 @@
 
 module GhciInfo (collectInfo,getModInfo,showppr) where
 
+import           Bag
 import           Control.Exception
 import           Control.Monad
 import qualified CoreUtils
@@ -98,7 +99,15 @@ getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ _}) =
 getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ}) =
   return (return (Just (unLoc pid),getLoc pid,varType (unLoc pid)))
 #endif
-getTypeLHsBind _ _ = return []
+getTypeLHsBind m (L spn AbsBinds{abs_binds = binds}) =
+  fmap concat
+       (mapM (getTypeLHsBind m)
+             (map snd (bagToList binds)))
+getTypeLHsBind _ x = return []
+-- getTypeLHsBind _ x =
+--   do df <- getSessionDynFlags
+--      error ("getTypeLHsBind: unhandled case: " ++
+--             showppr df x)
 
 getTypeLHsExpr :: (GhcMonad m)
                => TypecheckedModule
