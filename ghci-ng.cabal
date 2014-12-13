@@ -1,5 +1,5 @@
 name:          ghci-ng
-version:       7.8.3
+version:       0.0.0
 synopsis:      Next generation GHCi
 description:   GHCi plus extra goodies. See README for feature list: https://github.com/chrisdone/ghci-ng#features
 license:       BSD3
