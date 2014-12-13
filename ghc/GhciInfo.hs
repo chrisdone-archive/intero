@@ -99,10 +99,13 @@ getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ _}) =
 getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ}) =
   return (return (Just (unLoc pid),getLoc pid,varType (unLoc pid)))
 #endif
+#if MIN_VERSION_ghc(7,8,3)
+#else
 getTypeLHsBind m (L spn AbsBinds{abs_binds = binds}) =
   fmap concat
        (mapM (getTypeLHsBind m)
              (map snd (bagToList binds)))
+#endif
 getTypeLHsBind _ x = return []
 -- getTypeLHsBind _ x =
 --   do df <- getSessionDynFlags
