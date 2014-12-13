@@ -45,31 +45,31 @@ findNameUses infos fp string sl sc el ec =
              do mname' <- findName infos info string sl sc el ec
                 case mname' of
                   Left e -> return (Left e)
-                  Right name ->
-                    case getSrcSpan name of
+                  Right name' ->
+                    case getSrcSpan name' of
                       UnhelpfulSpan{} ->
                         do d <- getSessionDynFlags
                            return (Left ("Found a name, but no location information. The module is: " ++
                                          maybe "<unknown>"
                                                (showppr d . moduleName)
-                                               (nameModule_maybe name)))
+                                               (nameModule_maybe name')))
                       span' ->
                         return (Right (stripSurrounding
                                          (span' :
                                           map makeSrcSpan
-                                              (filter ((== Just name) .
+                                              (filter ((== Just name') .
                                                        fmap getName .
                                                        spaninfoVar)
                                                       (modinfoSpans info)))))
-  where makeSrcSpan (SpanInfo sl sc el ec _ _) =
+  where makeSrcSpan (SpanInfo sl' sc' el' ec' _ _) =
           RealSrcSpan
             (mkRealSrcSpan
                (mkRealSrcLoc (mkFastString fp)
-                             sl
-                             (1 + sc))
+                             sl'
+                             (1 + sc'))
                (mkRealSrcLoc (mkFastString fp)
-                             el
-                             (1 + ec)))
+                             el'
+                             (1 + ec')))
 
 -- | Strip out spans which surrounding other spans in a parent->child
 -- fashion. Those are useless.
@@ -84,9 +84,9 @@ stripSurrounding xs =
 overlaps :: SrcSpan -> SrcSpan -> Bool
 overlaps y x =
   case (x,y) of
-    (RealSrcSpan x,RealSrcSpan y) ->
-      realSrcSpanStart y <= realSrcSpanStart x &&
-      realSrcSpanEnd y >= realSrcSpanEnd x
+    (RealSrcSpan x',RealSrcSpan y') ->
+      realSrcSpanStart y' <= realSrcSpanStart x' &&
+      realSrcSpanEnd y' >= realSrcSpanEnd x'
     _ -> False
 
 -- | Try to find the location of the given identifier at the given
@@ -115,13 +115,13 @@ findLoc infos fp string sl sc el ec =
                 case mname' of
                   Left reason ->
                     return (Left reason)
-                  Right name ->
-                    case getSrcSpan name of
+                  Right name' ->
+                    case getSrcSpan name' of
                       UnhelpfulSpan{} ->
                         return (Left ("Found a name, but no location information. The module is: " ++
                                       maybe "<unknown>"
                                             (showppr d . moduleName)
-                                            (nameModule_maybe name)))
+                                            (nameModule_maybe name')))
                       span' ->
                         return (Right span')
 
@@ -242,19 +242,19 @@ guessModule infos fp =
   do target <- guessTarget fp Nothing
      case targetId target of
        TargetModule mn -> return (Just mn)
-       TargetFile fp _ ->
-         case find ((Just fp ==) .
+       TargetFile fp' _ ->
+         case find ((Just fp' ==) .
                     ml_hs_file . ms_location . modinfoSummary . snd)
                    (M.toList infos) of
            Just (mn,_) -> return (Just mn)
            Nothing ->
-             do fp' <- liftIO (makeRelativeToCurrentDirectory fp)
-                target' <- guessTarget fp' Nothing
+             do fp'' <- liftIO (makeRelativeToCurrentDirectory fp')
+                target' <- guessTarget fp'' Nothing
                 case targetId target' of
                   TargetModule mn ->
                     return (Just mn)
                   _ ->
-                    case find ((Just fp' ==) .
+                    case find ((Just fp'' ==) .
                                ml_hs_file . ms_location . modinfoSummary . snd)
                               (M.toList infos) of
                       Just (mn,_) ->

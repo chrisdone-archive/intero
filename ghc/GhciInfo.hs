@@ -5,12 +5,11 @@
 
 module GhciInfo (collectInfo,getModInfo,showppr) where
 
-import           Bag
 import           Control.Exception
 import           Control.Monad
 import qualified CoreUtils
 import           Data.Data
-import           Data.Generics (GenericQ, mkQ, extQ, gmapQ)
+import           Data.Generics (GenericQ, mkQ, extQ)
 import           Data.List
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
@@ -22,9 +21,15 @@ import           GhcMonad
 import           GhciTypes
 import           NameSet
 import           Outputable
+import           Prelude hiding (mod)
 import           System.Directory
 import           TcHsSyn
 import           Var
+
+#if MIN_VERSION_ghc(7,8,3)
+#else
+import           Bag
+#endif
 
 -- | Collect type info data for the loaded modules.
 collectInfo :: (GhcMonad m)
@@ -53,11 +58,11 @@ collectInfo ms loaded =
             Just mi ->
               do let fp =
                        ml_obj_file (ms_location (modinfoSummary mi))
-                     last = modinfoLastUpdate mi
+                     last' = modinfoLastUpdate mi
                  exists <- doesFileExist fp
                  if exists
                     then do mod <- getModificationTime fp
-                            return (mod > last)
+                            return (mod > last')
                     else return True
 
 -- | Get info about the module: summary, types, etc.
@@ -93,20 +98,20 @@ getTypeLHsBind :: (GhcMonad m)
                -> LHsBind Id
                -> m [(Maybe Id,SrcSpan,Type)]
 #if MIN_VERSION_ghc(7,8,3)
-getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ _}) =
+getTypeLHsBind _ (L _spn FunBind{fun_id = pid,fun_matches = MG _ _ _typ _}) =
   return (return (Just (unLoc pid),getLoc pid,varType (unLoc pid)))
 #else
-getTypeLHsBind _ (L spn FunBind{fun_id = pid,fun_matches = MG _ _ typ}) =
+getTypeLHsBind _ (L _spn FunBind{fun_id = pid,fun_matches = MG _ _ _typ}) =
   return (return (Just (unLoc pid),getLoc pid,varType (unLoc pid)))
 #endif
 #if MIN_VERSION_ghc(7,8,3)
 #else
-getTypeLHsBind m (L spn AbsBinds{abs_binds = binds}) =
+getTypeLHsBind m (L _spn AbsBinds{abs_binds = binds}) =
   fmap concat
        (mapM (getTypeLHsBind m)
              (map snd (bagToList binds)))
 #endif
-getTypeLHsBind _ x = return []
+getTypeLHsBind _ _ = return []
 -- getTypeLHsBind _ x =
 --   do df <- getSessionDynFlags
 --      error ("getTypeLHsBind: unhandled case: " ++
@@ -128,14 +133,14 @@ getTypeLHsExpr _ e =
                       ,getLoc e
                       ,CoreUtils.exprType expr))
   where unwrapVar (HsWrap _ var) = var
-        unwrapVar e = e
+        unwrapVar e' = e'
 
 -- | Get id and type for patterns.
 getTypeLPat :: (GhcMonad m)
             => TypecheckedModule -> LPat Id -> m (Maybe (Maybe Id,SrcSpan,Type))
 getTypeLPat _ (L spn pat) =
   return (Just (getMaybeId pat,spn,hsPatType pat))
-  where getMaybeId (VarPat id) = Just id
+  where getMaybeId (VarPat vid) = Just vid
         getMaybeId _ = Nothing
 
 -- | Get ALL source spans in the source.
@@ -182,8 +187,8 @@ everythingStaged stage k z f x
 
 -- | Pretty print the types into a 'SpanInfo'.
 toSpanInfo :: (Maybe Id,SrcSpan,Type) -> Maybe SpanInfo
-toSpanInfo (n,spn,typ) =
-  case spn of
+toSpanInfo (n,mspan,typ) =
+  case mspan of
     RealSrcSpan spn ->
       Just (SpanInfo (srcSpanStartLine spn)
                      (srcSpanStartCol spn - 1)

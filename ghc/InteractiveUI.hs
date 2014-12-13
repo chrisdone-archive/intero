@@ -1639,8 +1639,8 @@ parseSpan s =
                  Right (fp,sl,sc-1,el,ec-1,st)
         extractInt s' =
           case span (/= ' ') (dropWhile1 (== ' ') s') of
-            (reads -> [(i,_)],s) ->
-              Right (i,dropWhile1 (== ' ') s)
+            (reads -> [(i,_)],s'') ->
+              Right (i,dropWhile1 (== ' ') s'')
             _ ->
               Left ("Expected integer in " ++ s')
           where dropWhile1 _ [] = []
@@ -2485,10 +2485,10 @@ showPaths :: GHCi ()
 showPaths = do
   dflags <- getDynFlags
   liftIO $ do
-    cwd <- getCurrentDirectory
+    cwd' <- getCurrentDirectory
     putStrLn $ showSDoc dflags $
       text "current working directory: " $$
-        nest 2 (text cwd)
+        nest 2 (text cwd')
     let ipaths = importPaths dflags
     putStrLn $ showSDoc dflags $
       text ("module import search paths:"++if null ipaths then " none" else "") $$
