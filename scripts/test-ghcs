@@ -1,0 +1,25 @@
+v="7.8.2"
+echo "Testing against GHC $v ..."
+oldpath=$PATH
+PATH=/opt/ghc/$v/bin:$PATH
+echo "Setting PATH ..."
+/opt/cabal/1.18/bin/cabal clean > /dev/null
+echo "Cabal installing with -O0 ..."
+ghc --version
+/opt/cabal/1.18/bin/cabal install --dependencies-only --force-reinstalls --ghc-options="-O0" -j4 > /dev/null
+/opt/cabal/1.18/bin/cabal install --ghc-options="-O0 -Werror -Wall"
+PATH=$oldpath
+
+v="7.8.3"
+echo "Testing against GHC $v ..."
+oldpath=$PATH
+PATH=/opt/ghc/$v/bin:$PATH
+echo "Setting PATH ..."
+/opt/cabal/1.18/bin/cabal clean > /dev/null
+echo "Cabal installing with -O0 ..."
+ghc --version
+/opt/cabal/1.18/bin/cabal install --dependencies-only --force-reinstalls --ghc-options="-O0" -j4 > /dev/null
+/opt/cabal/1.18/bin/cabal install --ghc-options="-O0 -Werror -Wall"
+PATH=$oldpath
+
+echo "Tested all GHCs."
