@@ -168,4 +168,5 @@ Patches welcome.
 This project should ideally support the current major GHC version and
 the past major GHC version:
 
-* [GHC 7.8](https://github.com/ghc/ghc/releases/tag/ghc-7.8.2-release)
+* [GHC 7.8.2](https://github.com/ghc/ghc/releases/tag/ghc-7.8.2-release)
+* [GHC 7.8.3](https://github.com/ghc/ghc/releases/tag/ghc-7.8.3-release)
