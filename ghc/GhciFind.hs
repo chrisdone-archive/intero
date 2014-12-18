@@ -172,10 +172,8 @@ resolveNameFromModule infos name =
        Just modL ->
          do case M.lookup (moduleName modL) infos of
               Nothing ->
-                do (return (Left ("No locally loaded module for " ++
-                                  showppr d modL ++
-                                  ". It's in this package: " ++
-                                  showppr d (modulePackageId modL))))
+                do (return (Left (showppr d (modulePackageId modL) ++ ":" ++
+                                  showppr d modL)))
               Just info ->
                 case find (matchName name)
                           (modInfoExports (modinfoInfo info)) of
