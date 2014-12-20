@@ -1524,9 +1524,9 @@ typeAt str =
             result <- findType infos fp sample sl sc el ec
             case result of
               Left err -> liftIO (putStrLn err)
-              Right ty ->
-                printForUserNeverQualify
-                  (sep [text sample,nest 2 (dcolon <+> pprTypeForUser ty)]))
+              Right (info, ty) ->
+                printForUserModInfo (modinfoInfo info)
+                  (sep [text sample,nest 2 (dcolon <+> ppr ty)]))
 
 -----------------------------------------------------------------------------
 -- :uses

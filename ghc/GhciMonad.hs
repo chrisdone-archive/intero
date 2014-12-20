@@ -19,7 +19,7 @@ module GhciMonad (
         getDynFlags,
 
         runStmt, runDecls, resume, timeIt, recordBreak, revertCAFs,
-        printForUserNeverQualify,
+        printForUserNeverQualify, printForUserModInfo,
 
         printForUser, printForUserPartWay, prettyLocations,
         initInterpBuffering, turnOffBuffering, flushInterpBuffers,
@@ -255,7 +255,14 @@ unsetOption opt
 printForUserNeverQualify :: GhcMonad m => SDoc -> m ()
 printForUserNeverQualify doc = do
   dflags <- getDynFlags
-  liftIO $ Outputable.printForUser dflags stdout (neverQualifyNames,neverQualifyModules) doc
+  liftIO $ Outputable.printForUser dflags stdout neverQualify doc
+
+printForUserModInfo :: GhcMonad m => GHC.ModuleInfo -> SDoc -> m ()
+printForUserModInfo info doc = do
+  dflags <- getDynFlags
+  mUnqual <- GHC.mkPrintUnqualifiedForModule info
+  unqual <- maybe GHC.getPrintUnqual return mUnqual
+  liftIO $ Outputable.printForUser dflags stdout unqual doc
 
 printForUser :: GhcMonad m => SDoc -> m ()
 printForUser doc = do
