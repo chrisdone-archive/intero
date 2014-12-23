@@ -8,7 +8,7 @@ package.
 ## Features
 
 The features additional to normal GHCi function in the latest GHC
-(7.8.3) release are:
+(7.8.4) release are:
 
 * The `:set +c` command: collect information about modules after
   they've been loaded, and remember it between loads (including failed
@@ -168,5 +168,6 @@ Patches welcome.
 This project should ideally support the current major GHC version and
 the past major GHC version:
 
-* [GHC 7.8.2](https://github.com/ghc/ghc/releases/tag/ghc-7.8.2-release)
+* [GHC 7.8.4](https://github.com/ghc/ghc/releases/tag/ghc-7.8.4-release)
 * [GHC 7.8.3](https://github.com/ghc/ghc/releases/tag/ghc-7.8.3-release)
+* [GHC 7.8.2](https://github.com/ghc/ghc/releases/tag/ghc-7.8.2-release)
