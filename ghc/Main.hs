@@ -523,7 +523,12 @@ parseModeFlags args = do
              Nothing     -> doMakeMode
              Just (m, _) -> m
       errs = errs1 ++ map (mkGeneralLocated "on the commandline") errs2
-  when (not (null errs)) $ throwGhcException $ errorsToGhcException errs
+  when (not (null errs)) $ throwGhcException
+#if __GLASGOW_HASKELL__ < 709
+                             $ errorsToGhcException errs
+#else
+                             $ errorsToGhcException $ map (\(L sp e) -> (show sp, e)) errs
+#endif
   return (mode, flags' ++ leftover, warns)
 
 type ModeM = CmdLineP (Maybe (Mode, String), [String], [Located String])
@@ -531,59 +536,68 @@ type ModeM = CmdLineP (Maybe (Mode, String), [String], [Located String])
   -- so we collect the new ones and return them.
 
 mode_flags :: [Flag ModeM]
-mode_flags =
-  [  ------- help / version ----------------------------------------------
-    Flag "?"                     (PassFlag (setMode showGhcUsageMode))
-  , Flag "-help"                 (PassFlag (setMode showGhcUsageMode))
-  , Flag "V"                     (PassFlag (setMode showVersionMode))
-  , Flag "-version"              (PassFlag (setMode showVersionMode))
-  , Flag "-numeric-version"      (PassFlag (setMode showNumVersionMode))
-  , Flag "-info"                 (PassFlag (setMode showInfoMode))
-  , Flag "-show-options"         (PassFlag (setMode showOptionsMode))
-  , Flag "-supported-languages"  (PassFlag (setMode showSupportedExtensionsMode))
-  , Flag "-supported-extensions" (PassFlag (setMode showSupportedExtensionsMode))
-  ] ++
-  [ Flag k'                      (PassFlag (setMode (printSetting k)))
-  | k <- ["Project version",
-          "Booter version",
-          "Stage",
-          "Build platform",
-          "Host platform",
-          "Target platform",
-          "Have interpreter",
-          "Object splitting supported",
-          "Have native code generator",
-          "Support SMP",
-          "Unregisterised",
-          "Tables next to code",
-          "RTS ways",
-          "Leading underscore",
-          "Debug on",
-          "LibDir",
-          "Global Package DB",
-          "C compiler flags",
-          "Gcc Linker flags",
-          "Ld Linker flags"],
-    let k' = "-print-" ++ map (replaceSpace . toLower) k
-        replaceSpace ' ' = '-'
-        replaceSpace c   = c
-  ] ++
-      ------- interfaces ----------------------------------------------------
-  [ Flag "-show-iface"  (HasArg (\f -> setMode (showInterfaceMode f)
-                                               "--show-iface"))
+#if __GLASGOW_HASKELL__ < 709
+mode_flags = flags
+#else
+mode_flags = zipWith ($) flags ghcModes
+#endif
+  where flags = concat [help, othr, prim]
+        ------- help / version -------------------------------------------------
+        help = [
+                 Flag "?"                     (PassFlag (setMode showGhcUsageMode))
+               , Flag "-help"                 (PassFlag (setMode showGhcUsageMode))
+               , Flag "V"                     (PassFlag (setMode showVersionMode))
+               , Flag "-version"              (PassFlag (setMode showVersionMode))
+               , Flag "-numeric-version"      (PassFlag (setMode showNumVersionMode))
+               , Flag "-info"                 (PassFlag (setMode showInfoMode))
+               , Flag "-show-options"         (PassFlag (setMode showOptionsMode))
+               , Flag "-supported-languages"  (PassFlag (setMode showSupportedExtensionsMode))
+               , Flag "-supported-extensions" (PassFlag (setMode showSupportedExtensionsMode))
+               ]
+        othr = [ Flag k'                      (PassFlag (setMode (printSetting k)))
+               | k <- ["Project version",
+                       "Booter version",
+                       "Stage",
+                       "Build platform",
+                       "Host platform",
+                       "Target platform",
+                       "Have interpreter",
+                       "Object splitting supported",
+                       "Have native code generator",
+                       "Support SMP",
+                       "Unregisterised",
+                       "Tables next to code",
+                       "RTS ways",
+                       "Leading underscore",
+                       "Debug on",
+                       "LibDir",
+                       "Global Package DB",
+                       "C compiler flags",
+                       "Gcc Linker flags",
+                       "Ld Linker flags"],
+                 let k' = "-print-" ++ map (replaceSpace . toLower) k
+                     replaceSpace ' ' = '-'
+                     replaceSpace c   = c
+               ]
+        ------- interfaces -----------------------------------------------------
+        prim = [ Flag "-show-iface"  (HasArg (\f -> setMode (showInterfaceMode f)
+                                                            "--show-iface"))
 
-      ------- primary modes ------------------------------------------------
-  , Flag "c"            (PassFlag (\f -> do setMode (stopBeforeMode StopLn) f
-                                            addFlag "-no-link" f))
-  , Flag "M"            (PassFlag (setMode doMkDependHSMode))
-  , Flag "E"            (PassFlag (setMode (stopBeforeMode anyHsc)))
-  , Flag "C"            (PassFlag (setMode (stopBeforeMode HCc)))
-  , Flag "S"            (PassFlag (setMode (stopBeforeMode (as False))))
-  , Flag "-make"        (PassFlag (setMode doMakeMode))
-  , Flag "-interactive" (PassFlag (setMode doInteractiveMode))
-  , Flag "-abi-hash"    (PassFlag (setMode doAbiHashMode))
-  , Flag "e"            (SepArg   (\s -> setMode (doEvalMode s) "-e"))
-  ]
+        ------- primary modes --------------------------------------------------
+               , Flag "c"            (PassFlag (\f -> do setMode (stopBeforeMode StopLn) f
+                                                         addFlag "-no-link" f))
+               , Flag "M"            (PassFlag (setMode doMkDependHSMode))
+               , Flag "E"            (PassFlag (setMode (stopBeforeMode anyHsc)))
+               , Flag "C"            (PassFlag (setMode (stopBeforeMode HCc)))
+               , Flag "S"            (PassFlag (setMode (stopBeforeMode (as False))))
+               , Flag "-make"        (PassFlag (setMode doMakeMode))
+               , Flag "-interactive" (PassFlag (setMode doInteractiveMode))
+               , Flag "-abi-hash"    (PassFlag (setMode doAbiHashMode))
+               , Flag "e"            (SepArg   (\s -> setMode (doEvalMode s) "-e"))
+               ]
+#if __GLASGOW_HASKELL__ >= 709
+        ghcModes = cycle [AllModes]
+#endif
 
 setMode :: Mode -> String -> EwM ModeM ()
 setMode newMode newFlag = liftEwM $ do
@@ -723,7 +737,11 @@ showOptions = putStr (unlines availableOptions)
                              (filterUnwantedStatic . getFlagNames $ flagsStatic) ++
                              flagsStaticNames
       getFlagNames opts         = map getFlagName opts
+#if __GLASGOW_HASKELL__ < 709
       getFlagName (Flag name _) = name
+#else
+      getFlagName (Flag name _ _) = name
+#endif
       -- this is a hack to get rid of two unwanted entries that get listed
       -- as static flags. Hopefully this hack will disappear one day together
       -- with static flags
