@@ -36,7 +36,11 @@ import InteractiveUI    ( interactiveUI, ghciWelcomeMsg, defaultGhciSettings )
 import Config
 import Constants
 import HscTypes
+#if __GLASGOW_HASKELL__ < 709
 import Packages         ( dumpPackages )
+#else
+import Packages         ( pprPackages )
+#endif
 import DriverPhases
 import BasicTypes       ( failed )
 import StaticFlags
@@ -217,6 +221,11 @@ main' postLoadMode dflags0 args flagWarnings = do
 
         ---------------- Display configuration -----------
   when (verbosity dflags6 >= 4) $
+#if __GLASGOW_HASKELL__ >= 709
+        let dumpPackages flags = putStrLn $ show $ runSDoc (pprPackages flags) ctx
+                where ctx = initSDocContext flags defaultDumpStyle
+        in
+#endif
         liftIO $ dumpPackages dflags6
 
   when (verbosity dflags6 >= 3) $ do

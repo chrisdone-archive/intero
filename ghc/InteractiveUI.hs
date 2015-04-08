@@ -49,14 +49,20 @@ import HscTypes ( tyThingParent_maybe, handleFlagWarnings, getSafeMode, hsc_IC,
                   setInteractivePrintName )
 import Module
 import Name
+#if __GLASGOW_HASKELL__ < 709
 import Packages ( trusted, getPackageDetails, exposed, exposedModules, pkgIdMap )
+#else
+import Packages ( trusted, getPackageDetails, listVisibleModuleNames )
+#endif
 import PprTyThing
 import RdrName ( getGRE_NameQualifier_maybes )
 import SrcLoc
 import qualified Lexer
 
 import StringBuffer
+#if __GLASGOW_HASKELL__ < 709
 import UniqFM ( eltsUFM )
+#endif
 import Outputable hiding ( printForUser, printForUserPartWay, bold )
 
 -- Other random utilities
@@ -91,7 +97,11 @@ import Data.Maybe
 import Exception hiding (catch)
 
 import Foreign.C
+#if __GLASGOW_HASKELL__ < 709
 import Foreign.Safe
+#else
+import Foreign
+#endif
 
 import System.Directory
 import System.Environment
@@ -115,6 +125,17 @@ import GHC.IO.Exception ( IOErrorType(InvalidArgument) )
 import GHC.IO.Handle ( hFlushAll )
 import GHC.TopHandler ( topHandler )
 
+#if __GLASGOW_HASKELL__ < 709
+packageString :: PackageId -> String
+packageString = packageIdString
+modulePackage :: Module -> PackageId
+modulePackage = modulePackageId
+#else
+packageString :: PackageKey -> String
+packageString = packageKeyString
+modulePackage :: Module -> PackageKey
+modulePackage = modulePackageKey
+#endif
 
 -----------------------------------------------------------------------------
 
@@ -864,7 +885,13 @@ checkInputForLayout stmt getStmt = do
              eof <- Lexer.nextIsEOF
              if eof
                then Lexer.activeContext
+#if __GLASGOW_HASKELL__ < 709
                else Lexer.lexer return >> goToEnd
+#else
+-- In 7.10 GHC API a bool "queueComments" was added.
+-- @see https://downloads.haskell.org/~ghc/latest/docs/html/libraries/ghc-7.10.1/src/Lexer.html#lexer
+               else Lexer.lexer True return >> goToEnd
+#endif
 
 enqueueCommands :: [String] -> GHCi ()
 enqueueCommands cmds = do
@@ -1587,7 +1614,11 @@ allTypes _ =
                                    show el ++ "," ++ show (1+ec)  ++ "): "
                                   ,flatten (showSDocForUser
                                               df
+#if __GLASGOW_HASKELL__ < 709
                                               (neverQualifyNames,neverQualifyModules)
+#else
+                                              neverQualify
+#endif
                                               (pprTypeForUser ty))]))
                Nothing -> return ()
           where flatten = unwords . words
@@ -1740,26 +1771,35 @@ isSafeModule m = do
     liftIO $ putStrLn $ "Package Trust: " ++ (if packageTrustOn dflags then "On" else "Off")
     when (not $ null good)
          (liftIO $ putStrLn $ "Trusted package dependencies (trusted): " ++
-                        (intercalate ", " $ map packageIdString good))
+                        (intercalate ", " $ map packageString good))
     case msafe && null bad of
         True -> liftIO $ putStrLn $ mname ++ " is trusted!"
         False -> do
             when (not $ null bad)
                  (liftIO $ putStrLn $ "Trusted package dependencies (untrusted): "
-                            ++ (intercalate ", " $ map packageIdString bad))
+                            ++ (intercalate ", " $ map packageString bad))
             liftIO $ putStrLn $ mname ++ " is NOT trusted!"
 
   where
     mname = GHC.moduleNameString $ GHC.moduleName m
 
     packageTrusted dflags md
-        | thisPackage dflags == modulePackageId md = True
-        | otherwise = trusted $ getPackageDetails (pkgState dflags) (modulePackageId md)
+        | thisPackage dflags == modulePackage md = True
+#if __GLASGOW_HASKELL__ < 709
+        | otherwise = trusted $ getPackageDetails (pkgState dflags) (modulePackage md)
+#else
+        | otherwise = trusted $ getPackageDetails dflags (modulePackage md)
+#endif
 
     tallyPkgs dflags deps | not (packageTrustOn dflags) = ([], [])
                           | otherwise = partition part deps
-        where state = pkgState dflags
+        where
+#if __GLASGOW_HASKELL__ < 709
               part pkg = trusted $ getPackageDetails state pkg
+              state = pkgState dflags
+#else
+              part pkg = trusted $ getPackageDetails dflags pkg
+#endif
 
 -----------------------------------------------------------------------------
 -- :browse
@@ -2081,8 +2121,16 @@ iiSubsumes (IIDecl d1) (IIDecl d2)      -- A bit crude
   =  unLoc (ideclName d1) == unLoc (ideclName d2)
      && ideclAs d1 == ideclAs d2
      && (not (ideclQualified d1) || ideclQualified d2)
-     && (ideclHiding d1 `hidingSubsumes` ideclHiding d2)
+     && (idhd1 `hidingSubsumes` idhd2)
   where
+-- I'm not so sure about this fix here...
+#if __GLASGOW_HASKELL__ < 709
+     idhd2 = ideclHiding d2
+     idhd1 = ideclHiding d1
+#else
+     idhd2 = fmap (fmap unLoc) $ ideclHiding d2
+     idhd1 = fmap (fmap unLoc) $ ideclHiding d1
+#endif
      _                `hidingSubsumes` Just (False,[]) = True
      Just (False, xs) `hidingSubsumes` Just (False,ys) = all (`elem` xs) ys
      h1               `hidingSubsumes` h2              = h1 == h2
@@ -2155,7 +2203,11 @@ showDynFlags show_all dflags = do
      text "warning settings:" $$
          nest 2 (vcat (map (setting wopt) DynFlags.fWarningFlags))
   where
+#if __GLASGOW_HASKELL__ < 709
         setting test (str, f, _)
+#else
+        setting test (FlagSpec str f _ _)
+#endif
           | quiet     = empty
           | is_on     = fstr str
           | otherwise = fnostr str
@@ -2167,7 +2219,11 @@ showDynFlags show_all dflags = do
         fstr   str = text "-f"    <> text str
         fnostr str = text "-fno-" <> text str
 
+#if __GLASGOW_HASKELL__ < 709
         (ghciFlags,others)  = partition (\(_, f, _) -> f `elem` flgs)
+#else
+        (ghciFlags,others)  = partition (\(FlagSpec _ f _ _) -> f `elem` flgs)
+#endif
                                         DynFlags.fFlags
         flgs = [ Opt_PrintExplicitForalls
                , Opt_PrintExplicitKinds
@@ -2474,10 +2530,21 @@ showPackages = do
   liftIO $ putStrLn $ showSDoc dflags $ vcat $
     text ("active package flags:"++if null pkg_flags then " none" else "")
     : map showFlag pkg_flags
-  where showFlag (ExposePackage   p) = text $ "  -package " ++ p
+  where
+#if __GLASGOW_HASKELL__ < 709
+        showFlag (ExposePackage   p) = text $ "  -package " ++ p
+#else
+-- This flag now has more info about module renaming.
+-- @see
+-- https://downloads.haskell.org/~ghc/latest/docs/html/libraries/ghc-7.10.1/DynFlags.html#v:ExposePackage
+        showFlag (ExposePackage arg mr) = text $ "  -package " ++ show arg ++ " " ++ show mr
+#endif
         showFlag (HidePackage     p) = text $ "  -hide-package " ++ p
         showFlag (IgnorePackage   p) = text $ "  -ignore-package " ++ p
+#if __GLASGOW_HASKELL__ < 709
+-- This flag just isn't in the 7.10 API
         showFlag (ExposePackageId p) = text $ "  -package-id " ++ p
+#endif
         showFlag (TrustPackage    p) = text $ "  -trust " ++ p
         showFlag (DistrustPackage p) = text $ "  -distrust " ++ p
 
@@ -2513,7 +2580,11 @@ showLanguages' show_all dflags =
           nest 2 (vcat (map (setting xopt) DynFlags.xFlags))
      ]
   where
+#if __GLASGOW_HASKELL__ < 709
    setting test (str, f, _)
+#else
+   setting test (FlagSpec str f _ _)
+#endif
           | quiet     = empty
           | is_on     = text "-X" <> text str
           | otherwise = text "-XNo" <> text str
@@ -2683,10 +2754,14 @@ wrapIdentCompleterWithModifier modifChars fun = completeWordWithPrev Nothing wor
   getModifier = find (`elem` modifChars)
 
 allExposedModules :: DynFlags -> [ModuleName]
+#if __GLASGOW_HASKELL__ < 709
 allExposedModules dflags
  = concat (map exposedModules (filter exposed (eltsUFM pkg_db)))
  where
   pkg_db = pkgIdMap (pkgState dflags)
+#else
+allExposedModules = listVisibleModuleNames
+#endif
 
 completeExpression = completeQuotedWord (Just '\\') "\"" listFiles
                         completeIdentifier
@@ -3269,7 +3344,11 @@ lookupModuleName :: GHC.GhcMonad m => ModuleName -> m Module
 lookupModuleName mName = GHC.lookupModule mName Nothing
 
 isHomeModule :: Module -> Bool
-isHomeModule m = GHC.modulePackageId m == mainPackageId
+#if __GLASGOW_HASKELL__ < 709
+isHomeModule m = modulePackage m == mainPackageId
+#else
+isHomeModule m = modulePackage m == mainPackageKey
+#endif
 
 -- TODO: won't work if home dir is encoded.
 -- (changeDirectory may not work either in that case.)
@@ -3293,7 +3372,7 @@ wantInterpretedModuleName modname = do
    modl <- lookupModuleName modname
    let str = moduleNameString modname
    dflags <- getDynFlags
-   when (GHC.modulePackageId modl /= thisPackage dflags) $
+   when (modulePackage modl /= thisPackage dflags) $
       throwGhcException (CmdLineError ("module '" ++ str ++ "' is from another package;\nthis command requires an interpreted module"))
    is_interpreted <- GHC.moduleIsInterpreted modl
    when (not is_interpreted) $

@@ -172,7 +172,11 @@ resolveNameFromModule infos name =
        Just modL ->
          do case M.lookup (moduleName modL) infos of
               Nothing ->
+#if __GLASGOW_HASKELL__ >= 709
+                do (return (Left (showppr d (modulePackageKey modL) ++ ":" ++
+#else
                 do (return (Left (showppr d (modulePackageId modL) ++ ":" ++
+#endif
                                   showppr d modL)))
               Just info ->
                 case find (matchName name)

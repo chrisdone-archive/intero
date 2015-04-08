@@ -182,7 +182,11 @@ everythingStaged stage k z f x
   | (const False `extQ` postTcType `extQ` fixity `extQ` nameSet) x = z
   | otherwise = foldl k (f x) (gmapQ (everythingStaged stage k z f) x)
   where nameSet    = const (stage `elem` [Parser,TypeChecker]) :: NameSet -> Bool
+#if __GLASGOW_HASKELL__ >= 709
+        postTcType = const (stage<TypeChecker)                 :: PostTc Id Type -> Bool
+#else
         postTcType = const (stage<TypeChecker)                 :: PostTcType -> Bool
+#endif
         fixity     = const (stage<Renamer)                     :: GHC.Fixity -> Bool
 
 -- | Pretty print the types into a 'SpanInfo'.

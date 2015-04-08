@@ -51,7 +51,9 @@ import Data.IORef
 import System.CPUTime
 import System.Environment
 import System.IO
+#if __GLASGOW_HASKELL__ < 709
 import Control.Applicative (Applicative(..))
+#endif
 import Control.Monad
 import GHC.Exts
 
