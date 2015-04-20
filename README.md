@@ -78,7 +78,14 @@ outputs its column numbers.
 
 ## Installing
 
-From source:
+### Requirements
+
+`GHCi-ng` requires development version of `tinfo` library. For example, Debian
+users can install it from Debian packages using following command:
+
+    apt-get install libtinfo-dev
+
+### Installing from source:
 
     $ git clone https://github.com/chrisdone/ghci-ng.git
     $ cabal install ghci-ng/
