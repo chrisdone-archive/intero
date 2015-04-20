@@ -83,7 +83,7 @@ outputs its column numbers.
 `GHCi-ng` requires development version of `tinfo` library. For example, Debian
 users can install it from Debian packages using following command:
 
-    apt-get install libtinfo-dev
+    $ apt-get install libtinfo-dev
 
 ### Installing from source:
 
