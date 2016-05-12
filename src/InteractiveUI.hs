@@ -163,7 +163,7 @@ defaultGhciSettings =
 ghciWelcomeMsg :: String
 ghciWelcomeMsg =
   unlines [versionString
-          ,"Type :help for a summary of the standard commands."]
+          ,"Type :intro and press enter for an introduction of the standard commands."]
 
 versionString =
   "Intero " ++
@@ -182,6 +182,7 @@ ghciCommands = [
   -- Hugs users are accustomed to :e, so make sure it doesn't overlap
   ("?",         keepGoing help,                 noCompletion),
   ("add",       keepGoingPaths addModule,       completeFilename),
+  ("intro",     keepGoing intro,                noCompletion),
   ("abandon",   keepGoing abandonCmd,           noCompletion),
   ("break",     keepGoing breakCmd,             completeIdentifier),
   ("back",      keepGoing backCmd,              noCompletion),
@@ -1124,6 +1125,28 @@ help :: String -> GHCi ()
 help _ = do
     txt <- long_help `fmap` getGHCiState
     liftIO $ putStr txt
+
+-----------------------------------------------------------------------------
+-- :intro
+
+-- | Make an introduction.
+intro :: String -> GHCi ()
+intro _ =
+  liftIO $
+  putStr (unlines ["Here is a list of some of the common commands used when developing Haskell."
+                  ,""
+                  ,":load <filename>"
+                  ,"  This loads a module or file and puts you in the context of that file."
+                  ,"  For example, :load X.hs will type-check X.hs and load the interpreted"
+                  ,"  code in to be ran from the prompt."
+                  ,""
+                  ,":browse <module name>"
+                  ,"  List the declarations and types in the module. "
+                  ,"  Example: :browse Data.List"
+                  ,""
+                  ,":help"
+                  ,"  Displays a complete list of all the commands available."
+                  ,""])
 
 -----------------------------------------------------------------------------
 -- :info
