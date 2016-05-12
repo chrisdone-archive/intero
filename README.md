@@ -1,4 +1,4 @@
-# <img src="https://github.com/chrisdone/intero/raw/master/images/intero.svg" height=20> intero
+# <img src="https://github.com/chrisdone/intero/raw/master/images/intero.svg" height=25> intero
 
 
 
