@@ -59,7 +59,8 @@ findNameUses infos fp string sl sc el ec =
                         return (Right (stripSurrounding
                                          (span' :
                                           map makeSrcSpan
-                                              (filter ((== Just name') .
+                                              (filter (fromMaybe False .
+                                                       fmap (reliableNameEquality name') .
                                                        fmap getName .
                                                        spaninfoVar)
                                                       (modinfoSpans info)))))
@@ -72,6 +73,14 @@ findNameUses infos fp string sl sc el ec =
                (mkRealSrcLoc (mkFastString fp)
                              el'
                              (1 + ec')))
+
+-- | Reliable equality for two names. This tests based on the start
+-- line and start column and module.
+--
+-- We don't use standard equality. The unique can differ. Even the end
+-- column can differ.
+reliableNameEquality :: Name -> Name -> Bool
+reliableNameEquality name1 name2 = nameSrcLoc name1 == nameSrcLoc name2
 
 -- | Strip out spans which surrounding other spans in a parent->child
 -- fashion. Those are useless.

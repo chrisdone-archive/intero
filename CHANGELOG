@@ -1,0 +1,2 @@
+0.1.2:
+	* Fixed bug in :uses, by using location equality.
