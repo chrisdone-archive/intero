@@ -126,7 +126,6 @@ data GHCiOption
         | ShowType              -- show the type of expressions
         | RevertCAFs            -- revert CAFs after every evaluation
         | Multiline             -- use multiline commands
-        | CollectInfo           -- collect and cache information about modules after load
         deriving Eq
 
 data BreakLocation

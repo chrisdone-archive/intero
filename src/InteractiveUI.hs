@@ -1411,9 +1411,8 @@ loadModule' files = do
 
   GHC.setTargets targets
   flag <- doLoad False LoadAllTargets
-  doCollectInfo <- lift (isOptionSet CollectInfo)
   case flag of
-    Succeeded | doCollectInfo -> do
+    Succeeded -> do
       loaded <- getModuleGraph >>= filterM GHC.isLoaded . map GHC.ms_mod_name
       v <- lift (fmap mod_infos getGHCiState)
       !newInfos <- collectInfo v loaded
@@ -2431,7 +2430,6 @@ strToGHCiOpt "m" = Just Multiline
 strToGHCiOpt "s" = Just ShowTiming
 strToGHCiOpt "t" = Just ShowType
 strToGHCiOpt "r" = Just RevertCAFs
-strToGHCiOpt "c" = Just CollectInfo
 strToGHCiOpt _   = Nothing
 
 optToStr :: GHCiOption -> String
@@ -2439,7 +2437,6 @@ optToStr Multiline  = "m"
 optToStr ShowTiming = "s"
 optToStr ShowType   = "t"
 optToStr RevertCAFs = "r"
-optToStr CollectInfo = "c"
 
 
 -- ---------------------------------------------------------------------------
