@@ -59,7 +59,7 @@ executable intero
     GhciInfo
     GhciFind
   build-depends:
-    base,
+    base < 5,
     array,
     bytestring,
     directory,
