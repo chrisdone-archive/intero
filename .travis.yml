@@ -1,0 +1,27 @@
+# http://docs.haskellstack.org/en/stable/travis_ci.html
+
+language: haskell
+
+branches:
+  only:
+    - master
+
+sudo: false
+
+cache:
+  directories:
+    - $HOME/.stack/
+    # - "$HOME/.stack-work/"
+
+before_install:
+  - mkdir -p ~/.local/bin
+  - export PATH=~/.local/bin:$PATH
+  - travis_retry curl -L https://www.stackage.org/stack/linux-x86_64 | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+  - chmod a+x ~/.local/bin/stack
+
+install:
+  - stack +RTS -N2 -RTS setup
+  - stack +RTS -N2 -RTS build --only-snapshot
+
+script:
+  - stack +RTS -N2 -RTS build --test
