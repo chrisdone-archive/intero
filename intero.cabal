@@ -1,0 +1,80 @@
+name:
+  intero
+version:
+  0.0.0
+synopsis:
+  Complete interactive development program for Haskell
+license:
+  BSD3
+homepage:
+  https://github.com/chrisdone/intero
+license-file:
+  LICENSE
+author:
+  Chris Done, The University of Glasgow
+maintainer:
+  chrisdone@gmail.com
+copyright:
+  2016 Chris Done,
+  2012 Kazu Yamamoto,
+  2008 Claus Reinke,
+  2005 The University of Glasgow
+category:
+  Development
+build-type:
+  Simple
+cabal-version:
+  >= 1.14
+stability:
+  Stable
+extra-source-files:
+  cbits/HsVersions.h
+  cbits/PosixSource.h
+source-repository head
+  type:
+    git
+  location:
+    git://github.com/chrisdone/intero.git
+
+executable intero
+  default-language:
+    Haskell2010
+  main-is:
+    Main.hs
+  ghc-options:
+    -Wall -O2 -threaded -dynamic
+  include-dirs:
+    cbits/
+  hs-source-dirs:
+    src/
+  c-sources:
+    cbits/hschooks.c
+  cpp-options:
+    -DGHCI
+  other-modules:
+    InteractiveUI
+    GhciMonad
+    GhciTags
+    GhciTypes
+    GhciInfo
+    GhciFind
+  build-depends:
+    base,
+    array,
+    bytestring,
+    directory,
+    filepath,
+    ghc >= 7.8,
+    ghc-paths,
+    haskeline,
+    process,
+    transformers,
+    syb,
+    containers,
+    time
+  if os(windows)
+    build-depends:
+      Win32
+  else
+    build-depends:
+      unix
