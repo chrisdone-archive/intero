@@ -165,6 +165,7 @@ ghciWelcomeMsg =
   unlines [versionString
           ,"Type :intro and press enter for an introduction of the standard commands."]
 
+versionString :: [Char]
 versionString =
   "Intero " ++
   showVersion Paths_intero.version ++
