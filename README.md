@@ -4,16 +4,19 @@ Complete interactive development program for Haskell
 
 ## Requirements
 
-`GHCi-ng` requires development version of `tinfo` library. For example, Debian
-users can install it from Debian packages using following command:
+The following dependencies are necessary:
 
-    $ apt-get install libtinfo-dev
+* The `tinfo` library.
+
+  * Ubuntu and Debian users can install it using the following command:
+
+          $ apt-get install libtinfo-dev
 
 ## Installing
 
-From hackage:
+Standard:
 
-   $ stack build intero
+    $ stack build intero
 
 From source:
 
