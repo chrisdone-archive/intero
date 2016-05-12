@@ -182,7 +182,6 @@ ghciCommands = [
   -- Hugs users are accustomed to :e, so make sure it doesn't overlap
   ("?",         keepGoing help,                 noCompletion),
   ("add",       keepGoingPaths addModule,       completeFilename),
-  ("intro",     keepGoing intro,                noCompletion),
   ("abandon",   keepGoing abandonCmd,           noCompletion),
   ("break",     keepGoing breakCmd,             completeIdentifier),
   ("back",      keepGoing backCmd,              noCompletion),
@@ -207,6 +206,7 @@ ghciCommands = [
   ("info",      keepGoing' (info False),        completeIdentifier),
   ("info!",     keepGoing' (info True),         completeIdentifier),
   ("issafe",    keepGoing' isSafeCmd,           completeModule),
+  ("intro",     keepGoing intro,                noCompletion),
   ("kind",      keepGoing' (kindOfType False),  completeIdentifier),
   ("kind!",     keepGoing' (kindOfType True),   completeIdentifier),
   ("load",      keepGoingPaths loadModule_,     completeHomeModuleOrFile),
