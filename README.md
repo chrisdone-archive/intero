@@ -1,4 +1,4 @@
-# <img src="https://github.com/chrisdone/intero/raw/master/images/intero.svg" height=25> intero
+# <img src="https://github.com/chrisdone/intero/raw/master/images/intero.svg" height=25> intero [![Build Status](https://travis-ci.org/chrisdone/intero.png)](https://travis-ci.org/chrisdone/intero)
 
 Complete interactive development program for Haskell
 
