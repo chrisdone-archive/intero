@@ -161,9 +161,16 @@ defaultGhciSettings =
     }
 
 ghciWelcomeMsg :: String
-ghciWelcomeMsg = "Intero " ++ showVersion Paths_intero.version  ++ " (GHC " ++
-                 cProjectVersion ++ ")" ++
-                 ": https://github.com/chrisdone/intero  :? for help"
+ghciWelcomeMsg =
+  unlines [versionString
+          ,"Type :help for a summary of the standard commands."]
+
+versionString =
+  "Intero " ++
+  showVersion Paths_intero.version ++
+  " (GHC " ++
+  cProjectVersion ++
+  ")"
 
 cmdName :: Command -> String
 cmdName (n,_,_) = n
