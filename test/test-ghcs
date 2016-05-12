@@ -1,0 +1,17 @@
+# Test GHC 7.8.4
+
+echo GHC 7.8.4 ...
+stack setup --resolver lts-1.0 --verbosity silent
+stack build --resolver lts-1.0 --verbosity silent
+
+# Test GHC 7.10.2
+
+echo GHC 7.10.2 ...
+stack setup --resolver lts-3.0 --verbosity silent
+stack build --resolver lts-3.0 --verbosity silent
+
+# Test GHC 7.10.3
+
+echo GHC 7.10.3 ...
+stack setup --resolver lts-4.1 --verbosity silent
+stack build --resolver lts-4.1 --verbosity silent
