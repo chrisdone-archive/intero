@@ -218,7 +218,7 @@ findType infos fp string sl sc el ec =
        Just name ->
          case M.lookup name infos of
            Nothing ->
-             return (Left ("Couldn't guess the module nameIs this module loaded?"))
+             return (Left ("Couldn't guess the module name. Is this module loaded?"))
            Just info ->
              do let !mty =
                       resolveType (modinfoSpans info)
