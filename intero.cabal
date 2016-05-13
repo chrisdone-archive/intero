@@ -66,7 +66,7 @@ executable intero
     bytestring,
     directory,
     filepath,
-    ghc >= 7.8,
+    ghc >= 7.8 && <= 7.10.3,
     ghc-paths,
     haskeline,
     process,
