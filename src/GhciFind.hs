@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
@@ -5,15 +6,14 @@
 -- | Find type/location information.
 
 module GhciFind
-  (findType,findLoc,findNameUses)
+  (findType,FindType(..),findLoc,findNameUses)
   where
 
-import           Control.Monad
+import           Control.Exception
 import           Data.List
 import           Data.Map (Map)
 import qualified Data.Map as M
 import           Data.Maybe
-
 import           FastString
 import           GHC
 import           GhcMonad
@@ -209,6 +209,13 @@ resolveName spans' sl sc el ec =
           ((sl' == sl && sc' >= sc) || (sl' > sl)) &&
           ((el' == el && ec' <= ec) || (el' < el))
 
+data FindType
+  = FindTypeFail String
+  | FindType ModInfo
+             Type
+  | FindTyThing ModInfo
+                TyThing
+
 -- | Try to find the type of the given span.
 findType :: GhcMonad m
          => Map ModuleName ModInfo
@@ -218,32 +225,46 @@ findType :: GhcMonad m
          -> Int
          -> Int
          -> Int
-         -> m (Either String (ModInfo, Type))
+         -> m FindType
 findType infos fp string sl sc el ec =
   do mname <- guessModule infos fp
      case mname of
        Nothing ->
-         return (Left "Couldn't guess that module name. Does it exist?")
-       Just name ->
-         case M.lookup name infos of
+         return (FindTypeFail "Couldn't guess that module name. Does it exist?")
+       Just modName ->
+         case M.lookup modName infos of
            Nothing ->
-             return (Left ("Couldn't guess the module name. Is this module loaded?"))
-           Just info ->
-             do let !mty =
-                      resolveType (modinfoSpans info)
-                                  sl
-                                  sc
-                                  el
-                                  ec
-                case mty of
-                  Just ty -> return (Right (info, ty))
-                  Nothing ->
-                    fmap (Right . (,) info) (exprType string)
+             return (FindTypeFail "Couldn't guess the module name. Is this module loaded?")
+           Just minfo ->
+             do names <- lookupNamesInContext string
+                let !mspaninfo =
+                      resolveSpanInfo (modinfoSpans minfo)
+                                      sl
+                                      sc
+                                      el
+                                      ec
+                case mspaninfo of
+                  Just si
+                    | Just ty <- spaninfoType si ->
+                      case fmap Var.varName (spaninfoVar si) of
+                        Nothing -> return (FindType minfo ty)
+                        Just name ->
+                          case find (reliableNameEquality name) names of
+                            Just nameWithBetterType ->
+                              do result <- getInfo True nameWithBetterType
+                                 case result of
+                                   Just (thing,_,_,_) ->
+                                     return (FindTyThing minfo thing)
+                                   Nothing -> return (FindType minfo ty)
+                            Nothing -> return (FindType minfo ty)
+                  _ ->
+                    fmap (FindType minfo)
+                         (exprType string)
 
 -- | Try to resolve the type display from the given span.
-resolveType :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe Type
-resolveType spans' sl sc el ec =
-  join (fmap spaninfoType (find inside (reverse spans')))
+resolveSpanInfo :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe SpanInfo
+resolveSpanInfo spans' sl sc el ec =
+  find inside (reverse spans')
   where inside (SpanInfo sl' sc' el' ec' _ _) =
           ((sl' == sl && sc' >= sc) || (sl' > sl)) &&
           ((el' == el && ec' <= ec) || (el' < el))
@@ -273,3 +294,9 @@ guessModule infos fp =
                       Just (mn,_) ->
                         return (Just mn)
                       Nothing -> return Nothing
+
+-- | Lookup the name of something in the current context.
+lookupNamesInContext :: GhcMonad m => String -> m [Name]
+lookupNamesInContext string =
+  gcatch (GHC.parseName string)
+         (\(_ :: SomeException) -> return [])
