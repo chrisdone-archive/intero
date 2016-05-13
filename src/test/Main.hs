@@ -5,6 +5,7 @@ module Main where
 
 import Control.Exception
 import Control.Monad.IO.Class
+import System.Directory
 import System.IO
 import System.IO.Temp
 import System.Process
@@ -25,6 +26,7 @@ spec =
      types
      use
      definition
+     bytecode
 
 -- | Basic commands that should work out of the box.
 basics :: Spec
@@ -57,6 +59,25 @@ load =
                       shouldBe result (unlines ["Failed, modules loaded: none."
                                                ,""
                                                ,"<no location info>: can't find file: NonExistent.hs"])))
+
+-- | Check things when in -fbyte-code mode.
+bytecode :: Spec
+bytecode =
+  describe "Bytecode"
+           (do it ":set -fobject-code ; :l X.hs; :set -byte-code; :l X.hs"
+                  (do result <-
+                        withIntero
+                          []
+                          (\dir repl ->
+                             do _ <- repl (":set -fobject-code")
+                                writeFile (dir ++ "/X.hs") "x = 'a'"
+                                _ <- repl (":l X.hs")
+                                _ <- repl (":set -fbyte-code")
+                                writeFile (dir ++ "/X.hs") "x = 123"
+                                repl (":l X.hs"))
+                      shouldBe result
+                               (unlines ["Ok, modules loaded: Main."
+                                        ,"Collecting type info for 1 module(s) ... "])))
 
 -- | Get type information of file contents.
 types :: Spec

@@ -37,7 +37,11 @@ collectInfo :: (GhcMonad m)
             => Map ModuleName ModInfo -> [ModuleName] -> m (Map ModuleName ModInfo)
 collectInfo ms loaded =
   do df <- getSessionDynFlags
-     invalidated <- liftIO (filterM cacheInvalid loaded)
+     -- Generate for all modules in interpreted mode.
+     invalidated <-
+       liftIO (if hscTarget df == HscInterpreted
+                  then return loaded
+                  else filterM cacheInvalid loaded)
      if null invalidated
         then return ms
         else do liftIO (putStrLn ("Collecting type info for " ++
