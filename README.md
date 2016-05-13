@@ -6,11 +6,12 @@ Complete interactive development program for Haskell
 
 The following dependencies are necessary:
 
-* The `tinfo` library.
+* The `tinfo` and `ncurses` library.
 
   * Ubuntu and Debian users can install it using the following command:
 
           $ apt-get install libtinfo-dev
+          $ apt-get install libncurses5-dev
 
 ## Installing
 
