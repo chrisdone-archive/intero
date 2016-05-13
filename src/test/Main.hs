@@ -75,7 +75,7 @@ bytecode =
                                 _ <- repl (":set -fbyte-code")
                                 writeFile (dir ++ "/X.hs") "x = 123"
                                 repl (":l X.hs"))
-                      shouldBe result
+                      shouldBe (unlines (reverse (take 2 (reverse (lines result)))))
                                (unlines ["Ok, modules loaded: Main."
                                         ,"Collecting type info for 1 module(s) ... "])))
 
