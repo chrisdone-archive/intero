@@ -55,7 +55,9 @@ load =
                   (do result <-
                         withIntero []
                                    (\_ repl -> repl (":l NonExistent.hs"))
-                      shouldBe result (unlines ["Failed, modules loaded: none."])))
+                      shouldBe result (unlines ["Failed, modules loaded: none."
+                                               ,""
+                                               ,"<no location info>: can't find file: NonExistent.hs"])))
 
 -- | Get type information of file contents.
 types :: Spec
@@ -187,10 +189,11 @@ withIntero arguments cont =
             "withIntero"
             (\dir ->
                do (inp,out,err,pid) <-
-                    catch (runInteractiveProcess "intero"
-                                                 ("-ignore-dot-ghci" : arguments)
-                                                 (Just dir)
-                                                 Nothing)
+                    catch (runInteractiveProcess
+                             "intero"
+                             ("-ignore-dot-ghci" : arguments)
+                             (Just dir)
+                             Nothing)
                           (\(_ :: IOException) ->
                              error "Couldn't launch intero process.")
                   hSetBuffering inp NoBuffering
@@ -204,8 +207,8 @@ withIntero arguments cont =
                                                       (\(_ :: IOException) ->
                                                          return Nothing)
                                               case mc of
-                                                Nothing -> return []
-                                                Just '\4' -> return []
+                                                Nothing -> hGetAvailable err
+                                                Just '\4' -> hGetAvailable err
                                                 Just c ->
                                                   do cs <- getReply
                                                      return (c : cs)
@@ -218,3 +221,20 @@ withIntero arguments cont =
                               ignored (hClose err)
                               ignored (terminateProcess pid))))
   where ignored m = catch m (\(_ :: IOException) -> return ())
+        hGetAvailable h =
+          do available <-
+               catch (hReady h)
+                     (\(_ :: IOException) -> return False)
+             if available
+                then catch (do c <- hGetChar h
+                               cs <- hGetAvailable h
+                               return (c : cs))
+                           (\(_ :: IOException) -> return [])
+                else return []
+
+--------------------------------------------------------------------------------
+-- Spec combinators
+
+-- | Specify an issue that needs to be regression tested.
+issue :: Example a => [Char] -> [Char] -> a -> SpecWith (Arg a)
+issue label _link expectation = it label expectation
