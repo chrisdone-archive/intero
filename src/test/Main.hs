@@ -64,21 +64,13 @@ types :: Spec
 types =
   describe "Types"
            (do it ":type-at X.hs 1 1 1 1 x -- Char"
-                  (typeAt "x = 'a'"
-                          (1,1,1,1,"x")
-                          "x :: Char\n")
+                  (typeAt "x = 'a'" (1,1,1,1,"x") "x :: Char\n")
                it ":type-at X.hs 1 1 1 1 x -- [Char]"
-                  (typeAt "x = 'a' : x"
-                          (1,1,1,1,"x")
-                          "x :: [Char]\n")
+                  (typeAt "x = 'a' : x" (1,1,1,1,"x") "x :: [Char]\n")
                it ":type-at X.hs 1 11 1 12 x -- [Char]"
-                  (typeAt "x = 'a' : x"
-                          (1,11,1,12,"x")
-                          "x :: [Char]\n")
+                  (typeAt "x = 'a' : x" (1,11,1,12,"x") "x :: [Char]\n")
                it ":type-at X.hs 1 11 1 12 y -- [Char] (internal variable)"
-                  (typeAt "x = 'a' : y where y = x"
-                          (1,11,1,12,"y")
-                          "y :: [Char]\n"))
+                  (typeAt "x = 'a' : y where y = x" (1,11,1,12,"y") "y :: [Char]\n")
 
 -- | Find uses of a variable.
 use :: Spec
