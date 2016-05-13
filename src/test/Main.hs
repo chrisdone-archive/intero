@@ -119,7 +119,7 @@ definition =
                   (locAt "f x = 'a' : x"
                          (1,13,1,14,"x")
                          (unlines ["X.hs:(1,3)-(1,4)"]))
-               it ":loc-at X.hs 1 11 1 12 x -- to function argument"
+               it ":loc-at X.hs 1 11 1 12 x -- to pattern match"
                   (locAt "f (Just x) = 'a' : x"
                          (1,20,1,21,"x")
                          (unlines ["X.hs:(1,9)-(1,10)"])))
