@@ -1,5 +1,4 @@
 {-# LANGUAGE ScopedTypeVariables #-}
-
 -- | Test that various commands work properly.
 
 module Main where
@@ -71,6 +70,9 @@ types =
                   (typeAt "x = 'a' : x" (1,11,1,12,"x") "x :: [Char]\n")
                it ":type-at X.hs 1 11 1 12 y -- [Char] (internal variable)"
                   (typeAt "x = 'a' : y where y = x" (1,11,1,12,"y") "y :: [Char]\n")
+               issue ":type-at X.hs 1 1 1 1 f -- Num a => a"
+                     "https://github.com/chrisdone/intero/issues/14"
+                     (typeAt "f x = x * 2" (1,1,1,2,"f") "f :: Num a => a -> a\n"))
 
 -- | Find uses of a variable.
 use :: Spec
@@ -228,5 +230,5 @@ withIntero arguments cont =
 -- Spec combinators
 
 -- | Specify an issue that needs to be regression tested.
-issue :: Example a => [Char] -> [Char] -> a -> SpecWith (Arg a)
+issue :: Example a => String -> t -> a -> SpecWith (Arg a)
 issue label _link expectation = it label expectation
