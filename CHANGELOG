@@ -4,6 +4,4 @@
 0.1.2:
 	* Added test suite
 	* Fix bug in :type-at that excluded a type constraint (https://github.com/chrisdone/intero/issues/14)
-
-0.1.2:
 	* Fixed bug in :uses, by using location equality.
