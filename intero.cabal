@@ -90,4 +90,8 @@ test-suite store-test
     Main.hs
   build-depends:
     base,
-    hspec
+    hspec,
+    temporary,
+    process,
+    transformers,
+    directory
