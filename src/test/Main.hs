@@ -48,7 +48,7 @@ load =
                              do writeFile (dir ++ "/X.hs") "x = 'a'"
                                 repl (":l X.hs"))
                       shouldBe result
-                               (unlines ["[1 of 1] Compiling Main             ( X.hs, X.o )"
+                               (unlines ["[1 of 1] Compiling Main             ( X.hs, interpreted )"
                                         ,"Ok, modules loaded: Main."
                                         ,"Collecting type info for 1 module(s) ... "]))
                it ":l NonExistent.hs"
@@ -187,7 +187,10 @@ withIntero arguments cont =
             "withIntero"
             (\dir ->
                do (inp,out,err,pid) <-
-                    catch (runInteractiveProcess "intero" arguments (Just dir) Nothing)
+                    catch (runInteractiveProcess "intero"
+                                                 ("-ignore-dot-ghci" : arguments)
+                                                 (Just dir)
+                                                 Nothing)
                           (\(_ :: IOException) ->
                              error "Couldn't launch intero process.")
                   hSetBuffering inp NoBuffering
