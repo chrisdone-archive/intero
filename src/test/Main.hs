@@ -96,8 +96,13 @@ types =
                      (typeAt "f x = x * 2" (1,1,1,2,"f") "f :: Num a => a -> a\n")
                issue ":type-at X.hs 1 1 1 1 x -- Char (oddly bounded selection)"
                      "https://github.com/chrisdone/intero/issues/29"
-                     (const (pendingWith "TODO")
-                            (typeAt "foo = 'a'" (1,1,1,1,"f") "f :: Char\n")))
+                     (typeAt "foo = 'a'" (1,1,1,1,"f") "f :: Char\n")
+               issue ":type-at for two strings with oddly bounded selection"
+                     "https://github.com/chrisdone/intero/issues/29"
+                     (typeAt "test = putStrLn (concat3 \"aa\" \"bb\" \"cc\")\n\
+                              \concat3 a b c = a ++ b ++ c"
+                             (1,29,1,32,"\" \"")
+                             "\" \" :: [Char] -> [Char]\n"))
 
 -- | List all types in all modules loaded.
 alltypes :: Spec
