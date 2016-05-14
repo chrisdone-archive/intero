@@ -266,8 +266,8 @@ resolveSpanInfo :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe SpanInfo
 resolveSpanInfo spanList parentSL parentSC parentEL parentEC =
   find contains spanList
   where contains (SpanInfo ancestorSL ancestorSC ancestorEL ancestorEC _ _) =
-          ((ancestorSL == parentSL && parentSC >= ancestorSC) || (ancestorSL > parentSL)) &&
-          ((ancestorEL == parentEL && parentEC <= ancestorEC) || (ancestorEL < parentEL))
+          ((ancestorSL == parentSL && parentSC >= ancestorSC) || (ancestorSL < parentSL)) &&
+          ((ancestorEL == parentEL && parentEC <= ancestorEC) || (ancestorEL > parentEL))
 
 -- | Guess a module name from a file path.
 guessModule :: GhcMonad m
