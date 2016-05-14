@@ -5,7 +5,6 @@ module Main where
 
 import Control.Exception
 import Control.Monad.IO.Class
-import System.Directory
 import System.IO
 import System.IO.Temp
 import System.Process
@@ -24,6 +23,7 @@ spec =
   do basics
      load
      types
+     alltypes
      use
      definition
      bytecode
@@ -94,6 +94,26 @@ types =
                issue ":type-at X.hs 1 1 1 1 f -- Num a => a"
                      "https://github.com/chrisdone/intero/issues/14"
                      (typeAt "f x = x * 2" (1,1,1,2,"f") "f :: Num a => a -> a\n"))
+
+-- | List all types in all modules loaded.
+alltypes :: Spec
+alltypes =
+  describe "All Types"
+           (do it ":all-types"
+                  (do result <-
+                        withIntero
+                          []
+                          (\dir repl ->
+                             do writeFile (dir ++ "/X.hs") "x = 123\ny = show 'c'"
+                                _ <- repl (":l X.hs")
+                                repl ":all-types")
+                      shouldBe result
+                               (unlines ["X.hs:(2,1)-(2,2): String"
+                                        ,"X.hs:(1,1)-(1,2): Integer"
+                                        ,"X.hs:(2,5)-(2,9): Char -> String"
+                                        ,"X.hs:(2,10)-(2,13): Char"
+                                        ,"X.hs:(2,5)-(2,13): String"
+                                        ,"X.hs:(1,5)-(1,8): Integer"])))
 
 -- | Find uses of a variable.
 use :: Spec
