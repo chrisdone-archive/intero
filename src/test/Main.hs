@@ -93,7 +93,11 @@ types =
                   (typeAt "x = 'a' : y where y = x" (1,11,1,12,"y") "y :: [Char]\n")
                issue ":type-at X.hs 1 1 1 1 f -- Num a => a"
                      "https://github.com/chrisdone/intero/issues/14"
-                     (typeAt "f x = x * 2" (1,1,1,2,"f") "f :: Num a => a -> a\n"))
+                     (typeAt "f x = x * 2" (1,1,1,2,"f") "f :: Num a => a -> a\n")
+               issue ":type-at X.hs 1 1 1 1 x -- Char (oddly bounded selection)"
+                     "https://github.com/chrisdone/intero/issues/29"
+                     (const (pendingWith "TODO")
+                            (typeAt "foo = 'a'" (1,1,1,1,"f") "f :: Char\n")))
 
 -- | List all types in all modules loaded.
 alltypes :: Spec
