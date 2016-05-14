@@ -2,6 +2,17 @@
 
 Complete interactive development program for Haskell
 
+## Features
+
+It's basically GHCi plus extra features. Those are:
+
+* [Find uses of an identifier in a module.](https://github.com/chrisdone/intero/blob/master/src/test/Main.hs#L118)
+* [Find definition of an identifier in a module.](https://github.com/chrisdone/intero/blob/master/src/test/Main.hs#L143)
+* [Show the type of an expression or identifier](https://github.com/chrisdone/intero/blob/master/src/test/Main.hs#L82).
+* [List all types of all expressions of all modules loaded.](https://github.com/chrisdone/intero/blob/master/src/test/Main.hs#L98).
+
+Probably more to come.
+
 ## Requirements
 
 The following dependencies are necessary:
