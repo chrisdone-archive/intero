@@ -9,7 +9,6 @@ module GhciFind
   (findType,FindType(..),findLoc,findNameUses)
   where
 
-import           Control.Applicative
 import           Control.Exception
 import           Data.List
 import           Data.Map (Map)
@@ -264,14 +263,11 @@ findType infos fp string sl sc el ec =
 
 -- | Try to resolve the type display from the given span.
 resolveSpanInfo :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe SpanInfo
-resolveSpanInfo spanList parentSL parentSC parentEL parentEC =
-  find inside (reverse spanList) <|> find contains spanList
-  where inside (SpanInfo childSL childSC childEL childEC _ _) =
-          ((childSL == parentSL && childSC >= parentSC) || (childSL > parentSL)) &&
-          ((childEL == parentEL && childEC <= parentEC) || (childEL < parentEL))
-        contains (SpanInfo ancestorSL ancestorSC ancestorEL ancestorEC _ _) =
-          ((ancestorSL == parentSL && parentSC >= ancestorSC) || (ancestorSL > parentSL)) &&
-          ((ancestorEL == parentEL && parentEC <= ancestorEC) || (ancestorEL < parentEL))
+resolveSpanInfo spanList spanSL spanSC spanEL spanEC =
+  find contains spanList
+  where contains (SpanInfo ancestorSL ancestorSC ancestorEL ancestorEC _ _) =
+          ((ancestorSL == spanSL && spanSC >= ancestorSC) || (ancestorSL < spanSL)) &&
+          ((ancestorEL == spanEL && spanEC <= ancestorEC) || (ancestorEL > spanEL))
 
 -- | Guess a module name from a file path.
 guessModule :: GhcMonad m

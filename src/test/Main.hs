@@ -97,12 +97,37 @@ types =
                issue ":type-at X.hs 1 1 1 1 x -- Char (oddly bounded selection)"
                      "https://github.com/chrisdone/intero/issues/29"
                      (typeAt "foo = 'a'" (1,1,1,1,"f") "f :: Char\n")
-               issue ":type-at for two strings with oddly bounded selection"
+               issue ":type-at half of 2 arguments within function call"
                      "https://github.com/chrisdone/intero/issues/29"
-                     (typeAt "test = putStrLn (concat3 \"aa\" \"bb\" \"cc\")\n\
-                              \concat3 a b c = a ++ b ++ c"
-                             (1,29,1,32,"\" \"")
-                             "\" \" :: [Char] -> [Char]\n"))
+                     (typeAt testFile (1,29,1,32,"\" \"") "\" \" :: [Char] -> [Char]\n")
+               issue ":type-at funtion + half of its first argument"
+                     "https://github.com/chrisdone/intero/issues/29"
+                     (typeAt testFile
+                             (1,18,1,28,"concat3 \"a")
+                             "concat3 \"a :: [Char] -> [Char] -> [Char]\n")
+               issue ":type-at 2 arguments within a function call"
+                     "https://github.com/chrisdone/intero/issues/29"
+                     (typeAt testFile
+                             (1,26,1,35,"\"aa\" \"bb\"")
+                             "\"aa\" \"bb\" :: [Char] -> [Char]\n")
+               issue ":type-at 2 lines within a do bloc"
+                     "https://github.com/chrisdone/intero/issues/29"
+                     (typeAt testFile (4,8,5,10,"{{multiline}}") "{{multiline}} :: IO ()\n")
+               issue ":type-at part of a line within a do bloc (1)"
+                     "https://github.com/chrisdone/intero/issues/29"
+                     (typeAt testFile (4,8,4,10," 1") " 1 :: IO ()\n")
+               issue ":type-at part of a line within a do bloc (2)"
+                     "https://github.com/chrisdone/intero/issues/29"
+                     (typeAt testFile (4,9,4,10,"1") "1 :: Integer\n"))
+  where testFile :: String
+        testFile =
+          unlines ["test = putStrLn (concat3 \"aa\" \"bb\" \"cc\")"
+                  ,"concat3 a b c = a ++ b ++ c"
+                  ,"foo = do"
+                  ,"  print 1"
+                  ,"  print 2"
+                  ,"  print 3"
+                  ,""]
 
 -- | List all types in all modules loaded.
 alltypes :: Spec
