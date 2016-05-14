@@ -19,7 +19,8 @@ The following dependencies are necessary:
 
 * The `tinfo` and `ncurses` library.
 
-  * Ubuntu and Debian users can install it using the following command:
+  * Ubuntu and Debian users can install it using the following
+    command:
 
           $ apt-get install libtinfo-dev
           $ apt-get install libncurses5-dev
@@ -35,6 +36,20 @@ From source:
     $ git clone https://github.com/chrisdone/intero.git
     $ cd intero
     $ stack build intero
+
+## Running
+
+To run it plainly use:
+
+    $ stack exec intero
+
+You'll have to run `stack build intero` within each separate LTS
+version you use, this ensures that the intero you launch correctly
+matches the GHC version that you're working with.
+
+To load up your stack project use:
+
+    $ stack ghci --with-ghc intero
 
 ## Supported GHC versions
 
