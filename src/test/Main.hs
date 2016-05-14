@@ -109,6 +109,10 @@ types =
                      "https://github.com/chrisdone/intero/issues/29"
                      (typeAt testFile (1,26,1,35,"\"aa\" \"bb\"")
                              "\"aa\" \"bb\" :: [Char] -> [Char]\n")
+               -- TODO: see what to do about <text> param when multi-line input.
+               it ":type-at 2 lines within a do bloc"
+                     (typeAt testFile (4,8,5,10,"{{multiline}}")
+                     "{{multiline}} :: IO ()\n")
                it ":type-at part of a line within a do bloc (1)"
                      (typeAt testFile (4,8,4,10," 1") " 1 :: IO ()\n")
                it ":type-at part of a line within a do bloc (2)"
