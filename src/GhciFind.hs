@@ -263,14 +263,11 @@ findType infos fp string sl sc el ec =
 
 -- | Try to resolve the type display from the given span.
 resolveSpanInfo :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe SpanInfo
-resolveSpanInfo spanList parentStartLine parentStartCol parentEndLine parentEndCol =
+resolveSpanInfo spanList childSL childSC childEL childEC =
   find inside (reverse spanList)
-  where inside (SpanInfo childStartLine childStartCol childEndLine childEndCol _ _) =
-          ((childStartLine == parentStartLine &&
-            childStartCol >= parentStartCol) ||
-           (childStartLine > parentStartLine)) &&
-          ((childEndLine == parentEndLine && childEndCol <= parentEndCol) ||
-           (childEndLine < parentEndLine))
+  where inside (SpanInfo parentSL parentSC parentEL parentEC _ _) =
+          ((parentSL == childSL && parentSC >= childSC) || (parentSL > childSL)) &&
+          ((parentEL == childEL && parentEC <= childEC) || (parentEL < childEL))
 
 -- | Guess a module name from a file path.
 guessModule :: GhcMonad m
