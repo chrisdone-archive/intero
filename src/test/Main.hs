@@ -102,7 +102,13 @@ types =
                      (typeAt "test = putStrLn (concat3 \"aa\" \"bb\" \"cc\")\n\
                               \concat3 a b c = a ++ b ++ c"
                              (1,29,1,32,"\" \"")
-                             "\" \" :: [Char] -> [Char]\n"))
+                             "\" \" :: [Char] -> [Char]\n")
+               issue ":type-at for funtion with half of its first argument"
+                     "https://github.com/chrisdone/intero/issues/29"
+                     (typeAt "test = putStrLn (concat3 \"aa\" \"bb\" \"cc\")\n\
+                              \concat3 a b c = a ++ b ++ c"
+                             (1,18,1,28,"concat3 \"a")
+                             "concat3 \"a :: [Char] -> [Char] -> [Char]\n"))
 
 -- | List all types in all modules loaded.
 alltypes :: Spec
