@@ -81,7 +81,7 @@ executable intero
     build-depends:
       unix
 
-test-suite store-test
+test-suite intero-test
   default-language:
     Haskell2010
   type:
