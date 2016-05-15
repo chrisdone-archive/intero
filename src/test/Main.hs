@@ -230,6 +230,8 @@ locAt file (line,col,line',col',name) expected =
                repl (":loc-at X.hs " ++
                      unwords (map show [line,col,line',col']) ++ " " ++ name))
      shouldBe result expected
+     let x = return ()
+     x
 
 -- | Find use-sites for the given place.
 uses
@@ -248,7 +250,7 @@ uses file (line,col,line',col',name) expected =
 -- | Test the type at the given place.
 typeAt
   :: String -> (Int,Int,Int,Int,String) -> String -> Expectation
-typeAt = typeAtFile "X.hs"
+typeAt = do typeAtFile "X.hs"
 
 -- | Test the type at the given place (with the given filename).
 typeAtFile :: String

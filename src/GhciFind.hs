@@ -36,6 +36,7 @@ findNameUses :: (GhcMonad m)
              -> m (Either String [SrcSpan])
 findNameUses infos fp string sl sc el ec =
   do mname <- guessModule infos fp
+
      case mname of
        Nothing ->
          return (Left "Couldn't guess that module name. Does it exist?")
