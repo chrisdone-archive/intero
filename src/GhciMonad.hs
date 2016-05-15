@@ -116,7 +116,10 @@ data GHCiState = GHCiState
         -- help text to display to a user
         short_help :: String,
         long_help  :: String,
-        mod_infos :: !(Map ModuleName ModInfo)
+
+        -- stored state
+        mod_infos :: !(Map ModuleName ModInfo),
+        rdrNamesInScope :: ![GHC.RdrName]
      }
 
 type TickArray = Array Int [(BreakIndex,SrcSpan)]

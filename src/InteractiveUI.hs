@@ -460,6 +460,7 @@ interactiveUI config srcs maybe_exprs = do
 
    default_editor <- liftIO $ findEditor
 
+   names <- GHC.getRdrNamesInScope
    startGHCi (runGHCi srcs maybe_exprs)
         GHCiState{ progname       = default_progname,
                    GhciMonad.args = default_args,
@@ -480,7 +481,8 @@ interactiveUI config srcs maybe_exprs = do
                    ghc_e          = isJust maybe_exprs,
                    short_help     = shortHelpText config,
                    long_help      = fullHelpText config,
-                   mod_infos      = M.empty
+                   mod_infos      = M.empty,
+                   rdrNamesInScope = names
                  }
 
    return ()
@@ -1452,14 +1454,19 @@ doLoad retain_context howmuch = do
   -- Enable buffering stdout and stderr as we're compiling. Keeping these
   -- handles unbuffered will just slow the compilation down, especially when
   -- compiling in parallel.
-  gbracket (liftIO $ do hSetBuffering stdout LineBuffering
-                        hSetBuffering stderr LineBuffering)
-           (\_ ->
-            liftIO $ do hSetBuffering stdout NoBuffering
-                        hSetBuffering stderr NoBuffering) $ \_ -> do
+  wasok <- gbracket (liftIO $ do hSetBuffering stdout LineBuffering
+                                 hSetBuffering stderr LineBuffering)
+                    (\_ ->
+                     liftIO $ do hSetBuffering stdout NoBuffering
+                                 hSetBuffering stderr NoBuffering) $ \_ -> do
       ok <- trySuccess $ GHC.load howmuch
       afterLoad ok retain_context
       return ok
+  case wasok of
+    Succeeded -> do names <- GHC.getRdrNamesInScope
+                    lift (modifyGHCiState (\s -> s { rdrNamesInScope = names }))
+    _ -> return ()
+  return wasok
 
 
 afterLoad :: SuccessFlag
@@ -2722,7 +2729,7 @@ completeMacro = wrapIdentCompleter $ \w -> do
   return (filter (w `isPrefixOf`) (map cmdName cmds))
 
 completeIdentifier = wrapIdentCompleter $ \w -> do
-  rdrs <- GHC.getRdrNamesInScope
+  rdrs <- fmap rdrNamesInScope getGHCiState
   dflags <- GHC.getSessionDynFlags
   return (filter (w `isPrefixOf`) (map (showPpr dflags) rdrs))
 
