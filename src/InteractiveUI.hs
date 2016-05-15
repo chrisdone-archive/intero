@@ -1692,25 +1692,31 @@ locationAt str =
 
 -- | Parse a span: <module-name/filepath> <sl> <sc> <el> <ec> <string>
 parseSpan :: String -> Either String (FilePath,Int,Int,Int,Int,String)
-parseSpan s =
+parseSpan str =
   case result of
-    Left err -> Left err
+    Left {} ->
+      Left "\n<no location info>: Expected a span: \"<module-name/filepath>\" <start line> <start column> <end line> <end column> \"<sample string>\"\n"
     Right r -> Right r
   where result =
-          case span (/= ' ') s of
+          case getString str of
             (fp,s') ->
               do (sl,s1) <- extractInt s'
                  (sc,s2) <- extractInt s1
                  (el,s3) <- extractInt s2
                  (ec,st) <- extractInt s3
                  -- GHC exposes a 1-based column number because reasons.
-                 Right (fp,sl,sc-1,el,ec-1,st)
+                 Right (fp,sl,sc - 1,el,ec - 1,maybeStr st)
+        maybeStr s = case reads s of
+                       [(s',"")] -> s'
+                       _ -> s
+        getString s =
+          case reads s of
+            [(s',rest)] -> (s',rest)
+            _ -> span (/= ' ') s
         extractInt s' =
           case span (/= ' ') (dropWhile1 (== ' ') s') of
-            (reads -> [(i,_)],s'') ->
-              Right (i,dropWhile1 (== ' ') s'')
-            _ ->
-              Left ("Expected integer in " ++ s')
+            (reads -> [(i,_)],s'') -> Right (i,dropWhile1 (== ' ') s'')
+            _ -> Left ("Expected integer in " ++ s')
           where dropWhile1 _ [] = []
                 dropWhile1 p xs@(x:xs')
                   | p x = xs'
@@ -2377,6 +2383,8 @@ newDynFlags interactive_only minus_opts = do
                      , pkgDatabase = pkgDatabase dflags2
                      , packageFlags = packageFlags dflags2 }
 
+      df <- getDynFlags
+      liftIO (putStrLn ("Flags: " ++ show (hscTarget df)))
       return ()
 
 

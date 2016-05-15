@@ -5,6 +5,7 @@ module Main where
 
 import Control.Exception
 import Control.Monad.IO.Class
+import Data.Char
 import System.IO
 import System.IO.Temp
 import System.Process
@@ -20,13 +21,29 @@ main = hspec spec
 -- | Test suite.
 spec :: Spec
 spec =
-  do basics
+  do argsparser
+     basics
      load
      types
      alltypes
      use
      definition
      bytecode
+
+-- | Argument parsing should be user-friendly.
+argsparser :: Spec
+argsparser =
+  describe "Arguments parser"
+           (do issue ":type-at \"Foo Bar.hs\" 1 1 1 1"
+                     "https://github.com/chrisdone/intero/issues/25"
+                     (typeAtFile "Foo Bar.hs"
+                                 "x = 'a'"
+                                 (1,1,1,1,"x")
+                                 "x :: Char\n")
+               issue ":type-at"
+                     "https://github.com/chrisdone/intero/issues/28"
+                     (eval ":type-at"
+                           "\n<no location info>: Expected a span: \"<module-name/filepath>\" <start line> <start column> <end line> <end column> \"<sample string>\"\n"))
 
 -- | Basic commands that should work out of the box.
 basics :: Spec
@@ -85,6 +102,8 @@ types =
   describe "Types"
            (do it ":type-at X.hs 1 1 1 1 x -- Char"
                   (typeAt "x = 'a'" (1,1,1,1,"x") "x :: Char\n")
+               it ":type-at X.hs 1 1 1 1 -- Char (string omitted)"
+                  (typeAt "x = 'a'" (1,1,1,1,"") " :: Char\n")
                it ":type-at X.hs 1 1 1 1 x -- [Char]"
                   (typeAt "x = 'a' : x" (1,1,1,1,"x") "x :: [Char]\n")
                it ":type-at X.hs 1 11 1 12 x -- [Char]"
@@ -229,15 +248,30 @@ uses file (line,col,line',col',name) expected =
 -- | Test the type at the given place.
 typeAt
   :: String -> (Int,Int,Int,Int,String) -> String -> Expectation
-typeAt file (line,col,line',col',name) expected =
+typeAt = typeAtFile "X.hs"
+
+-- | Test the type at the given place (with the given filename).
+typeAtFile :: String
+           -> String
+           -> (Int,Int,Int,Int,String)
+           -> String
+           -> Expectation
+typeAtFile fname file (line,col,line',col',name) expected =
   do result <-
        withIntero
          []
          (\dir repl ->
-            do writeFile (dir ++ "/X.hs") file
-               _ <- repl (":l X.hs")
-               repl (":type-at X.hs " ++
-                     unwords (map show [line,col,line',col']) ++ " " ++ name))
+            do writeFile (dir ++ "/" ++ fname) file
+               _ <- repl (":l " ++ show fname)
+               repl (":type-at " ++
+                     (if any isSpace fname
+                         then show fname
+                         else fname) ++
+                     " " ++
+                     unwords (map show [line,col,line',col']) ++
+                     (if null name
+                         then ""
+                         else " " ++ show name)))
      shouldBe result expected
 
 -- | Make a quick interaction with intero.
