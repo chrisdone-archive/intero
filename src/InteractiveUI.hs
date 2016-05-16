@@ -2390,8 +2390,6 @@ newDynFlags interactive_only minus_opts = do
                      , pkgDatabase = pkgDatabase dflags2
                      , packageFlags = packageFlags dflags2 }
 
-      df <- getDynFlags
-      liftIO (putStrLn ("Flags: " ++ show (hscTarget df)))
       return ()
 
 
