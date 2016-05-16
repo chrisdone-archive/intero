@@ -44,7 +44,7 @@ executable intero
   main-is:
     Main.hs
   ghc-options:
-    -Wall -O2 -threaded -dynamic
+    -Wall -O2 -threaded
   include-dirs:
     cbits/
   hs-source-dirs:
@@ -80,6 +80,8 @@ executable intero
   else
     build-depends:
       unix
+    ghc-options:
+      -dynamic
 
 test-suite intero-test
   default-language:
