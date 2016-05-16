@@ -1,3 +1,8 @@
+0.1.6:
+	* Make better, more liberal :type-at (https://github.com/chrisdone/intero/issues/29)
+	* Better argument parser for :type-at, :loc-at, :uses
+	* Retain names that were in scope after a successful load for :complete
+
 0.1.5:
 	* Add upper bound for GHC (https://github.com/chrisdone/intero/issues/27)
 
