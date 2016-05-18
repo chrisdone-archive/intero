@@ -413,19 +413,35 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
                                   (when (not (process-live-p process))
                                     (switch-to-buffer (process-buffer process))
                                     (goto-char (point-max))
-                                    (insert "\n---\n
-This is the buffer where Emacs talks to intero. It's normally hidden,
-but a problem occcured.\n")
-                                    (insert "\nThe process ended. Here is the reason:\n"
-                                            "  " change
-                                            "\n")
-                                    (insert "For troubleshooting purposes, here are the arguments used to launch intero:\n"
-                                            (format "  stack ghci %s"
-                                                    (mapconcat #'identity
-                                                               intero-arguments
-                                                               " "))
-                                            "\n\n")
-                                    (insert "You can kill this buffer when you're ready.\n")))))
+                                    (insert "\n---\n\n")
+                                    (insert
+                                     (propertize
+                                      (concat
+                                       "This is the buffer where Emacs talks to intero. It's normally hidden,
+but a problem occcured.
+
+It may be obvious if there is some text above this message
+indicating a problem.
+
+The process ended. Here is the reason that Emacs gives us:
+
+"
+                                       "  " change
+                                       "\n"
+                                       "For troubleshooting purposes, here are the arguments used to launch intero:
+
+"
+                                       (format "  stack ghci %s"
+                                               (mapconcat #'identity
+                                                          intero-arguments
+                                                          " "))
+                                       "
+
+After fixing this problem, you could switch back to your code and
+run M-x intero-restart to try again.
+
+You can kill this buffer when you're done reading it.\n")
+                                      'face 'compilation-error))))))
         buffer))))
 
 (defun intero-read-buffer ()
