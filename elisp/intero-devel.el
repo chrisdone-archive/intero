@@ -35,18 +35,22 @@ running context across :load/:reloads in Intero."
                    "You need to open a buffer named DevelMain.hs. Find now?")
                   (ido-find-file)
                 (error "No DevelMain.hs buffer.")))
+        (message "Reloading ...")
         (intero-async-call
          ":l DevelMain"
-         nil
-         (lambda (_load reply)
+         (current-buffer)
+         (lambda (buffer reply)
            (if (string-match "^OK, modules loaded" reply)
                (intero-async-call
                 "DevelMain.update"
-                nil
-                (lambda (_update reply)
+                buffer
+                (lambda (_buffer reply)
                   (message "DevelMain updated. Output was:\n%s"
                            reply)))
-             (message "DevelMain failed. Output was:\n%s"
-                      reply)))))))
+             (progn
+               (message "DevelMain FAILED. Switch to DevelMain.hs and compile that.")
+               (switch-to-buffer buffer)
+               (flycheck-buffer)
+               (flycheck-list-errors))))))))
 
 (provide 'intero-devel)
