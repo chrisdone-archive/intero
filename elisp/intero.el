@@ -164,6 +164,43 @@
     (kill-buffer (current-buffer))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; DevelMain integration
+
+(defun intero-devel-reload ()
+  "Reload the module `DevelMain' and then run `DevelMain.update'.
+
+This is for doing live update of the code of servers or GUI
+applications.  Put your development version of the program in
+`DevelMain', and define `update' to auto-start the program on a
+new thread, and use the `foreign-store' package to access the
+running context across :load/:reloads in Intero."
+  (interactive)
+  (unwind-protect
+      (with-current-buffer
+          (or (get-buffer "DevelMain.hs")
+              (if (y-or-n-p
+                   "You need to open a buffer named DevelMain.hs. Find now?")
+                  (ido-find-file)
+                (error "No DevelMain.hs buffer.")))
+        (message "Reloading ...")
+        (intero-async-call
+         ":l DevelMain"
+         (current-buffer)
+         (lambda (buffer reply)
+           (if (string-match "^OK, modules loaded" reply)
+               (intero-async-call
+                "DevelMain.update"
+                buffer
+                (lambda (_buffer reply)
+                  (message "DevelMain updated. Output was:\n%s"
+                           reply)))
+             (progn
+               (message "DevelMain FAILED. Switch to DevelMain.hs and compile that.")
+               (switch-to-buffer buffer)
+               (flycheck-buffer)
+               (flycheck-list-errors))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Flycheck integration
 
 (defun intero-check (checker cont)
