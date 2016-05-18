@@ -1,9 +1,10 @@
-;;; intero.el --- Complete interaction mode
+;;; intero.el --- Complete development mode for Haskell
 
-;; Copyright (c) 2016 Chris Done.
-;; Copyright (c) 2015 Athur Fayzrakhmanov.
+;; Copyright (c) 2016 Chris Done
+;; Copyright (c) 2015 Athur Fayzrakhmanov
+;; Copyright (c) 2013 Herbert Valerio Riedel
 
-;; Package-Requires: ((flycheck "26") (haskell-mode "13") (company "0.9.0"))
+;; Package-Requires: ((flycheck "26") (company "0.9.0"))
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -36,8 +37,6 @@
 ;;; Code:
 
 (require 'flycheck)
-(require 'haskell-mode)
-(require 'haskell-interactive-mode)
 (require 'cl-lib)
 (require 'company)
 
@@ -104,14 +103,16 @@
           (insert
            (format "%s\n"
                    (with-temp-buffer
-                     (haskell-mode)
+                     (when (fboundp 'haskell-mode)
+                       (haskell-mode))
                      (insert ty)
                      (font-lock-fontify-buffer)
                      (buffer-string)))))
       (message
        "%s"
        (with-temp-buffer
-         (haskell-mode)
+         (when (fboundp 'haskell-mode)
+           (haskell-mode))
          (insert ty)
          (font-lock-fontify-buffer)
          (buffer-string))))))
@@ -119,11 +120,12 @@
 (defun intero-info (insert)
   "Get the info of the thing at point."
   (interactive "P")
-  (let ((info (intero-get-info-of (haskell-ident-at-point))))
+  (let ((info (intero-get-info-of (intero-ident-at-point))))
     (message
      "%s"
      (with-temp-buffer
-       (haskell-mode)
+       (when (fboundp 'haskell-mode)
+         (haskell-mode))
        (insert info)
        (font-lock-fontify-buffer)
        (buffer-string)))))
@@ -271,7 +273,7 @@ warnings, adding CHECKER and BUFFER to each one."
                             'warning)
                            ((string-match "^Splicing " msg) 'splice)
                            (t                               'error)))
-               (location (haskell-process-parse-error
+               (location (intero-parse-error
                           (concat file ":" location-raw ": x")))
                (line (plist-get location :line))
                (column (plist-get location :col)))
@@ -285,6 +287,42 @@ warnings, adding CHECKER and BUFFER to each one."
                        :filename file)
                       messages))))
       messages)))
+
+(defconst intero-error-regexp-alist
+  `((,(concat
+       "^ *\\(?1:[^\t\r\n]+?\\):"
+       "\\(?:"
+       "\\(?2:[0-9]+\\):\\(?4:[0-9]+\\)\\(?:-\\(?5:[0-9]+\\)\\)?" ;; "121:1" & "12:3-5"
+       "\\|"
+       "(\\(?2:[0-9]+\\),\\(?4:[0-9]+\\))-(\\(?3:[0-9]+\\),\\(?5:[0-9]+\\))" ;; "(289,5)-(291,36)"
+       "\\)"
+       ":\\(?6: Warning:\\)?")
+     1 (2 . 3) (4 . 5) (6 . nil)) ;; error/warning locus
+
+    ;; multiple declarations
+    ("^    \\(?:Declared at:\\|            \\) \\(?1:[^ \t\r\n]+\\):\\(?2:[0-9]+\\):\\(?4:[0-9]+\\)$"
+     1 2 4 0) ;; info locus
+
+    ;; this is the weakest pattern as it's subject to line wrapping et al.
+    (" at \\(?1:[^ \t\r\n]+\\):\\(?2:[0-9]+\\):\\(?4:[0-9]+\\)\\(?:-\\(?5:[0-9]+\\)\\)?[)]?$"
+     1 2 (4 . 5) 0)) ;; info locus
+  "Regexps used for matching GHC compile messages.")
+
+(defun intero-parse-error (string)
+  "Parse the line number from the error."
+  (let ((span nil))
+    (cl-loop for regex
+             in intero-error-regexp-alist
+             do (when (string-match (car regex) string)
+                  (setq span
+                        (list :file (match-string 1 string)
+                              :line (string-to-number (match-string 2 string))
+                              :col (string-to-number (match-string 4 string))
+                              :line2 (when (match-string 3 string)
+                                       (string-to-number (match-string 3 string)))
+                              :col2 (when (match-string 5 string)
+                                      (string-to-number (match-string 5 string)))))))
+    span))
 
 (defun intero-call-in-buffer (buffer func &rest args)
   "Utility function which calls FUNC in BUFFER with ARGS."
@@ -306,14 +344,14 @@ warnings, adding CHECKER and BUFFER to each one."
     (candidates (intero-get-completions arg))))
 
 (defun intero-completions-grab-prefix (&optional minlen)
-   "Grab prefix at point for possible completion."
-   (when (intero-completions-can-grab-prefix)
-     (let ((prefix (cond
-                    ((intero-completions-grab-identifier-prefix)))))
-       (cond ((and minlen prefix)
-              (when (>= (length (nth 2 prefix)) minlen)
-                prefix))
-             (prefix prefix)))))
+  "Grab prefix at point for possible completion."
+  (when (intero-completions-can-grab-prefix)
+    (let ((prefix (cond
+                   ((intero-completions-grab-identifier-prefix)))))
+      (cond ((and minlen prefix)
+             (when (>= (length (nth 2 prefix)) minlen)
+               prefix))
+            (prefix prefix)))))
 
 (defun intero-completions-can-grab-prefix ()
   "Check if the case is appropriate for grabbing completion prefix."
@@ -326,7 +364,7 @@ warnings, adding CHECKER and BUFFER to each one."
 
 (defun intero-completions-grab-identifier-prefix ()
   "Grab identifier prefix."
-  (let ((pos-at-point (haskell-ident-pos-at-point))
+  (let ((pos-at-point (intero-ident-pos-at-point))
         (p (point)))
     (when pos-at-point
       (let* ((start (car pos-at-point))
@@ -367,10 +405,56 @@ warnings, adding CHECKER and BUFFER to each one."
   (if (region-active-p)
       (list (region-beginning)
             (region-end))
-    (let ((pos (haskell-ident-pos-at-point)))
+    (let ((pos (intero-ident-pos-at-point)))
       (if pos
           (list (car pos) (cdr pos))
         (list (point) (point))))))
+
+(defun intero-ident-at-point ()
+  "Return the identifier under point, or nil if none found.
+May return a qualified name."
+  (let ((reg (intero-ident-pos-at-point)))
+    (when reg
+      (buffer-substring-no-properties (car reg) (cdr reg)))))
+
+(defun intero-ident-pos-at-point ()
+  "Return the span of the identifier under point, or nil if none found.
+May return a qualified name."
+  (save-excursion
+    ;; Skip whitespace if we're on it.  That way, if we're at "map ", we'll
+    ;; see the word "map".
+    (if (and (not (eobp))
+             (eq ?  (char-syntax (char-after))))
+        (skip-chars-backward " \t"))
+
+    (let ((case-fold-search nil))
+      (cl-multiple-value-bind (start end)
+          (list
+           (progn (skip-syntax-backward "w_") (point))
+           (progn (skip-syntax-forward "w_") (point)))
+        ;; If we're looking at a module ID that qualifies further IDs, add
+        ;; those IDs.
+        (goto-char start)
+        (while (and (looking-at "[[:upper:]]") (eq (char-after end) ?.)
+                    ;; It's a module ID that qualifies further IDs.
+                    (goto-char (1+ end))
+                    (save-excursion
+                      (when (not (zerop (skip-syntax-forward
+                                         (if (looking-at "\\s_") "_" "w'"))))
+                        (setq end (point))))))
+        ;; If we're looking at an ID that's itself qualified by previous
+        ;; module IDs, add those too.
+        (goto-char start)
+        (if (eq (char-after) ?.) (forward-char 1)) ;Special case for "."
+        (while (and (eq (char-before) ?.)
+                    (progn (forward-char -1)
+                           (not (zerop (skip-syntax-backward "w'"))))
+                    (skip-syntax-forward "'")
+                    (looking-at "[[:upper:]]"))
+          (setq start (point)))
+        ;; This is it.
+        (unless (= start end)
+          (cons start end))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Query/commands
