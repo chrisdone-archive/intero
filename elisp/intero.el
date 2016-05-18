@@ -196,14 +196,15 @@ warnings, adding CHECKER and BUFFER to each one."
                           (concat file ":" location-raw ": x")))
                (line (plist-get location :line))
                (column (plist-get location :col)))
-          (when (string= (buffer-file-name buffer)
-                         file)
-            (setq messages
-                  (cons (flycheck-error-new-at
-                         line column type msg
-                         :checker checker
-                         :buffer buffer)
-                        messages)))))
+          (setq messages
+                (cons (flycheck-error-new-at
+                       line column type msg
+                       :checker checker
+                       :buffer (when (string= (buffer-file-name buffer)
+                                              file)
+                                 buffer)
+                       :filename file)
+                      messages))))
       messages)))
 
 (defun intero-call-in-buffer (buffer func &rest args)
