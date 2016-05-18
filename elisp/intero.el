@@ -262,7 +262,7 @@ running context across :load/:reloads in Intero."
   "A syntax and type checker for Haskell using an Intero worker
 process."
   :start 'intero-check
-  :modes '(haskell-mode)
+  :modes '(haskell-mode fundamental-mode)
   :next-checkers '((warning . haskell-hlint)))
 
 (add-to-list 'flycheck-checkers 'intero)
