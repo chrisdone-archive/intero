@@ -93,19 +93,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
-(defun intero-eval (expr)
-  "Prompt for an expression and eval it."
-  (interactive (list (read-from-minibuffer "Eval: ")))
-  (let ((result (intero-blocking-call 'repl expr)))
-    (message
-     "%s"
-     (with-temp-buffer
-       (when (fboundp 'haskell-mode)
-         (haskell-mode))
-       (insert result)
-       (font-lock-fontify-buffer)
-       (buffer-string)))))
-
 (defun intero-type-at (insert)
   "Get the type of the thing or selection at point."
   (interactive "P")
@@ -165,11 +152,6 @@
     (let ((targets (with-current-buffer (intero-buffer 'backend)
                      intero-targets)))
       (intero-destroy 'backend)
-      (intero-get-worker-create 'backend targets (current-buffer))))
-  (when (intero-buffer-p 'repl)
-    (let ((targets (with-current-buffer (intero-buffer 'repl)
-                     intero-targets)))
-      (intero-destroy 'repl)
       (intero-get-worker-create 'backend targets (current-buffer)))))
 
 (defun intero-targets ()
@@ -186,8 +168,7 @@
   (interactive)
   (if worker
       (intero-delete-worker worker)
-    (intero-delete-worker 'backend)
-    (intero-delete-worker 'repl)))
+    (intero-delete-worker 'backend)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; DevelMain integration
@@ -409,6 +390,21 @@ warnings, adding CHECKER and BUFFER to each one."
           (when (nth 8 (syntax-ppss))
             (setq type 'haskell-completions-general-prefix))
           (when value (list start end value type)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; REPL
+
+(define-derived-mode intero-repl-mode comint-mode "Intero-REPL"
+  "Interactive prompt for Intero."
+  :syntax-table haskell-mode-syntax-table
+  (setq comint-prompt-regexp (concat "^" (regexp-quote intero-prompt)))
+  (start-process "intero" (current-buffer)
+                 "stack"
+                 "ghci"
+                 "--with-ghc"
+                 "intero"
+                 "--no-load"
+                 "--no-build"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer operations
