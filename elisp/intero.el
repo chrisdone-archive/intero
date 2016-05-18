@@ -95,17 +95,27 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
-(defun intero-type-at ()
+(defun intero-type-at (insert)
   "Get the type of the thing or selection at point."
-  (interactive)
-  (message
-   "%s"
-   (let ((result (apply #'intero-get-type-at (intero-thing-at-point))))
-     (with-temp-buffer
-       (haskell-mode)
-       (insert result)
-       (font-lock-fontify-buffer)
-       (buffer-string)))))
+  (interactive "P")
+  (let ((ty (apply #'intero-get-type-at (intero-thing-at-point))))
+    (if insert
+        (save-excursion
+          (goto-char (line-beginning-position))
+          (insert
+           (format "%s\n"
+                   (with-temp-buffer
+                     (haskell-mode)
+                     (insert ty)
+                     (font-lock-fontify-buffer)
+                     (buffer-string)))))
+      (message
+       "%s"
+       (with-temp-buffer
+         (haskell-mode)
+         (insert ty)
+         (font-lock-fontify-buffer)
+         (buffer-string))))))
 
 (defun intero-goto-definition ()
   "Jump to the definition of the thing at point."
