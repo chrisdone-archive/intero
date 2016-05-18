@@ -309,13 +309,15 @@ warnings, adding CHECKER and BUFFER to each one."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Process communication
 
-(defun intero-async-call (cmd state callback)
+(defun intero-async-call (cmd &optional state callback)
   "Make an asynchronous call of CMD (string) to the process,
 calling CALLBACK as (CALLBACK STATE REPLY)."
   (with-current-buffer (intero-buffer)
     (setq intero-callbacks
           (append intero-callbacks
-                  (list (list state callback cmd)))))
+                  (list (list state
+                              (or callback #'ignore)
+                              cmd)))))
   (process-send-string (intero-process)
                        (concat cmd "\n")))
 
