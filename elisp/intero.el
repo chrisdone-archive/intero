@@ -430,7 +430,8 @@ but a problem occcured.\n")
                (func (nth 1 next-callback)))
           (let ((string (buffer-substring (point-min) (1- (point)))))
             (if next-callback
-                (progn (funcall func state string)
+                (progn (with-temp-buffer
+                         (funcall func state string))
                        (setq repeat t))
               (when debug-on-error
                 (warn "Received output but no callback in `intero-callbacks': %S"
