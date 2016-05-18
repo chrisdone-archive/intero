@@ -37,6 +37,7 @@
 ;; * Company mode completion ✓
 ;; * Go to definition ✓
 ;; * Type of selection ✓
+;; * Info ✓
 ;; * REPL
 ;; * Find uses
 ;; * List all types in all expressions
@@ -74,6 +75,7 @@
       (message "Intero mode disabled."))))
 
 (define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
+(define-key intero-mode-map (kbd "C-c C-i") 'intero-info)
 (define-key intero-mode-map (kbd "M-.") 'intero-goto-definition)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -123,6 +125,18 @@
          (insert ty)
          (font-lock-fontify-buffer)
          (buffer-string))))))
+
+(defun intero-info (insert)
+  "Get the info of the thing at point."
+  (interactive "P")
+  (let ((info (intero-get-info-of (haskell-ident-at-point))))
+    (message
+     "%s"
+     (with-temp-buffer
+       (haskell-mode)
+       (insert info)
+       (font-lock-fontify-buffer)
+       (buffer-string)))))
 
 (defun intero-goto-definition ()
   "Jump to the definition of the thing at point."
@@ -338,6 +352,14 @@ warnings, adding CHECKER and BUFFER to each one."
             (save-excursion (goto-char end)
                             (1+ (current-column)))
             (buffer-substring-no-properties beg end)))))
+
+(defun intero-get-info-of (thing)
+  "Get info for the thing."
+  (replace-regexp-in-string
+   "\n$" ""
+   (intero-blocking-call
+    'backend
+    (format ":i %s" thing))))
 
 (defun intero-get-loc-at (beg end)
   "Get the location of the identifier denoted by BEG and END."
