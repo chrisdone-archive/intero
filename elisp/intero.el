@@ -56,7 +56,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configuration
 
-(defconst intero-package-version "intero-0.1.8")
+(defconst intero-package-version "intero-0.1.8"
+  "Package version to auto-install.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
@@ -96,6 +97,10 @@
 (defvar intero-project-root nil
   "The project root of the current buffer.")
 (make-variable-buffer-local 'intero-project-root)
+
+(defvar intero-deleting nil
+  "The process of the buffer is being deleted.")
+(make-variable-buffer-local 'intero-deleting)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
@@ -140,10 +145,16 @@
 (defun intero-restart ()
   "Simply restart the process with the same configuration as before."
   (interactive)
-  (let ((targets (with-current-buffer (intero-buffer)
-                   intero-targets)))
-    (intero-destroy)
-    (intero-get-worker-create targets (current-buffer))))
+  (when (intero-buffer-p 'backend)
+    (let ((targets (with-current-buffer (intero-buffer 'backend)
+                     intero-targets)))
+      (intero-destroy 'backend)
+      (intero-get-worker-create 'backend targets (current-buffer))))
+  (when (intero-buffer-p 'repl)
+    (let ((targets (with-current-buffer (intero-buffer 'repl)
+                     intero-targets)))
+      (intero-destroy 'repl)
+      (intero-get-worker-create 'backend targets (current-buffer)))))
 
 (defun intero-targets ()
   "Set the targets to use for stack ghci."
@@ -152,16 +163,15 @@
                                " "
                                t)))
     (intero-destroy)
-    (intero-get-worker-create targets (current-buffer))))
+    (intero-get-worker-create 'backend targets (current-buffer))))
 
-(defun intero-destroy ()
+(defun intero-destroy (&optional worker)
   "Stop the current worker process and kill its associated."
   (interactive)
-  (with-current-buffer (intero-get-buffer-create)
-    (when (get-buffer-process (current-buffer))
-      (kill-process (get-buffer-process (current-buffer)))
-      (delete-process (get-buffer-process (current-buffer))))
-    (kill-buffer (current-buffer))))
+  (if worker
+      (intero-delete-worker worker)
+    (intero-delete-worker 'backend)
+    (intero-delete-worker 'repl)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; DevelMain integration
@@ -184,11 +194,13 @@ running context across :load/:reloads in Intero."
                 (error "No DevelMain.hs buffer.")))
         (message "Reloading ...")
         (intero-async-call
+         'backend
          ":l DevelMain"
          (current-buffer)
          (lambda (buffer reply)
            (if (string-match "^OK, modules loaded" reply)
                (intero-async-call
+                'backend
                 "DevelMain.update"
                 buffer
                 (lambda (_buffer reply)
@@ -209,6 +221,7 @@ running context across :load/:reloads in Intero."
     (write-region (point-min) (point-max) (buffer-file-name))
     (clear-visited-file-modtime)
     (intero-async-call
+     'backend
      (concat ":l " (buffer-file-name))
      (list :cont cont
            :file-buffer file-buffer
@@ -223,8 +236,9 @@ running context across :load/:reloads in Intero."
                    string))
          (when (string-match "OK, modules loaded: \\(.*\\)\\.$" string)
            (let ((modules (match-string 1 string)))
-             (intero-async-call (concat ":m + "
-                                        (replace-in-string modules "," ""))
+             (intero-async-call 'backend
+                                (concat ":m + "
+                                        (replace-regexp-in-string modules "," ""))
                                 nil
                                 (lambda (_st _))))))))))
 
@@ -308,13 +322,14 @@ warnings, adding CHECKER and BUFFER to each one."
 
 (defun intero-get-all-types ()
   "Get all types in all expressions in all modules."
-  (intero-blocking-call ":all-types"))
+  (intero-blocking-call 'backend ":all-types"))
 
 (defun intero-get-type-at (beg end)
   "Get the type at the given region denoted by BEG and END."
   (replace-regexp-in-string
    "\n$" ""
    (intero-blocking-call
+    'backend
     (format ":type-at %S %d %d %d %d %S"
             (buffer-file-name)
             (save-excursion (goto-char beg)
@@ -332,6 +347,7 @@ warnings, adding CHECKER and BUFFER to each one."
   (replace-regexp-in-string
    "\n$" ""
    (intero-blocking-call
+    'backend
     (format ":loc-at %S %d %d %d %d %S"
             (buffer-file-name)
             (save-excursion (goto-char beg)
@@ -349,6 +365,7 @@ warnings, adding CHECKER and BUFFER to each one."
   (replace-regexp-in-string
    "\n$" ""
    (intero-blocking-call
+    'backend
     (format ":uses %S %d %d %d %d %S"
             (buffer-file-name)
             (save-excursion (goto-char beg)
@@ -366,6 +383,7 @@ warnings, adding CHECKER and BUFFER to each one."
   (mapcar #'read
           (cdr (split-string
                 (intero-blocking-call
+                 'backend
                  (format ":complete repl %S" prefix))
                 "\n"
                 t))))
@@ -373,45 +391,56 @@ warnings, adding CHECKER and BUFFER to each one."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Process communication
 
-(defun intero-async-call (cmd &optional state callback)
+(defun intero-delete-worker (worker)
+  "Delete the given worker."
+  (when (intero-buffer-p worker)
+    (with-current-buffer (intero-get-buffer-create worker)
+      (when (get-buffer-process (current-buffer))
+        (setq intero-deleting t)
+        (kill-process (get-buffer-process (current-buffer)))
+        (delete-process (get-buffer-process (current-buffer))))
+      (kill-buffer (current-buffer)))))
+
+(defun intero-blocking-call (worker cmd)
+  "Make a synchronous call of CMD to the process."
+  (let ((result (list nil)))
+    (intero-async-call
+     worker
+     cmd
+     result
+     (lambda (result reply)
+       (setf (car result) reply)))
+    (with-current-buffer (intero-buffer worker)
+      (while (not (null intero-callbacks))
+        (sleep-for 0.0001)))
+    (car result)))
+
+(defun intero-async-call (worker cmd &optional state callback)
   "Make an asynchronous call of CMD (string) to the process,
 calling CALLBACK as (CALLBACK STATE REPLY)."
-  (with-current-buffer (intero-buffer)
+  (with-current-buffer (intero-buffer worker)
     (setq intero-callbacks
           (append intero-callbacks
                   (list (list state
                               (or callback #'ignore)
                               cmd)))))
-  (process-send-string (intero-process)
+  (process-send-string (intero-process worker)
                        (concat cmd "\n")))
 
-(defun intero-blocking-call (cmd)
-  "Make a synchronous call of CMD to the process."
-  (let ((result (list nil)))
-    (intero-async-call
-     cmd
-     result
-     (lambda (result reply)
-       (setf (car result) reply)))
-    (with-current-buffer (intero-buffer)
-      (while (not (null intero-callbacks))
-        (sleep-for 0.0001)))
-    (car result)))
-
-(defun intero-buffer ()
+(defun intero-buffer (worker)
   "Get the worker buffer for the current directory."
-  (let ((buffer (intero-get-buffer-create)))
+  (let ((buffer (intero-get-buffer-create worker)))
     (if (get-buffer-process buffer)
         buffer
-      (intero-get-worker-create))))
+      (intero-get-worker-create worker))))
 
-(defun intero-process ()
+(defun intero-process (worker)
   "Get the worker process for the current directory."
-  (get-buffer-process (intero-buffer)))
+  (get-buffer-process (intero-buffer worker)))
 
-(defun intero-get-worker-create (&optional targets source-buffer)
+(defun intero-get-worker-create (worker &optional targets source-buffer)
   "Start an Intero worker."
-  (let* ((buffer (intero-get-buffer-create)))
+  (let* ((buffer (intero-get-buffer-create worker)))
     (if (get-buffer-process buffer)
         buffer
       (if (intero-installed-p)
@@ -487,8 +516,11 @@ performing a initial actions in SOURCE-BUFFER, if specified."
 (defun intero-sentinel (process change)
   "Handle a CHANGE to the PROCESS."
   (when (buffer-live-p (process-buffer process))
-    (when (not (process-live-p process))
-      (intero-show-process-problem process change))))
+    (when (and (not (process-live-p process)))
+      (if (with-current-buffer (process-buffer process)
+            intero-deleting)
+          (message "Intero process deleted.")
+        (intero-show-process-problem process change)))))
 
 (defun intero-installed-p ()
   "Is intero installed in the stack environment?"
@@ -550,18 +582,29 @@ You can kill this buffer when you're done reading it.\n")
                       string)))))
         (delete-region (point-min) (point))))))
 
-(defun intero-get-buffer-create ()
+(defun intero-get-buffer-create (worker)
   "Get or create the stack buffer for this current directory and
 the given targets."
   (let* ((root (intero-project-root))
          (default-directory root))
     (with-current-buffer
-        (get-buffer-create (concat " intero:"
-                                   (file-name-nondirectory root)
-                                   " "
-                                   root))
+        (get-buffer-create (intero-buffer-name worker))
       (cd root)
       (current-buffer))))
+
+(defun intero-buffer-p (worker)
+  "Does a buffer exist for a given worker?"
+  (get-buffer (intero-buffer-name worker)))
+
+(defun intero-buffer-name (worker)
+  "For a given WORKER, create a buffer name."
+  (let ((root (intero-project-root)))
+    (concat " intero:"
+            (format "%s" worker)
+            ":"
+            (file-name-nondirectory root)
+            " "
+            root)))
 
 (defun intero-project-root ()
   "Get the directory where the stack.yaml is placed for this
