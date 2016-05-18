@@ -372,52 +372,70 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
   (let* ((buffer (intero-get-buffer-create)))
     (if (get-buffer-process buffer)
         buffer
-      (let* ((options (list "--with-ghc"
-                            "intero"
-                            "--no-load"
-                            "--no-build"))
-             (main-is (list))
-             (arguments (append options
-                                targets
-                                main-is))
-             (process (with-current-buffer buffer
-                        (message "Booting up intero ...")
-                        (apply #'start-process "stack" buffer "stack" "ghci"
-                               arguments))))
-        (process-send-string process ":set -fobject-code\n")
-        (process-send-string process ":set prompt \"\\4\"\n")
-        (with-current-buffer buffer
-          (setq intero-targets targets)
-          (setq intero-arguments arguments)
-          (setq intero-callbacks
-                (list (list source-buffer
-                            (lambda (source-buffer _msg)
-                              (when source-buffer
-                                (with-current-buffer source-buffer
-                                  (when flycheck-mode
-                                    (run-with-timer 0 nil
-                                                    'intero-call-in-buffer
-                                                    (current-buffer)
-                                                    'flycheck-buffer))))
-                              (message "Booted up intero!"))))))
-        (set-process-filter process
-                            (lambda (process string)
-                              (when (buffer-live-p (process-buffer process))
-                                (with-current-buffer (process-buffer process)
-                                  (goto-char (point-max))
-                                  (insert string)
-                                  (intero-read-buffer)))))
-        (set-process-sentinel process
-                              (lambda (process change)
-                                (when (buffer-live-p (process-buffer process))
-                                  (when (not (process-live-p process))
-                                    (switch-to-buffer (process-buffer process))
-                                    (goto-char (point-max))
-                                    (insert "\n---\n\n")
-                                    (insert
-                                     (propertize
-                                      (concat
-                                       "This is the buffer where Emacs talks to intero. It's normally hidden,
+      (intero-start-process-in-buffer buffer targets source-buffer))))
+
+(defun intero-start-process-in-buffer (buffer &optional targets source-buffer)
+  "Start an Intero worker in BUFFER for TARGETS, automatically
+performing a initial actions in SOURCE-BUFFER, if specified."
+  (let* ((options (list "--with-ghc"
+                        "intero"
+                        "--no-load"
+                        "--no-build"))
+         (main-is (list))
+         (arguments (append options
+                            targets
+                            main-is))
+         (process (with-current-buffer buffer
+                    (message "Booting up intero ...")
+                    (apply #'start-process "stack" buffer "stack" "ghci"
+                           arguments))))
+    (process-send-string process ":set -fobject-code\n")
+    (process-send-string process ":set prompt \"\\4\"\n")
+    (with-current-buffer buffer
+      (setq intero-targets targets)
+      (setq intero-arguments arguments)
+      (setq intero-callbacks
+            (list (list source-buffer
+                        (lambda (source-buffer _msg)
+                          (when source-buffer
+                            (with-current-buffer source-buffer
+                              (when flycheck-mode
+                                (run-with-timer 0 nil
+                                                'intero-call-in-buffer
+                                                (current-buffer)
+                                                'flycheck-buffer))))
+                          (message "Booted up intero!"))))))
+    (set-process-filter process
+                        (lambda (process string)
+                          (when (buffer-live-p (process-buffer process))
+                            (with-current-buffer (process-buffer process)
+                              (goto-char (point-max))
+                              (insert string)
+                              (intero-read-buffer)))))
+    (set-process-sentinel process 'intero-sentinel)
+    buffer))
+
+(defun intero-sentinel (process change)
+  "Handle a CHANGE to the PROCESS."
+  (when (buffer-live-p (process-buffer process))
+    (when (not (process-live-p process))
+      (intero-show-process-problem process change))))
+
+(defun intero-installed-p ()
+  "Is intero installed in the stack environment?"
+  (= 0 (call-process "stack" nil nil nil "exec" "--" "intero" "--version")))
+
+(defun intero-show-process-problem (process change)
+  "Show the user that a CHANGE occurred on PROCESS, causing it to
+end."
+  (message "Problem with Intero!")
+  (switch-to-buffer (process-buffer process))
+  (goto-char (point-max))
+  (insert "\n---\n\n")
+  (insert
+   (propertize
+    (concat
+     "This is the buffer where Emacs talks to intero. It's normally hidden,
 but a problem occcured.
 
 It may be obvious if there is some text above this message
@@ -426,23 +444,22 @@ indicating a problem.
 The process ended. Here is the reason that Emacs gives us:
 
 "
-                                       "  " change
-                                       "\n"
-                                       "For troubleshooting purposes, here are the arguments used to launch intero:
+     "  " change
+     "\n"
+     "For troubleshooting purposes, here are the arguments used to launch intero:
 
 "
-                                       (format "  stack ghci %s"
-                                               (mapconcat #'identity
-                                                          intero-arguments
-                                                          " "))
-                                       "
+     (format "  stack ghci %s"
+             (mapconcat #'identity
+                        intero-arguments
+                        " "))
+     "
 
 After fixing this problem, you could switch back to your code and
 run M-x intero-restart to try again.
 
 You can kill this buffer when you're done reading it.\n")
-                                      'face 'compilation-error))))))
-        buffer))))
+    'face 'compilation-error)))
 
 (defun intero-read-buffer ()
   "In the process buffer, we read what's in it."
