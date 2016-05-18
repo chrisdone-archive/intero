@@ -1,33 +1,24 @@
 ;;; intero.el --- Complete interaction mode
 
-;; Copyright (c) 2016 Chris Done. All rights reserved.
+;; Copyright (c) 2016 Chris Done.
+;; Copyright (c) 2015 Athur Fayzrakhmanov.
 
 ;; Package-Requires: ((flycheck "26") (haskell-mode "13") (company "0.9.0"))
 
-;; Redistribution and use in source and binary forms, with or without
-;; modification, are permitted provided that the following conditions
-;; are met:
+;; This file is free software; you can redistribute it and/or modify
+;; it under the terms of the GNU General Public License as published by
+;; the Free Software Foundation; either version 3, or (at your option)
+;; any later version.
 
-;; * Redistributions of source code must retain the above copyright
-;;   notice, this list of conditions and the following disclaimer.
+;; This file is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU General Public License for more details.
 
-;; * Redistributions in binary form must reproduce the above copyright
-;;   notice, this list of conditions and the following disclaimer in
-;;   the documentation and/or other materials provided with the
-;;   distribution.
-
-;; THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-;; "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-;; LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-;; FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-;; COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-;; INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-;; (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-;; SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-;; HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-;; STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-;; ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-;; OF THE POSSIBILITY OF SUCH DAMAGE.
+;; You should have received a copy of the GNU General Public License
+;; along with GNU Emacs; see the file COPYING.  If not, write to
+;; the Free Software Foundation, Inc., 51 Franklin Street, Fifth Floor,
+;; Boston, MA 02110-1301, USA.
 
 ;;; Commentary:
 ;;
@@ -46,7 +37,6 @@
 
 (require 'flycheck)
 (require 'haskell-mode)
-(require 'haskell-completions)
 (require 'haskell-interactive-mode)
 (require 'cl-lib)
 (require 'company)
@@ -308,12 +298,66 @@ warnings, adding CHECKER and BUFFER to each one."
   (interactive (list 'interactive))
   (cl-case command
     (interactive (company-begin-backend 'company-intero))
-    (prefix (let ((prefix-info (haskell-completions-grab-prefix)))
+    (prefix (let ((prefix-info (intero-completions-grab-prefix)))
               (when prefix-info
                 (cl-destructuring-bind
                     (_beg _end prefix _type) prefix-info
                   prefix))))
     (candidates (intero-get-completions arg))))
+
+(defun intero-completions-grab-prefix (&optional minlen)
+   "Grab prefix at point for possible completion."
+   (when (intero-completions-can-grab-prefix)
+     (let ((prefix (cond
+                    ((intero-completions-grab-identifier-prefix)))))
+       (cond ((and minlen prefix)
+              (when (>= (length (nth 2 prefix)) minlen)
+                prefix))
+             (prefix prefix)))))
+
+(defun intero-completions-can-grab-prefix ()
+  "Check if the case is appropriate for grabbing completion prefix."
+  (when (not (region-active-p))
+    (when (looking-at-p (rx (| space line-end punct)))
+      (when (not (bobp))
+        (save-excursion
+          (backward-char)
+          (not (looking-at-p (rx (| space line-end)))))))))
+
+(defun intero-completions-grab-identifier-prefix ()
+  "Grab identifier prefix."
+  (let ((pos-at-point (haskell-ident-pos-at-point))
+        (p (point)))
+    (when pos-at-point
+      (let* ((start (car pos-at-point))
+             (end (cdr pos-at-point))
+             (type 'haskell-completions-identifier-prefix)
+             (case-fold-search nil)
+             value)
+        (when (<= p end)
+          (setq end p)
+          (setq value (buffer-substring-no-properties start end))
+          (when (string-match-p (rx bos upper) value)
+            (save-excursion
+              (goto-char (line-beginning-position))
+              (when (re-search-forward
+                     (rx "import"
+                         (? (1+ space) "qualified")
+                         (1+ space)
+                         upper
+                         (1+ (| alnum ".")))
+                     p    ;; bound
+                     t)   ;; no-error
+                (if (equal p (point))
+                    (setq type 'haskell-completions-module-name-prefix)
+                  (when (re-search-forward
+                         (rx (| " as " "("))
+                         start
+                         t)
+                    (setq type 'haskell-completions-identifier-prefix))))))
+          (when (nth 8 (syntax-ppss))
+            (setq type 'haskell-completions-general-prefix))
+          (when value (list start end value type)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer operations
