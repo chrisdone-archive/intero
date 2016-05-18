@@ -37,6 +37,7 @@
 ;; * Company mode completion ✓
 ;; * Go to definition ✓
 ;; * Type of selection ✓
+;; * REPL
 ;; * Find uses
 ;; * List all types in all expressions
 
