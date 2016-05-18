@@ -54,6 +54,11 @@
 (require 'company)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Configuration
+
+(defconst intero-package-version "intero-0.1.8")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
 
 (defvar intero-mode-map (make-sparse-keymap)
@@ -372,7 +377,33 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
   (let* ((buffer (intero-get-buffer-create)))
     (if (get-buffer-process buffer)
         buffer
-      (intero-start-process-in-buffer buffer targets source-buffer))))
+      (if (intero-installed-p)
+          (intero-start-process-in-buffer buffer targets source-buffer)
+        (intero-auto-install buffer targets source-buffer)))))
+
+(defun intero-auto-install (buffer &optional targets source-buffer)
+  "Automatically install Intero."
+  (switch-to-buffer buffer)
+  (erase-buffer)
+  (insert "Intero is not installed in the Stack environment.
+
+Installing automatically ...
+
+")
+  (cl-case (call-process "stack" nil (current-buffer) t "build" intero-package-version)
+    (0
+     (insert "\nInstalled successfully! Starting Intero in a moment ...")
+     (run-with-timer 2
+                     nil
+                     'intero-start-process-in-buffer
+                     buffer targets source-buffer))
+    (1 (insert (propertize "Could not install Intero!
+
+We don't know why it failed. Please read the above output and try
+installing manually. If that doesn't work, report this as a
+problem.
+"
+                           'face 'compilation-error)))))
 
 (defun intero-start-process-in-buffer (buffer &optional targets source-buffer)
   "Start an Intero worker in BUFFER for TARGETS, automatically
@@ -392,6 +423,7 @@ performing a initial actions in SOURCE-BUFFER, if specified."
     (process-send-string process ":set -fobject-code\n")
     (process-send-string process ":set prompt \"\\4\"\n")
     (with-current-buffer buffer
+      (erase-buffer)
       (setq intero-targets targets)
       (setq intero-arguments arguments)
       (setq intero-callbacks
