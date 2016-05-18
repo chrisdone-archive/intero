@@ -84,6 +84,10 @@
   "Arguments used to call the stack process.")
 (make-variable-buffer-local 'intero-arguments)
 
+(defvar intero-targets ""
+  "Targets used for the stack process.")
+(make-variable-buffer-local 'intero-targets)
+
 (defvar intero-project-root nil
   "The project root of the current buffer.")
 (make-variable-buffer-local 'intero-project-root)
@@ -117,6 +121,14 @@
         (goto-char (point-min))
         (forward-line (1- line))
         (forward-char (1- col))))))
+
+(defun intero-restart ()
+  "Simply restart the process with the same configuration as before."
+  (interactive)
+  (let ((targets (with-current-buffer (intero-buffer)
+                   intero-targets)))
+    (intero-destroy)
+    (intero-get-worker-create targets (current-buffer))))
 
 (defun intero-targets ()
   "Set the targets to use for stack ghci."
@@ -365,6 +377,7 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
         (process-send-string process ":set -fobject-code\n")
         (process-send-string process ":set prompt \"\\4\"\n")
         (with-current-buffer buffer
+          (setq intero-targets targets)
           (setq intero-arguments arguments)
           (setq intero-callbacks
                 (list (list source-buffer
