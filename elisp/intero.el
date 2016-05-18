@@ -93,6 +93,19 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
+(defun intero-eval (expr)
+  "Prompt for an expression and eval it."
+  (interactive (list (read-from-minibuffer "Eval: ")))
+  (let ((result (intero-blocking-call 'repl expr)))
+    (message
+     "%s"
+     (with-temp-buffer
+       (when (fboundp 'haskell-mode)
+         (haskell-mode))
+       (insert result)
+       (font-lock-fontify-buffer)
+       (buffer-string)))))
+
 (defun intero-type-at (insert)
   "Get the type of the thing or selection at point."
   (interactive "P")
