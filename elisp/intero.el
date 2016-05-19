@@ -394,17 +394,27 @@ warnings, adding CHECKER and BUFFER to each one."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; REPL
 
+(defun intero-repl ()
+  "Start up the REPL for this stack project."
+  (interactive)
+  (switch-to-buffer (intero-repl-buffer)))
+
+(defun intero-repl-buffer ()
+  (let ((root (intero-project-root)))
+    (with-current-buffer
+        (get-buffer-create (format "*intero:%s:repl*" (file-name-nondirectory root)))
+      (cd root)
+      (intero-repl-mode)
+      (current-buffer))))
+
 (define-derived-mode intero-repl-mode comint-mode "Intero-REPL"
   "Interactive prompt for Intero."
   :syntax-table haskell-mode-syntax-table
   (setq comint-prompt-regexp (concat "^" (regexp-quote intero-prompt)))
-  (start-process "intero" (current-buffer)
-                 "stack"
-                 "ghci"
-                 "--with-ghc"
-                 "intero"
-                 "--no-load"
-                 "--no-build"))
+  (let ((arguments (intero-make-options-list intero-targets)))
+    (insert (format "Starting:\n  stack ghci %s\n" (mapconcat #'identity arguments " ")))
+    (apply #'start-process "intero" (current-buffer) "stack" "ghci"
+           arguments)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer operations
