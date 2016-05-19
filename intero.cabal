@@ -32,6 +32,8 @@ extra-source-files:
   cbits/PosixSource.h
   CHANGELOG
   README.md
+data-files:
+  elisp/*.el
 source-repository head
   type:
     git
