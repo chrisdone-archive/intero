@@ -66,6 +66,7 @@
 (define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
 (define-key intero-mode-map (kbd "C-c C-i") 'intero-info)
 (define-key intero-mode-map (kbd "M-.") 'intero-goto-definition)
+(define-key intero-mode-map (kbd "C-c C-l") 'intero-repl-load)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer-local variables/state
@@ -401,18 +402,32 @@ warnings, adding CHECKER and BUFFER to each one."
 
 (defconst intero-prompt-regexp "^\4 ")
 
+(defun intero-repl-load ()
+  "Load the current file in the REPL."
+  (interactive)
+  (let ((file (buffer-file-name))
+        (repl-buffer (intero-repl-buffer)))
+    (with-current-buffer repl-buffer
+      (comint-send-string
+       (get-buffer-process (current-buffer))
+       (concat ":l " file "\n")))
+    (pop-to-buffer repl-buffer)))
+
 (defun intero-repl ()
   "Start up the REPL for this stack project."
   (interactive)
   (switch-to-buffer (intero-repl-buffer)))
 
 (defun intero-repl-buffer ()
-  (let ((root (intero-project-root)))
-    (with-current-buffer
-        (get-buffer-create (format "*intero:%s:repl*" (file-name-nondirectory root)))
-      (cd root)
-      (intero-repl-mode)
-      (current-buffer))))
+  (let* ((root (intero-project-root))
+         (name (format "*intero:%s:repl*" (file-name-nondirectory root))))
+    (if (get-buffer name)
+        (get-buffer name)
+      (with-current-buffer
+          (get-buffer-create name)
+        (cd root)
+        (intero-repl-mode)
+        (current-buffer)))))
 
 (define-derived-mode intero-repl-mode comint-mode "Intero-REPL"
   "Interactive prompt for Intero."
