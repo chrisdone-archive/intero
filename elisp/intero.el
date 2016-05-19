@@ -416,14 +416,30 @@ warnings, adding CHECKER and BUFFER to each one."
 
 (define-derived-mode intero-repl-mode comint-mode "Intero-REPL"
   "Interactive prompt for Intero."
+  (when (and (not (eq major-mode 'fundamental-mode))
+             (eq this-command 'intero-repl-mode))
+    (error "You probably meant to run: M-x intero-repl"))
   (setq comint-prompt-regexp intero-prompt-regexp)
   (setq comint-use-prompt-regexp t)
   (setq comint-prompt-read-only t)
   (let ((arguments (intero-make-options-list intero-targets)))
-    (insert (format "Starting:\n  stack ghci %s\n" (mapconcat #'identity arguments " ")))
-    (let ((process (apply #'start-process "intero" (current-buffer) "stack" "ghci"
-                          arguments)))
-      (comint-send-string process ":set prompt \"\\4 \"\n"))))
+    (insert (propertize
+             (format "Starting:\n  stack ghci %s\n" (mapconcat #'identity arguments " "))
+             'face 'font-lock-comment-face))
+    (let ((script (with-current-buffer (find-file-noselect (make-temp-file "intero-script"))
+                    (insert ":set prompt \"\"
+:set -fobject-code
+:set prompt \"\\4 \"
+")
+                    (basic-save-buffer)
+                    (buffer-file-name))))
+      (let ((process (apply #'start-process "intero" (current-buffer) "stack" "ghci"
+                            (append arguments
+                                    (list "--verbosity" "silent")
+                                    (list "--ghci-options"
+                                          (concat "-ghci-script=" script))))))
+        (when (process-live-p process)
+          (message "Started Intero process for REPL."))))))
 
 (font-lock-add-keywords
  'intero-repl-mode
