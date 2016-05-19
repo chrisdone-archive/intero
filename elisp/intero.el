@@ -630,16 +630,8 @@ problem.
 (defun intero-start-process-in-buffer (buffer &optional targets source-buffer)
   "Start an Intero worker in BUFFER for TARGETS, automatically
 performing a initial actions in SOURCE-BUFFER, if specified."
-  (let* ((options (list "--with-ghc"
-                        "intero"
-                        "--no-load"
-                        "--no-build"
-                        "--ghci-options"
-                        (concat "-odir=" (make-temp-file "intero" t))))
-         (main-is (list))
-         (arguments (append options
-                            targets
-                            main-is))
+  (let* ((options (intero-make-options-list targets))
+         (arguments options)
          (process (with-current-buffer buffer
                     (message "Booting up intero ...")
                     (apply #'start-process "stack" buffer "stack" "ghci"
@@ -670,6 +662,20 @@ performing a initial actions in SOURCE-BUFFER, if specified."
                               (intero-read-buffer)))))
     (set-process-sentinel process 'intero-sentinel)
     buffer))
+
+(defun intero-make-options-list (targets)
+  "Make the stack ghci options list."
+  (append (list "--with-ghc"
+                "intero"
+                "--no-load"
+                "--no-build")
+
+          (let ((dir (make-temp-file "intero" t)))
+            (list "--ghci-options"
+                  (format "%S" (concat "-odir=" dir))
+                  "--ghci-options"
+                  (format "%S" (concat "-hidir=" dir))))
+          targets))
 
 (defun intero-sentinel (process change)
   "Handle a CHANGE to the PROCESS."
