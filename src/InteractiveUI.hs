@@ -192,6 +192,7 @@ ghciCommands = [
   ("check",     keepGoing' checkModule,         completeHomeModule),
   ("continue",  keepGoing continueCmd,          noCompletion),
   ("complete",  keepGoing completeCmd,          noCompletion),
+  ("completion", keepGoing completeCmdSet,      completeMacro),
   ("cmd",       keepGoing cmdCmd,               completeExpression),
   ("ctags",     keepGoing createCTagsWithLineNumbersCmd, completeFilename),
   ("ctags!",    keepGoing createCTagsWithRegExesCmd, completeFilename),
@@ -272,6 +273,25 @@ keepGoingPaths a str
 defShortHelpText :: String
 defShortHelpText = "use :? for help.\n"
 
+completions :: [(String, Bool, CompletionFunc GHCi)]
+completions = [
+  ( "none",          True,  noCompletion),
+  ( "expr",          True,  completeExpression),
+  ( "file",          True,  completeFilename),
+  ( "module",        True,  completeModule),
+  ( "home-module",   False, completeHomeModule),
+  ( "home-mod-file", False, completeHomeModuleOrFile),
+  ( "identifier",    True,  completeIdentifier),
+  ( "macro",         False, completeMacro),
+  ( "seti",          False, completeSeti),
+  ( "set-module",    False, completeSetModule),
+  ( "set-options",   False, completeSetOptions),
+  ( "showi",         False, completeShowiOptions),
+  ( "show-options",  False, completeShowOptions) ]
+
+completionsHelpText :: String
+completionsHelpText = concat . intersperse "|" . map (\ (name, _, _) -> name) . filter (\ (_, enabled, _) -> enabled) $ completions
+
 defFullHelpText :: String
 defFullHelpText =
   " Commands available from the prompt:\n" ++
@@ -285,6 +305,8 @@ defFullHelpText =
   "   :cd <dir>                   change directory to <dir>\n" ++
   "   :cmd <expr>                 run the commands returned by <expr>::IO String\n" ++
   "   :complete <dom> [<rng>] <s> list completions for partial input string\n" ++
+  "   :completion <cmd> <ctype>   Assign a certain completion type to a command:\n" ++
+  "                               " ++ completionsHelpText ++ "\n" ++
   "   :ctags[!] [<file>]          create tags file for Vi (default: \"tags\")\n" ++
   "                               (!: use regex instead of line number)\n" ++
   "   :def <cmd> <expr>           define command :<cmd> (later defined command has\n" ++
@@ -2813,6 +2835,35 @@ allExposedModules = listVisibleModuleNames
 
 completeExpression = completeQuotedWord (Just '\\') "\"" listFiles
                         completeIdentifier
+
+-----------------------------------------------------------------------------
+-- :completion
+
+completeCmdSet :: String -> GHCi ()
+completeCmdSet s = do
+  (macro_name, completion_name) <-
+      case words s of
+        (a : b : []) -> return (a, b)
+        _            -> throwGhcException (CmdLineError $ "syntax: :completion <macro> " ++ completionsHelpText)
+
+  macros <- liftIO (readIORef macros_ref)
+
+  completionFunc <-
+    case filter (\ (name, enabled, _) -> name == completion_name && enabled) completions of
+      (_, _, f) : _ -> return f
+      []            -> throwGhcException (CmdLineError $ "Unknown completion mode: must be one of " ++ completionsHelpText)
+
+  let updatedMacros = updateFirst ((== macro_name) . cmdName) (\ (name, f, _) -> (name, f, completionFunc)) macros
+
+  case updatedMacros of
+    (True,  newMacros) -> liftIO (writeIORef macros_ref newMacros)
+    (False, _)         -> throwGhcException (CmdLineError $ "Could not find macro: '" ++ macro_name ++ "'")
+
+
+updateFirst :: (a -> Bool) -> (a -> a) -> [a] -> (Bool, [a])
+updateFirst _ _ [] = (False, [])
+updateFirst p f (x:xs) | p x       = (True, f x : xs)
+                       | otherwise = (x :) <$> updateFirst p f xs
 
 
 -- -----------------------------------------------------------------------------
