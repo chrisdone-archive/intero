@@ -93,6 +93,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
+(defun intero-eval (expression)
+  "Eval the given EXPRESSION."
+  (interactive (list (read-from-minibuffer "Eval: ")))
+  )
+
 (defun intero-type-at (insert)
   "Get the type of the thing or selection at point."
   (interactive "P")
@@ -394,6 +399,8 @@ warnings, adding CHECKER and BUFFER to each one."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; REPL
 
+(defconst intero-prompt-regexp "^\4 ")
+
 (defun intero-repl ()
   "Start up the REPL for this stack project."
   (interactive)
@@ -409,12 +416,38 @@ warnings, adding CHECKER and BUFFER to each one."
 
 (define-derived-mode intero-repl-mode comint-mode "Intero-REPL"
   "Interactive prompt for Intero."
-  :syntax-table haskell-mode-syntax-table
-  (setq comint-prompt-regexp (concat "^" (regexp-quote intero-prompt)))
+  (setq comint-prompt-regexp intero-prompt-regexp)
+  (setq comint-use-prompt-regexp t)
+  (setq comint-prompt-read-only t)
   (let ((arguments (intero-make-options-list intero-targets)))
     (insert (format "Starting:\n  stack ghci %s\n" (mapconcat #'identity arguments " ")))
-    (apply #'start-process "intero" (current-buffer) "stack" "ghci"
-           arguments)))
+    (let ((process (apply #'start-process "intero" (current-buffer) "stack" "ghci"
+                          arguments)))
+      (comint-send-string process ":set prompt \"\\4 \"\n"))))
+
+(font-lock-add-keywords
+ 'intero-repl-mode
+ '(("\\(\4\\)"
+    (0 (prog1 ()
+         (compose-region (match-beginning 1)
+                         (match-end 1)
+                         ?λ))))))
+
+(define-key intero-repl-mode-map [remap move-beginning-of-line] 'intero-repl-beginning-of-line)
+(define-key intero-repl-mode-map [remap delete-backward-char] 'intero-repl-delete-backward-char)
+
+(defun intero-repl-delete-backward-char ()
+  "Delete backwards, excluding the prompt."
+  (interactive)
+  (unless (looking-back intero-prompt-regexp)
+    (call-interactively 'delete-backward-char)))
+
+(defun intero-repl-beginning-of-line ()
+  "Go to the beginning of the line, excluding the prompt."
+  (interactive)
+  (if (search-backward-regexp intero-prompt-regexp (line-beginning-position) t 1)
+      (goto-char (+ 2 (line-beginning-position)))
+    (call-interactively 'move-beginning-of-line)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer operations
