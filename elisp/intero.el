@@ -78,7 +78,7 @@
   "Arguments used to call the stack process.")
 (make-variable-buffer-local 'intero-arguments)
 
-(defvar intero-targets ""
+(defvar intero-targets (list)
   "Targets used for the stack process.")
 (make-variable-buffer-local 'intero-targets)
 
