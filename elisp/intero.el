@@ -633,7 +633,9 @@ performing a initial actions in SOURCE-BUFFER, if specified."
   (let* ((options (list "--with-ghc"
                         "intero"
                         "--no-load"
-                        "--no-build"))
+                        "--no-build"
+                        "--ghci-options"
+                        (concat "-odir=" (make-temp-file "intero" t))))
          (main-is (list))
          (arguments (append options
                             targets
