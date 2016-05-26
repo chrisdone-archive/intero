@@ -741,6 +741,7 @@ performing a initial actions in SOURCE-BUFFER, if specified."
   "Make the stack ghci options list."
   (append (list "--with-ghc"
                 "intero"
+                "--docker-run-args=--interactive=true --tty=false"
                 "--no-load"
                 "--no-build")
 
