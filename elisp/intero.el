@@ -3,6 +3,7 @@
 ;; Copyright (c) 2016 Chris Done
 ;; Copyright (c) 2015 Athur Fayzrakhmanov
 ;; Copyright (c) 2013 Herbert Valerio Riedel
+;; Copyright (c) 2007 Stefan Monnier
 
 ;; Package-Requires: ((flycheck "26") (company "0.9.0"))
 
@@ -39,6 +40,7 @@
 (require 'flycheck)
 (require 'cl-lib)
 (require 'company)
+(require 'comint)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configuration
@@ -420,7 +422,10 @@ warnings, adding CHECKER and BUFFER to each one."
 
 (defun intero-repl-buffer ()
   (let* ((root (intero-project-root))
-         (name (format "*intero:%s:repl*" (file-name-nondirectory root))))
+         (package-name (intero-package-name))
+         (name (format "*intero:%s:%s:repl*"
+                       (file-name-nondirectory root)
+                       package-name)))
     (if (get-buffer name)
         (get-buffer name)
       (with-current-buffer
@@ -434,7 +439,7 @@ warnings, adding CHECKER and BUFFER to each one."
   (when (and (not (eq major-mode 'fundamental-mode))
              (eq this-command 'intero-repl-mode))
     (error "You probably meant to run: M-x intero-repl"))
-  (setq comint-prompt-regexp intero-prompt-regexp)
+  (set (make-local-variable 'comint-prompt-regexp) intero-prompt-regexp)
   (let ((arguments (intero-make-options-list intero-targets)))
     (insert (propertize
              (format "Starting:\n  stack ghci %s\n" (mapconcat #'identity arguments " "))
@@ -835,11 +840,12 @@ the given targets."
 
 (defun intero-buffer-name (worker)
   "For a given WORKER, create a buffer name."
-  (let ((root (intero-project-root)))
+  (let* ((root (intero-project-root))
+         (package-name (intero-package-name)))
     (concat " intero:"
             (format "%s" worker)
             ":"
-            (file-name-nondirectory root)
+            package-name
             " "
             root)))
 
@@ -858,6 +864,59 @@ project, or the global one."
                             "--project-root"
                             "--verbosity" "silent"))
             (buffer-substring (line-beginning-position) (line-end-position))))))
+
+(defun intero-package-name ()
+  "Get the current package name from a nearby .cabal file. If
+there is none, return empty string."
+  (let ((cabal-file (intero-cabal-find-file)))
+    (if cabal-file
+        (replace-regexp-in-string
+         ".cabal$" ""
+         (file-name-nondirectory (intero-cabal-find-file)))
+      "")))
+
+(defun intero-cabal-find-file (&optional dir)
+  "Search for package description file upwards starting from DIR.
+If DIR is nil, `default-directory' is used as starting point for
+directory traversal.  Upward traversal is aborted if file owner
+changes.  Uses `intero-cabal-find-pkg-desc' internally."
+  (let ((use-dir (or dir default-directory)))
+    (while (and use-dir (not (file-directory-p use-dir)))
+      (setq use-dir (file-name-directory (directory-file-name use-dir))))
+    (when use-dir
+      (catch 'found
+        (let ((user (nth 2 (file-attributes use-dir)))
+              ;; Abbreviate, so as to stop when we cross ~/.
+              (root (abbreviate-file-name use-dir)))
+          ;; traverse current dir up to root as long as file owner doesn't change
+          (while (and root (equal user (nth 2 (file-attributes root))))
+            (let ((cabal-file (intero-cabal-find-pkg-desc root)))
+              (when cabal-file
+                (throw 'found cabal-file)))
+
+            (let ((proot (file-name-directory (directory-file-name root))))
+              (if (equal proot root) ;; fix-point reached?
+                  (throw 'found nil)
+                (setq root proot))))
+          nil)))))
+
+(defun intero-cabal-find-pkg-desc (dir &optional allow-multiple)
+  "Find a package description file in the directory DIR.
+Returns nil if none or multiple \".cabal\" files were found.  If
+ALLOW-MULTIPLE is non nil, in case of multiple \".cabal\" files,
+a list is returned instead of failing with a nil result."
+  ;; This is basically a port of Cabal's
+  ;; Distribution.Simple.Utils.findPackageDesc function
+  ;;  http://hackage.haskell.org/packages/archive/Cabal/1.16.0.3/doc/html/Distribution-Simple-Utils.html
+  ;; but without the exception throwing.
+  (let* ((cabal-files
+          (cl-remove-if 'file-directory-p
+                        (cl-remove-if-not 'file-exists-p
+                                          (directory-files dir t ".\\.cabal\\'")))))
+    (cond
+     ((= (length cabal-files) 1) (car cabal-files)) ;; exactly one candidate found
+     (allow-multiple cabal-files) ;; pass-thru multiple candidates
+     (t nil))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
