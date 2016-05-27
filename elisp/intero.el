@@ -830,14 +830,14 @@ You can kill this buffer when you're done reading it.\n")
 (defun intero-get-buffer-create (worker)
   "Get or create the stack buffer for this current directory and
 the given targets."
-  (let* ((root (intero-project-root))
-         (package-name (intero-package-name))
+  (let* ((cabal-file (intero-cabal-find-file))
+         (package-name (intero-package-name cabal-file))
          (buffer-name (intero-buffer-name worker))
-         (default-directory root))
+         (default-directory (file-name-directory cabal-file)))
     (with-current-buffer
         (get-buffer-create buffer-name)
       (setq intero-package-name package-name)
-      (cd root)
+      (cd default-directory)
       (current-buffer))))
 
 (defun intero-buffer-p (worker)
@@ -871,16 +871,17 @@ project, or the global one."
                             "--verbosity" "silent"))
             (buffer-substring (line-beginning-position) (line-end-position))))))
 
-(defun intero-package-name ()
+(defun intero-package-name (&optional cabal-file)
   "Get the current package name from a nearby .cabal file. If
 there is none, return empty string."
   (or intero-package-name
       (setq intero-package-name
-            (let ((cabal-file (intero-cabal-find-file)))
+            (let ((cabal-file (or cabal-file
+                                  (intero-cabal-find-file))))
               (if cabal-file
                   (replace-regexp-in-string
                    ".cabal$" ""
-                   (file-name-nondirectory (intero-cabal-find-file)))
+                   (file-name-nondirectory cabal-file))
                 "")))))
 
 (defun intero-cabal-find-file (&optional dir)
