@@ -100,6 +100,14 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
+(defun intero-cd ()
+  "Change directory in the backend process."
+  (interactive)
+  (intero-async-call
+   'backend
+   (concat ":cd "
+           (read-directory-name "Change Intero directory: "))))
+
 (defun intero-type-at (insert)
   "Get the type of the thing or selection at point."
   (interactive "P")
