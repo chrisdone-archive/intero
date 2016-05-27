@@ -89,6 +89,10 @@
   "The project root of the current buffer.")
 (make-variable-buffer-local 'intero-project-root)
 
+(defvar intero-package-name nil
+  "The package name associated with the current buffer.")
+(make-variable-buffer-local 'intero-package-name)
+
 (defvar intero-deleting nil
   "The process of the buffer is being deleted.")
 (make-variable-buffer-local 'intero-deleting)
@@ -702,9 +706,14 @@ problem.
 (defun intero-start-process-in-buffer (buffer &optional targets source-buffer)
   "Start an Intero worker in BUFFER for TARGETS, automatically
 performing a initial actions in SOURCE-BUFFER, if specified."
-  (let* ((options (intero-make-options-list targets))
+  (let* ((options
+          (intero-make-options-list
+           (or targets
+               (list (buffer-local-value 'intero-package-name buffer)))))
          (arguments options)
          (process (with-current-buffer buffer
+                    (when debug-on-error
+                      (message "Intero arguments: %S" arguments))
                     (message "Booting up intero ...")
                     (apply #'start-process "stack" buffer "stack" "ghci"
                            arguments))))
@@ -742,7 +751,6 @@ performing a initial actions in SOURCE-BUFFER, if specified."
                 "--docker-run-args=--interactive=true --tty=false"
                 "--no-load"
                 "--no-build")
-
           (let ((dir (make-temp-file "intero" t)))
             (list "--ghci-options"
                   (format "%S" (concat "-odir=" dir))
@@ -823,9 +831,12 @@ You can kill this buffer when you're done reading it.\n")
   "Get or create the stack buffer for this current directory and
 the given targets."
   (let* ((root (intero-project-root))
+         (package-name (intero-package-name))
+         (buffer-name (intero-buffer-name worker))
          (default-directory root))
     (with-current-buffer
-        (get-buffer-create (intero-buffer-name worker))
+        (get-buffer-create buffer-name)
+      (setq intero-package-name package-name)
       (cd root)
       (current-buffer))))
 
@@ -863,12 +874,14 @@ project, or the global one."
 (defun intero-package-name ()
   "Get the current package name from a nearby .cabal file. If
 there is none, return empty string."
-  (let ((cabal-file (intero-cabal-find-file)))
-    (if cabal-file
-        (replace-regexp-in-string
-         ".cabal$" ""
-         (file-name-nondirectory (intero-cabal-find-file)))
-      "")))
+  (or intero-package-name
+      (setq intero-package-name
+            (let ((cabal-file (intero-cabal-find-file)))
+              (if cabal-file
+                  (replace-regexp-in-string
+                   ".cabal$" ""
+                   (file-name-nondirectory (intero-cabal-find-file)))
+                "")))))
 
 (defun intero-cabal-find-file (&optional dir)
   "Search for package description file upwards starting from DIR.
