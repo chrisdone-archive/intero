@@ -435,8 +435,6 @@ warnings, adding CHECKER and BUFFER to each one."
              (eq this-command 'intero-repl-mode))
     (error "You probably meant to run: M-x intero-repl"))
   (setq comint-prompt-regexp intero-prompt-regexp)
-  (setq comint-use-prompt-regexp t)
-  (setq comint-prompt-read-only t)
   (let ((arguments (intero-make-options-list intero-targets)))
     (insert (propertize
              (format "Starting:\n  stack ghci %s\n" (mapconcat #'identity arguments " "))
