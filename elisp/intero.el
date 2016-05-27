@@ -672,7 +672,7 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
   (let ((buffer (intero-get-buffer-create worker)))
     (if (get-buffer-process buffer)
         buffer
-      (intero-get-worker-create worker))))
+      (intero-get-worker-create worker nil (current-buffer)))))
 
 (defun intero-process (worker)
   "Get the worker process for the current directory."
@@ -689,27 +689,28 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
 
 (defun intero-auto-install (buffer &optional targets source-buffer)
   "Automatically install Intero."
-  (switch-to-buffer buffer)
-  (erase-buffer)
-  (insert "Intero is not installed in the Stack environment.
+  (let ((source-buffer (or source-buffer (current-buffer))))
+    (switch-to-buffer buffer)
+    (erase-buffer)
+    (insert "Intero is not installed in the Stack environment.
 
 Installing automatically ...
 
 ")
-  (cl-case (call-process "stack" nil (current-buffer) t "build" intero-package-version)
-    (0
-     (insert "\nInstalled successfully! Starting Intero in a moment ...")
-     (run-with-timer 2
-                     nil
-                     'intero-start-process-in-buffer
-                     buffer targets source-buffer))
-    (1 (insert (propertize "Could not install Intero!
+    (redisplay)
+    (cl-case (call-process "stack" nil (current-buffer) t "build" intero-package-version)
+      (0
+       (message "Installed successfully! Starting Intero in a moment ...")
+       (bury-buffer buffer)
+       (switch-to-buffer source-buffer)
+       (intero-start-process-in-buffer buffer targets source-buffer))
+      (1 (insert (propertize "Could not install Intero!
 
 We don't know why it failed. Please read the above output and try
 installing manually. If that doesn't work, report this as a
 problem.
 "
-                           'face 'compilation-error)))))
+                             'face 'compilation-error))))))
 
 (defun intero-start-process-in-buffer (buffer &optional targets source-buffer)
   "Start an Intero worker in BUFFER for TARGETS, automatically
@@ -777,6 +778,7 @@ performing a initial actions in SOURCE-BUFFER, if specified."
 
 (defun intero-installed-p ()
   "Is intero installed in the stack environment?"
+  (redisplay)
   (= 0 (call-process "stack" nil nil nil "exec" "--" "intero" "--version")))
 
 (defun intero-show-process-problem (process change)
