@@ -96,11 +96,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
-(defun intero-eval (expression)
-  "Eval the given EXPRESSION."
-  (interactive (list (read-from-minibuffer "Eval: ")))
-  )
-
 (defun intero-type-at (insert)
   "Get the type of the thing or selection at point."
   (interactive "P")
