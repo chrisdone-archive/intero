@@ -2,7 +2,9 @@
 
 Complete interactive development program for Haskell
 
-## Supported GHCs
+## Supported GHC versions
+
+Intero been built and tested on the following GHC versions:
 
 * GHC 8.0.1
 * GHC 7.10.3
@@ -57,11 +59,3 @@ matches the GHC version that you're working with.
 To load up your stack project use:
 
     $ stack ghci --with-ghc intero
-
-## Supported GHC versions
-
-Intero been built and tested on the following GHC versions:
-
-* GHC 7.8.4
-* GHC 7.10.2
-* GHC 7.10.3
