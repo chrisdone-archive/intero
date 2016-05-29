@@ -10,6 +10,7 @@ import System.IO
 import System.IO.Temp
 import System.Process
 import Test.Hspec
+import Text.Regex
 
 -- | Main entry point.
 main :: IO ()
@@ -50,9 +51,13 @@ argsparser =
 basics :: Spec
 basics =
   describe "Basics"
-           (do it ":t 1" (eval ":t 1" "1 :: Num a => a\n")
+           (do it ":t 1" (eval ":t 1 :: Num a => a" "1 :: Num a => a :: Num a => a\n")
                it ":i Nothing"
-                  (eval ":i Nothing" "data Maybe a = Nothing | ... \t-- Defined in ‘GHC.Base’\n")
+                  (do reply <-
+                        withIntero []
+                                   (\_ repl -> repl ":i Nothing")
+                      shouldBe (subRegex (mkRegex "Data.Maybe") reply "GHC.Base")
+                               "data Maybe a = Nothing | ... \t-- Defined in ‘GHC.Base’\n")
                it ":k Just" (eval ":k Maybe" "Maybe :: * -> *\n"))
 
 -- | Loading files and seeing the results.
@@ -74,9 +79,11 @@ load =
                   (do result <-
                         withIntero []
                                    (\_ repl -> repl (":l NonExistent.hs"))
-                      shouldBe result (unlines ["Failed, modules loaded: none."
-                                               ,""
-                                               ,"<no location info>: can't find file: NonExistent.hs"])))
+                      shouldBe (stripError result)
+                               (unlines ["Failed, modules loaded: none."
+                                        ,""
+                                        ,"<no location info>: can't find file: NonExistent.hs"])))
+  where stripError = \i -> subRegex (mkRegex "error: ") i ""
 
 -- | Check things when in -fbyte-code mode.
 bytecode :: Spec
@@ -176,20 +183,24 @@ use =
            (do it ":uses X.hs 1 1 1 1 x -- from definition site"
                   (uses "x = 'a' : x"
                         (1,1,1,1,"x")
+                        id
                         (unlines ["X.hs:(1,1)-(1,2)"
                                  ,"X.hs:(1,1)-(1,2)"
                                  ,"X.hs:(1,11)-(1,12)"]))
                it ":uses X.hs 1 11 1 12 x -- from use site"
                   (uses "x = 'a' : x"
                         (1,11,1,12,"x")
+                        id
                         (unlines ["X.hs:(1,1)-(1,2)","X.hs:(1,11)-(1,12)"]))
                it ":uses X.hs 1 5 1 6 id -- package definition"
                   (uses "x = id"
                         (1,5,1,6,"id")
-                        (unlines ["base-4.8.2.0:GHC.Base"]))
+                        (\i -> subRegex (mkRegex "-[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+") i "")
+                        (unlines ["base:GHC.Base"]))
                it ":uses X.hs 1 5 1 6 id -- shadowed package definition"
                   (uses "x = id where id = ()"
                         (1,5,1,7,"id")
+                        id
                         (unlines ["X.hs:(1,14)-(1,16)"
                                  ,"X.hs:(1,14)-(1,16)"
                                  ,"X.hs:(1,5)-(1,7)"])))
@@ -248,8 +259,8 @@ locAt file (line,col,line',col',name) expected =
 
 -- | Find use-sites for the given place.
 uses
-  :: String -> (Int,Int,Int,Int,String) -> String -> Expectation
-uses file (line,col,line',col',name) expected =
+  :: String -> (Int,Int,Int,Int,String) -> (String -> String) -> String -> Expectation
+uses file (line,col,line',col',name) preprocess expected =
   do result <-
        withIntero
          []
@@ -258,7 +269,7 @@ uses file (line,col,line',col',name) expected =
                _ <- repl (":l X.hs")
                repl (":uses X.hs " ++
                      unwords (map show [line,col,line',col']) ++ " " ++ name))
-     shouldBe result expected
+     shouldBe (preprocess result) expected
 
 -- | Test the type at the given place.
 typeAt

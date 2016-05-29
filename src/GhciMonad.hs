@@ -2,7 +2,7 @@
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -fno-cse -fno-warn-orphans #-}
+{-# OPTIONS_GHC -fno-cse -fno-warn-orphans -fno-warn-warnings-deprecations #-}
 -- -fno-cse is needed for GLOBAL_VAR's to behave properly
 
 -----------------------------------------------------------------------------
@@ -34,7 +34,6 @@ module GhciMonad (
 -- ghci-ng
 import GhciTypes
 import Data.Map.Strict (Map)
-
 import qualified GHC
 import GhcMonad         hiding (liftIO)
 import Outputable       hiding (printForUser, printForUserPartWay)
@@ -44,7 +43,12 @@ import DynFlags
 import HscTypes
 import SrcLoc
 import Module
+#if __GLASGOW_HASKELL__ >= 800
+import GHCi.ObjLink as ObjLink
+import GHC (BreakIndex)
+#else
 import ObjLink
+#endif
 import Linker
 
 import Exception
@@ -383,9 +387,17 @@ GLOBAL_VAR(stderr_ptr, error "no stderr_ptr", Ptr ())
 
 initInterpBuffering :: Ghc ()
 initInterpBuffering = do -- make sure these are linked
+#if __GLASGOW_HASKELL__ < 800
     dflags <- GHC.getSessionDynFlags
+#else
+    hscEnv <- getSession
+#endif
     liftIO $ do
+#if __GLASGOW_HASKELL__ >= 800
+      initDynLinker hscEnv
+#else
       initDynLinker dflags
+#endif
 
         -- ToDo: we should really look up these names properly, but
         -- it's a fiddle and not all the bits are exposed via the GHC

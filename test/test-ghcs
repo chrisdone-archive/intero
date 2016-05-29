@@ -1,17 +1,29 @@
-# Test GHC 7.8.4
+set -e
 
-echo GHC 7.8.4 ...
-stack setup --resolver lts-1.0 --verbosity silent
-stack build --resolver lts-1.0 --verbosity silent
+# Test GHC 8.0.1
 
-# Test GHC 7.10.2
-
-echo GHC 7.10.2 ...
-stack setup --resolver lts-3.0 --verbosity silent
-stack build --resolver lts-3.0 --verbosity silent
+echo GHC 8.0.1 ...
+stack clean
+stack setup --resolver nightly-2016-05-27 --verbosity silent
+stack build --resolver nightly-2016-05-27  --test --verbosity silent --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
 
 # Test GHC 7.10.3
 
 echo GHC 7.10.3 ...
+stack clean
 stack setup --resolver lts-4.1 --verbosity silent
-stack build --resolver lts-4.1 --verbosity silent
+stack build --resolver lts-4.1  --test --verbosity silent --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+
+# Test GHC 7.10.2
+
+echo GHC 7.10.2 ...
+stack clean
+stack setup --resolver lts-3.0 --verbosity silent
+stack build --resolver lts-3.0  --test --verbosity silent --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+
+# Test GHC 7.8.4
+
+echo GHC 7.8.4 ...
+stack clean
+stack setup --resolver lts-1.0 --verbosity silent
+stack build --resolver lts-1.0  --test --verbosity silent --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp

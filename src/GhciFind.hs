@@ -9,6 +9,7 @@ module GhciFind
   (findType,FindType(..),findLoc,findNameUses)
   where
 
+import Module
 import           Control.Exception
 import           Data.List
 import           Data.Map (Map)
@@ -184,7 +185,9 @@ resolveNameFromModule infos name =
        Just modL ->
          do case M.lookup (moduleName modL) infos of
               Nothing ->
-#if __GLASGOW_HASKELL__ >= 709
+#if __GLASGOW_HASKELL__ >= 800
+                do (return (Left (unitIdString (moduleUnitId modL) ++ ":" ++
+#elif __GLASGOW_HASKELL__ >= 709
                 do (return (Left (showppr d (modulePackageKey modL) ++ ":" ++
 #else
                 do (return (Left (showppr d (modulePackageId modL) ++ ":" ++

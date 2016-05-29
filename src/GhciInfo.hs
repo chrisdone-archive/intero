@@ -133,7 +133,11 @@ getTypeLHsExpr _ e =
        Nothing -> return Nothing
        Just expr ->
          return (Just (case unwrapVar (unLoc e) of
+#if __GLASGOW_HASKELL__ >= 800
+                         HsVar (L _ i) -> Just i
+#else
                          HsVar i -> Just i
+#endif
                          _ -> Nothing
                       ,getLoc e
                       ,CoreUtils.exprType expr))
@@ -145,8 +149,13 @@ getTypeLPat :: (GhcMonad m)
             => TypecheckedModule -> LPat Id -> m (Maybe (Maybe Id,SrcSpan,Type))
 getTypeLPat _ (L spn pat) =
   return (Just (getMaybeId pat,spn,hsPatType pat))
-  where getMaybeId (VarPat vid) = Just vid
-        getMaybeId _ = Nothing
+  where
+#if __GLASGOW_HASKELL__ >= 800
+    getMaybeId (VarPat (L _ vid)) = Just vid
+#else
+    getMaybeId (VarPat vid) = Just vid
+#endif
+    getMaybeId _ = Nothing
 
 -- | Get ALL source spans in the source.
 listifyAllSpans :: Typeable a

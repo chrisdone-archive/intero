@@ -1,6 +1,6 @@
 {-# LANGUAGE NondecreasingIndentation #-}
 {-# LANGUAGE CPP #-}
-{-# OPTIONS -fno-warn-incomplete-patterns -optc-DNON_POSIX_SOURCE #-}
+{-# OPTIONS -fno-warn-incomplete-patterns -optc-DNON_POSIX_SOURCE -fno-warn-warnings-deprecations #-}
 {-# LANGUAGE ForeignFunctionInterface #-}
 
 -----------------------------------------------------------------------------
@@ -661,7 +661,7 @@ doMake srcs  = do
         haskellish (f,Nothing) =
           looksLikeModuleName f || isHaskellUserSrcFilename f || '.' `notElem` f
         haskellish (_,Just phase) =
-          phase `notElem` [as True, Cc, Cobjc, Cobjcpp, CmmCpp, Cmm, StopLn]
+          phase `notElem` [as True, Cc, Cobjc, CmmCpp, Cmm, StopLn]
 
     hsc_env <- GHC.getSession
 
@@ -853,7 +853,7 @@ unknownFlagsErr fs = throwGhcException $ UsageError $ concatMap oneError fs
   where
     oneError f =
         "unrecognised flag: " ++ f ++ "\n" ++
-        (case fuzzyMatch f (nub allFlags) of
+        (case fuzzyMatch f (nub compat_allFlags) of
             [] -> ""
             suggs -> "did you mean one of:\n" ++ unlines (map ("  " ++) suggs))
 
@@ -886,4 +886,11 @@ as :: Bool -> Phase
 as = As
 #else
 as _ = As
+#endif
+
+compat_allFlags :: [String]
+#if  __GLASGOW_HASKELL__ < 800
+compat_allFlags = allFlags
+#else
+compat_allFlags = allNonDeprecatedFlags
 #endif
