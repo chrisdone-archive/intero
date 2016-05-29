@@ -2,6 +2,13 @@
 
 Complete interactive development program for Haskell
 
+## Supported GHCs
+
+* GHC 8.0.1
+* GHC 7.10.3
+* GHC 7.10.2
+* GHC 7.8.4
+
 ## Features
 
 It's basically GHCi plus extra features. Those are:
