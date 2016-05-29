@@ -29,6 +29,7 @@ spec =
      use
      definition
      bytecode
+     completion
 
 -- | Argument parsing should be user-friendly.
 argsparser :: Spec
@@ -213,6 +214,18 @@ definition =
                   (locAt "f (Just x) = 'a' : x"
                          (1,20,1,21,"x")
                          (unlines ["X.hs:(1,9)-(1,10)"])))
+
+-- | Test interactive completions.
+completion :: Spec
+completion =
+  describe "Complete basic Prelude identifiers"
+           (issue ":complete repl \"put\""
+                  "https://github.com/chrisdone/intero/issues/34"
+                  (eval ":complete repl \"put\""
+                        (unlines ["3 3 \"\""
+                                 ,"\"putChar\""
+                                 ,"\"putStr\""
+                                 ,"\"putStrLn\""])))
 
 --------------------------------------------------------------------------------
 -- Combinators for running and interacting with intero

@@ -482,7 +482,6 @@ interactiveUI config srcs maybe_exprs = do
 
    default_editor <- liftIO $ findEditor
 
-   names <- GHC.getRdrNamesInScope
    startGHCi (runGHCi srcs maybe_exprs)
         GHCiState{ progname       = default_progname,
                    GhciMonad.args = default_args,
@@ -504,7 +503,7 @@ interactiveUI config srcs maybe_exprs = do
                    short_help     = shortHelpText config,
                    long_help      = fullHelpText config,
                    mod_infos      = M.empty,
-                   rdrNamesInScope = names
+                   rdrNamesInScope = []
                  }
 
    return ()
@@ -590,6 +589,10 @@ runGHCi paths maybe_exprs = do
 
   -- reset line number
   getGHCiState >>= \st -> setGHCiState st{line_number=1}
+
+  -- Get the names in scope
+  names <- GHC.getRdrNamesInScope
+  modifyGHCiState (\s -> s { rdrNamesInScope = names })
 
   case maybe_exprs of
         Nothing ->
