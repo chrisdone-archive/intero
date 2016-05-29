@@ -1,3 +1,10 @@
+0.1.9:
+	* Support GHC 8
+	* Fix completion before any module is loaded (https://github.com/chrisdone/intero/issues/34)
+	* Add completion for custom commands
+	* Add data-files entry for Emacs Lisp code
+	* Collect type-info whenever anything is loaded (https://github.com/chrisdone/intero/issues/37)
+
 0.1.8:
 	* Don't use -dynamic on Windows.
 
