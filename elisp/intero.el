@@ -466,13 +466,22 @@ warnings, adding CHECKER and BUFFER to each one."
         (when (process-live-p process)
           (message "Started Intero process for REPL."))))))
 
-(font-lock-add-keywords
+;; For live migration, remove later
+(font-lock-remove-keywords
  'intero-repl-mode
  '(("\\(\4\\)"
     (0 (prog1 ()
          (compose-region (match-beginning 1)
                          (match-end 1)
                          ?λ))))))
+
+(font-lock-add-keywords
+ 'intero-repl-mode
+ '(("\\(\4\\)"
+    (0 (prog1 ()
+         (compose-region (match-beginning 1)
+                         (match-end 1)
+                         ?‽))))))
 
 (define-key intero-repl-mode-map [remap move-beginning-of-line] 'intero-repl-beginning-of-line)
 (define-key intero-repl-mode-map [remap delete-backward-char] 'intero-repl-delete-backward-char)
