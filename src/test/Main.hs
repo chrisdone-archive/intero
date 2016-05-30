@@ -38,10 +38,11 @@ argsparser =
   describe "Arguments parser"
            (do issue ":type-at \"Foo Bar.hs\" 1 1 1 1"
                      "https://github.com/chrisdone/intero/issues/25"
-                     (typeAtFile "Foo Bar.hs"
-                                 "x = 'a'"
-                                 (1,1,1,1,"x")
-                                 "x :: Char\n")
+                     (atFile ":type-at"
+                             "Foo Bar.hs"
+                             "x = 'a'"
+                             (1,1,1,1,"x")
+                             "x :: Char\n")
                issue ":type-at"
                      "https://github.com/chrisdone/intero/issues/28"
                      (eval ":type-at"
@@ -274,22 +275,23 @@ uses file (line,col,line',col',name) preprocess expected =
 -- | Test the type at the given place.
 typeAt
   :: String -> (Int,Int,Int,Int,String) -> String -> Expectation
-typeAt = do typeAtFile "X.hs"
+typeAt = do atFile ":type-at" "X.hs"
 
 -- | Test the type at the given place (with the given filename).
-typeAtFile :: String
-           -> String
-           -> (Int,Int,Int,Int,String)
-           -> String
-           -> Expectation
-typeAtFile fname file (line,col,line',col',name) expected =
+atFile :: String
+       -> String
+       -> String
+       -> (Int,Int,Int,Int,String)
+       -> String
+       -> Expectation
+atFile cmd fname file (line,col,line',col',name) expected =
   do result <-
        withIntero
          []
          (\dir repl ->
             do writeFile (dir ++ "/" ++ fname) file
                _ <- repl (":l " ++ show fname)
-               repl (":type-at " ++
+               repl (cmd ++ " " ++
                      (if any isSpace fname
                          then show fname
                          else fname) ++
