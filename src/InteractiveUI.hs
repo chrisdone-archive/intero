@@ -245,6 +245,7 @@ ghciCommands = [
   ("all-types", keepGoing' allTypes,            noCompletion),
   ("uses",      keepGoing' findAllUses,         noCompletion),
   ("loc-at",    keepGoing' locationAt,          noCompletion),
+  ("complete-at", keepGoing' completeAt,          noCompletion),
   ("trace",     keepGoing traceCmd,             completeExpression),
   ("undef",     keepGoing undefineMacro,        completeMacro),
   ("unset",     keepGoing unsetOptions,         completeSetOptions)
@@ -1762,6 +1763,23 @@ locationAt str =
           ")-(" ++
           show (srcSpanEndLine span')  ++ "," ++
           show (srcSpanEndCol span') ++ ")"
+
+-----------------------------------------------------------------------------
+-- :complete-at
+
+completeAt :: String -> InputT GHCi ()
+completeAt str =
+  handleSourceError GHC.printException $
+  case parseSpan str of
+    Left err -> liftIO (putStr err)
+    Right (fp,sl,sc,el,ec,sample) | not (null str) ->
+      do infos <- fmap mod_infos (lift getGHCiState)
+         result <- findCompletions infos fp sample sl sc el ec
+         case result of
+           Left err -> error err
+           Right completions ->
+             liftIO (mapM_ putStrLn completions)
+    _ -> return ()
 
 -----------------------------------------------------------------------------
 -- Helpers for locationAt/typeAt

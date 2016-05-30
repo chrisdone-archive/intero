@@ -230,14 +230,39 @@ definition =
 -- | Test interactive completions.
 completion :: Spec
 completion =
-  describe "Complete basic Prelude identifiers"
-           (issue ":complete repl \"put\""
-                  "https://github.com/chrisdone/intero/issues/34"
-                  (eval ":complete repl \"put\""
-                        (unlines ["3 3 \"\""
-                                 ,"\"putChar\""
-                                 ,"\"putStr\""
-                                 ,"\"putStrLn\""])))
+  do describe "Complete basic Prelude identifiers"
+              (issue ":complete repl \"put\""
+                     "https://github.com/chrisdone/intero/issues/34"
+                     (eval ":complete repl \"put\""
+                           (unlines ["3 3 \"\""
+                                    ,"\"putChar\""
+                                    ,"\"putStr\""
+                                    ,"\"putStrLn\""])))
+     describe "Completion in module context"
+              (do it ":complete-at for put*"
+                     (atFile ":complete-at"
+                             "X.hs"
+                             "module X () where\nx = undefined"
+                             (4,5,0,0,"put")
+                             (unlines ["putChar","putStr","putStrLn"]))
+                  it ":complete-at for locally imported"
+                     (atFile ":complete-at"
+                             "X.hs"
+                             "module X () where\nimport Data.List\nx = undefined"
+                             (3,5,0,0,"sor")
+                             (unlines ["sort","sortBy","sortOn"]))
+                  it ":complete-at for module-locally defined"
+                     (atFile ":complete-at"
+                             "X.hs"
+                             "module X () where\nx = undefined\nmodlocal = ()"
+                             (2,5,0,0,"modl")
+                             (unlines ["modlocal"]))
+                  it ":complete-at for definition-locally defined"
+                     (atFile ":complete-at"
+                             "X.hs"
+                             "module X () where\nx = undefined where locally = let p = 123 in p"
+                             (2,5,0,0,"loc")
+                             (unlines ["locally"])))
 
 --------------------------------------------------------------------------------
 -- Combinators for running and interacting with intero
