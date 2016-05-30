@@ -19,6 +19,7 @@ It's basically GHCi plus extra features. Those are:
 * [Find definition of an identifier in a module.](https://github.com/chrisdone/intero/blob/28609611c9f7c7d63370ce66e8ebb97676a8374e/src/test/Main.hs#L143)
 * [Show the type of an expression or identifier](https://github.com/chrisdone/intero/blob/28609611c9f7c7d63370ce66e8ebb97676a8374e/src/test/Main.hs#L82).
 * [List all types of all expressions of all modules loaded.](https://github.com/chrisdone/intero/blob/28609611c9f7c7d63370ce66e8ebb97676a8374e/src/test/Main.hs#L98)
+* [Completion of identifiers within a module's scope.](https://github.com/chrisdone/intero/blob/bbd71951edb89f06a939910024f85cc44c11c16e/src/test/Main.hs#L242)
 
 Probably more to come.
 
