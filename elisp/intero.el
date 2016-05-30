@@ -45,7 +45,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configuration
 
-(defconst intero-package-version "intero-0.1.8"
+(defconst intero-package-version "0.1.11"
   "Package version to auto-install.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -712,22 +712,34 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
   (let* ((buffer (intero-get-buffer-create worker)))
     (if (get-buffer-process buffer)
         buffer
-      (if (intero-installed-p)
-          (intero-start-process-in-buffer buffer targets source-buffer)
-        (intero-auto-install buffer targets source-buffer)))))
+      (let ((install-status (intero-installed-p)))
+        (if (eq install-status 'installed)
+            (intero-start-process-in-buffer buffer targets source-buffer)
+          (intero-auto-install buffer install-status targets source-buffer))))))
 
-(defun intero-auto-install (buffer &optional targets source-buffer)
+(defun intero-auto-install (buffer install-status &optional targets source-buffer)
   "Automatically install Intero."
   (let ((source-buffer (or source-buffer (current-buffer))))
     (switch-to-buffer buffer)
     (erase-buffer)
-    (insert "Intero is not installed in the Stack environment.
+    (insert (case install-status
+              (not-installed "Intero is not installed in the Stack environment.")
+              (wrong-version "The wrong version of Intero is installed for this Emacs package."))
+            (format "
 
-Installing automatically ...
+Installing intero-%s automatically ...
 
-")
+" intero-package-version))
     (redisplay)
-    (cl-case (call-process "stack" nil (current-buffer) t "build" intero-package-version)
+    (cl-case (call-process "stack" nil (current-buffer) t "build"
+                           (with-current-buffer buffer
+                             (let* ((cabal-file (intero-cabal-find-file))
+                                    (package-name (intero-package-name cabal-file)))
+                               ;; For local development. Most users'll
+                               ;; never hit this behaviour.
+                               (if (string= package-name "intero")
+                                   "intero"
+                                 (concat "intero-" intero-package-version)))))
       (0
        (message "Installed successfully! Starting Intero in a moment ...")
        (bury-buffer buffer)
@@ -806,9 +818,17 @@ performing a initial actions in SOURCE-BUFFER, if specified."
         (intero-show-process-problem process change)))))
 
 (defun intero-installed-p ()
-  "Is intero installed in the stack environment?"
+  "Is intero (of the right version) installed in the stack environment?"
   (redisplay)
-  (= 0 (call-process "stack" nil nil nil "exec" "--" "intero" "--version")))
+  (with-temp-buffer
+    (if (= 0 (call-process "stack" nil t nil "exec" "--" "intero" "--version"))
+        (progn
+          (goto-char (point-min))
+          (if (string= (buffer-substring (point-min) (line-end-position))
+                       intero-package-version)
+              'installed
+            'wrong-version))
+      'not-installed)))
 
 (defun intero-show-process-problem (process change)
   "Show the user that a CHANGE occurred on PROCESS, causing it to
