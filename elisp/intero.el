@@ -100,6 +100,22 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
+(defun intero-list-buffers ()
+  "List hidden process buffers created by intero.
+
+You can use this to kill them or look inside."
+  (interactive)
+  (let ((buffers (cl-remove-if-not
+                  (lambda (buffer)
+                    (string-match " intero:" (buffer-name buffer)))
+                  (buffer-list))))
+    (if buffers
+        (display-buffer
+         (list-buffers-noselect
+          nil
+          buffers))
+      (error "There are no Intero process buffers."))))
+
 (defun intero-cd ()
   "Change directory in the backend process."
   (interactive)
