@@ -1,3 +1,8 @@
+0.1.10:
+	* Completion for module's local imports and definitions (https://github.com/chrisdone/intero/issues/31)
+	* Starting the REPL takes the targets chosen for the backend
+	* Prompt displays interrobang for cuteness (https://github.com/chrisdone/intero/issues/40)
+
 0.1.9:
 	* Support GHC 8
 	* Fix completion before any module is loaded (https://github.com/chrisdone/intero/issues/34)
