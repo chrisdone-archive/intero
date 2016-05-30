@@ -14,63 +14,65 @@
 module Main (main) where
 
 -- The official GHC API
+import qualified Data.Version (showVersion)
 import qualified GHC
 import GHC              ( -- DynFlags(..), HscTarget(..),
                           -- GhcMode(..), GhcLink(..),
                           Ghc, GhcMonad(..),
                           LoadHowMuch(..) )
-import CmdLineParser
+import           CmdLineParser
+import qualified Paths_intero
 
 -- ghci-ng
 import qualified GHC.Paths
 
 -- Implementations of the various modes (--show-iface, mkdependHS. etc.)
-import LoadIface        ( showIface )
-import HscMain          ( newHscEnv )
-import DriverPipeline   ( oneShot, compileFile )
-import DriverMkDepend   ( doMkDependHS )
+import           LoadIface ( showIface )
+import           HscMain ( newHscEnv )
+import           DriverPipeline ( oneShot, compileFile )
+import           DriverMkDepend ( doMkDependHS )
 #ifdef GHCI
-import InteractiveUI    ( interactiveUI, ghciWelcomeMsg, defaultGhciSettings )
+import           InteractiveUI ( interactiveUI, ghciWelcomeMsg, defaultGhciSettings )
 #endif
 
 
 -- Various other random stuff that we need
-import Config
-import Constants
-import HscTypes
+import           Config
+import           Constants
+import           HscTypes
 #if __GLASGOW_HASKELL__ < 709
-import Packages         ( dumpPackages )
+import           Packages ( dumpPackages )
 #else
-import Packages         ( pprPackages )
+import           Packages ( pprPackages )
 #endif
-import DriverPhases
-import BasicTypes       ( failed )
-import StaticFlags
-import DynFlags
-import ErrUtils
-import FastString
-import Outputable
-import SrcLoc
-import Util
-import Panic
-import MonadUtils       ( liftIO )
+import           DriverPhases
+import           BasicTypes ( failed )
+import           StaticFlags
+import           DynFlags
+import           ErrUtils
+import           FastString
+import           Outputable
+import           SrcLoc
+import           Util
+import           Panic
+import           MonadUtils ( liftIO )
 
 -- Imports for --abi-hash
-import LoadIface           ( loadUserInterface )
-import Module              ( mkModuleName )
-import Finder              ( findImportedModule, cannotFindInterface )
-import TcRnMonad           ( initIfaceCheck )
-import Binary              ( openBinMem, put_, fingerprintBinMem )
+import           LoadIface ( loadUserInterface )
+import           Module ( mkModuleName )
+import           Finder ( findImportedModule, cannotFindInterface )
+import           TcRnMonad ( initIfaceCheck )
+import           Binary ( openBinMem, put_, fingerprintBinMem )
 
 -- Standard Haskell libraries
-import System.IO
-import System.Environment
-import System.Exit
-import System.FilePath
-import Control.Monad
-import Data.Char
-import Data.List
-import Data.Maybe
+import           System.IO
+import           System.Environment
+import           System.Exit
+import           System.FilePath
+import           Control.Monad
+import           Data.Char
+import           Data.List
+import           Data.Maybe
 
 -----------------------------------------------------------------------------
 -- ToDo:
@@ -92,6 +94,10 @@ main = do
    GHC.defaultErrorHandler defaultFatalMessager defaultFlushOut $ do
     -- 1. extract the -B flag from the args
     argv00 <- getArgs
+    if elem "--version" argv00
+       then do putStrLn (Data.Version.showVersion Paths_intero.version)
+               exitSuccess
+       else return ()
     let argv0 = ("-B" ++ GHC.Paths.libdir) :
                 if any (`elem` argv00) ["--info", "--interactive", "--make", "-c"]
                   then argv00 -- needed for "cabal repl --with-ghc=ghci-ng"
