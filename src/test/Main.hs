@@ -42,6 +42,7 @@ argsparser =
                              "Foo Bar.hs"
                              "x = 'a'"
                              (1,1,1,1,"x")
+                             id
                              "x :: Char\n")
                issue ":type-at"
                      "https://github.com/chrisdone/intero/issues/28"
@@ -244,25 +245,29 @@ completion =
                              "X.hs"
                              "module X () where\nx = undefined"
                              (4,5,0,0,"put")
-                             (unlines ["putChar","putStr","putStrLn"]))
+                             lines
+                             ["putChar","putStr","putStrLn"])
                   it ":complete-at for locally imported"
                      (atFile ":complete-at"
                              "X.hs"
                              "module X () where\nimport Data.List\nx = undefined"
                              (3,5,0,0,"sor")
-                             (unlines ["sort","sortBy","sortOn"]))
+                             (take 2 . lines)
+                             ["sort","sortBy"])
                   it ":complete-at for module-locally defined"
                      (atFile ":complete-at"
                              "X.hs"
                              "module X () where\nx = undefined\nmodlocal = ()"
                              (2,5,0,0,"modl")
-                             (unlines ["modlocal"]))
+                             lines
+                             ["modlocal"])
                   it ":complete-at for definition-locally defined"
                      (atFile ":complete-at"
                              "X.hs"
                              "module X () where\nx = undefined where locally = let p = 123 in p"
                              (2,5,0,0,"loc")
-                             (unlines ["locally"])))
+                             lines
+                             ["locally"]))
 
 --------------------------------------------------------------------------------
 -- Combinators for running and interacting with intero
@@ -285,7 +290,8 @@ locAt file (line,col,line',col',name) expected =
 
 -- | Find use-sites for the given place.
 uses
-  :: String -> (Int,Int,Int,Int,String) -> (String -> String) -> String -> Expectation
+  :: (Eq a,Show a)
+  => String -> (Int,Int,Int,Int,String) -> (String -> a) -> a -> Expectation
 uses file (line,col,line',col',name) preprocess expected =
   do result <-
        withIntero
@@ -298,18 +304,22 @@ uses file (line,col,line',col',name) preprocess expected =
      shouldBe (preprocess result) expected
 
 -- | Test the type at the given place.
-typeAt
-  :: String -> (Int,Int,Int,Int,String) -> String -> Expectation
-typeAt = do atFile ":type-at" "X.hs"
-
--- | Test the type at the given place (with the given filename).
-atFile :: String
-       -> String
-       -> String
+typeAt :: String
        -> (Int,Int,Int,Int,String)
        -> String
        -> Expectation
-atFile cmd fname file (line,col,line',col',name) expected =
+typeAt a b c = do atFile ":type-at" "X.hs" a b id c
+
+-- | Test the type at the given place (with the given filename).
+atFile :: (Eq a,Show a)
+       => String
+       -> String
+       -> String
+       -> (Int,Int,Int,Int,String)
+       -> (String -> a)
+       -> a
+       -> Expectation
+atFile cmd fname file (line,col,line',col',name) preprocess expected =
   do result <-
        withIntero
          []
@@ -325,7 +335,7 @@ atFile cmd fname file (line,col,line',col',name) expected =
                      (if null name
                          then ""
                          else " " ++ show name)))
-     shouldBe result expected
+     shouldBe (preprocess result) expected
 
 -- | Make a quick interaction with intero.
 eval :: String -- ^ Input.
