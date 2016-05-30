@@ -348,9 +348,14 @@ warnings, adding CHECKER and BUFFER to each one."
     (prefix (let ((prefix-info (intero-completions-grab-prefix)))
               (when prefix-info
                 (cl-destructuring-bind
-                    (_beg _end prefix _type) prefix-info
+                    (beg end prefix _type) prefix-info
                   prefix))))
-    (candidates (intero-get-completions arg))))
+    (candidates
+     (let ((prefix-info (intero-completions-grab-prefix)))
+       (when prefix-info
+         (cl-destructuring-bind
+             (beg end prefix _type) prefix-info
+           (intero-get-completions beg end)))))))
 
 (defun intero-completions-grab-prefix (&optional minlen)
   "Grab prefix at point for possible completion."
@@ -633,15 +638,24 @@ May return a qualified name."
                             (1+ (current-column)))
             (buffer-substring-no-properties beg end)))))
 
-(defun intero-get-completions (prefix)
+(defun intero-get-completions (beg end)
   "Get completions for a PREFIX."
-  (mapcar #'read
-          (cdr (split-string
-                (intero-blocking-call
-                 'backend
-                 (format ":complete repl %S" prefix))
-                "\n"
-                t))))
+  (split-string
+   (intero-blocking-call
+    'backend
+    (format ":complete-at %S %d %d %d %d %S"
+            (buffer-file-name)
+            (save-excursion (goto-char beg)
+                            (line-number-at-pos))
+            (save-excursion (goto-char beg)
+                            (1+ (current-column)))
+            (save-excursion (goto-char end)
+                            (line-number-at-pos))
+            (save-excursion (goto-char end)
+                            (1+ (current-column)))
+            (buffer-substring-no-properties beg end)))
+   "\n"
+   t))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Process communication
