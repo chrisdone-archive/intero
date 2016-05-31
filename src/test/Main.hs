@@ -197,7 +197,8 @@ use =
                it ":uses X.hs 1 5 1 6 id -- package definition"
                   (uses "x = id"
                         (1,5,1,6,"id")
-                        (\i -> subRegex (mkRegex "-[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+") i "")
+                        (\i ->
+                           subRegex (mkRegex "-[0-9]+\\.[0-9]+\\.[0-9]+\\.[0-9]+") i "")
                         (unlines ["base:GHC.Base"]))
                it ":uses X.hs 1 5 1 6 id -- shadowed package definition"
                   (uses "x = id where id = ()"
@@ -205,7 +206,25 @@ use =
                         id
                         (unlines ["X.hs:(1,14)-(1,16)"
                                  ,"X.hs:(1,14)-(1,16)"
-                                 ,"X.hs:(1,5)-(1,7)"])))
+                                 ,"X.hs:(1,5)-(1,7)"]))
+               issue ":uses on type constructor (in data decl)"
+                     "https://github.com/chrisdone/intero/issues/3"
+                     (uses (unlines ["data X = X","foo :: X -> X","foo x = X"])
+                           (1,6,1,7,"X")
+                           lines
+                           ["X.hs:(1,1)-(1,11)"])
+               issue ":uses on type constructor (in sig)"
+                     "https://github.com/chrisdone/intero/issues/3"
+                     (uses (unlines ["data X = X","foo :: X -> X","foo x = X"])
+                           (2,8,2,9,"X")
+                           lines
+                           ["X.hs:(1,1)-(1,11)"])
+               issue ":uses on data constructor (in expression)"
+                     "https://github.com/chrisdone/intero/issues/3"
+                     (uses (unlines ["data X = X","foo :: X -> X","foo x = X"])
+                           (3,9,3,10,"X")
+                           lines
+                           ["X.hs:(1,10)-(1,11)","X.hs:(3,9)-(3,10)"]))
 
 -- | Find loc-ats of a variable.
 definition :: Spec
