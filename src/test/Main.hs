@@ -145,7 +145,7 @@ types =
                issue ":type-at part of a line within a do bloc (1)"
                      "https://github.com/commercialhaskell/intero/issues/29"
                      (typeAt testFile (4,8,4,10," 1") " 1 :: IO ()\n")
-               issue ":type-at part of a line within a do bloc (2)"
+               issue ":type-at part of a line within a do block (2)"
                      "https://github.com/commercialhaskell/intero/issues/29"
                      (typeAt testFile (4,9,4,10,"1") "1 :: Integer\n"))
   where testFile :: String
