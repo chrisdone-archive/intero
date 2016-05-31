@@ -37,7 +37,7 @@ argsparser :: Spec
 argsparser =
   describe "Arguments parser"
            (do issue ":type-at \"Foo Bar.hs\" 1 1 1 1"
-                     "https://github.com/chrisdone/intero/issues/25"
+                     "https://github.com/commercialhaskell/intero/issues/25"
                      (atFile ":type-at"
                              "Foo Bar.hs"
                              "x = 'a'"
@@ -45,7 +45,7 @@ argsparser =
                              id
                              "x :: Char\n")
                issue ":type-at"
-                     "https://github.com/chrisdone/intero/issues/28"
+                     "https://github.com/commercialhaskell/intero/issues/28"
                      (eval ":type-at"
                            "\n<no location info>: Expected a span: \"<module-name/filepath>\" <start line> <start column> <end line> <end column> \"<sample string>\"\n"))
 
@@ -121,32 +121,32 @@ types =
                it ":type-at X.hs 1 11 1 12 y -- [Char] (internal variable)"
                   (typeAt "x = 'a' : y where y = x" (1,11,1,12,"y") "y :: [Char]\n")
                issue ":type-at X.hs 1 1 1 1 f -- Num a => a"
-                     "https://github.com/chrisdone/intero/issues/14"
+                     "https://github.com/commercialhaskell/intero/issues/14"
                      (typeAt "f x = x * 2" (1,1,1,2,"f") "f :: Num a => a -> a\n")
                issue ":type-at X.hs 1 1 1 1 x -- Char (oddly bounded selection)"
-                     "https://github.com/chrisdone/intero/issues/29"
+                     "https://github.com/commercialhaskell/intero/issues/29"
                      (typeAt "foo = 'a'" (1,1,1,1,"f") "f :: Char\n")
                issue ":type-at half of 2 arguments within function call"
-                     "https://github.com/chrisdone/intero/issues/29"
+                     "https://github.com/commercialhaskell/intero/issues/29"
                      (typeAt testFile (1,29,1,32,"\" \"") "\" \" :: [Char] -> [Char]\n")
                issue ":type-at funtion + half of its first argument"
-                     "https://github.com/chrisdone/intero/issues/29"
+                     "https://github.com/commercialhaskell/intero/issues/29"
                      (typeAt testFile
                              (1,18,1,28,"concat3 \"a")
                              "concat3 \"a :: [Char] -> [Char] -> [Char]\n")
                issue ":type-at 2 arguments within a function call"
-                     "https://github.com/chrisdone/intero/issues/29"
+                     "https://github.com/commercialhaskell/intero/issues/29"
                      (typeAt testFile
                              (1,26,1,35,"\"aa\" \"bb\"")
                              "\"aa\" \"bb\" :: [Char] -> [Char]\n")
                issue ":type-at 2 lines within a do bloc"
-                     "https://github.com/chrisdone/intero/issues/29"
+                     "https://github.com/commercialhaskell/intero/issues/29"
                      (typeAt testFile (4,8,5,10,"{{multiline}}") "{{multiline}} :: IO ()\n")
                issue ":type-at part of a line within a do bloc (1)"
-                     "https://github.com/chrisdone/intero/issues/29"
+                     "https://github.com/commercialhaskell/intero/issues/29"
                      (typeAt testFile (4,8,4,10," 1") " 1 :: IO ()\n")
                issue ":type-at part of a line within a do bloc (2)"
-                     "https://github.com/chrisdone/intero/issues/29"
+                     "https://github.com/commercialhaskell/intero/issues/29"
                      (typeAt testFile (4,9,4,10,"1") "1 :: Integer\n"))
   where testFile :: String
         testFile =
@@ -208,19 +208,19 @@ use =
                                  ,"X.hs:(1,14)-(1,16)"
                                  ,"X.hs:(1,5)-(1,7)"]))
                issue ":uses on type constructor (in data decl)"
-                     "https://github.com/chrisdone/intero/issues/3"
+                     "https://github.com/commercialhaskell/intero/issues/3"
                      (uses (unlines ["data X = X","foo :: X -> X","foo x = X"])
                            (1,6,1,7,"X")
                            lines
                            ["X.hs:(1,1)-(1,11)"])
                issue ":uses on type constructor (in sig)"
-                     "https://github.com/chrisdone/intero/issues/3"
+                     "https://github.com/commercialhaskell/intero/issues/3"
                      (uses (unlines ["data X = X","foo :: X -> X","foo x = X"])
                            (2,8,2,9,"X")
                            lines
                            ["X.hs:(1,1)-(1,11)"])
                issue ":uses on data constructor (in expression)"
-                     "https://github.com/chrisdone/intero/issues/3"
+                     "https://github.com/commercialhaskell/intero/issues/3"
                      (uses (unlines ["data X = X","foo :: X -> X","foo x = X"])
                            (3,9,3,10,"X")
                            lines
@@ -252,7 +252,7 @@ completion :: Spec
 completion =
   do describe "Complete basic Prelude identifiers"
               (issue ":complete repl \"put\""
-                     "https://github.com/chrisdone/intero/issues/34"
+                     "https://github.com/commercialhaskell/intero/issues/34"
                      (eval ":complete repl \"put\""
                            (unlines ["3 3 \"\""
                                     ,"\"putChar\""

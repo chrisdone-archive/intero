@@ -7,14 +7,15 @@ synopsis:
 license:
   BSD3
 homepage:
-  https://github.com/chrisdone/intero
+  https://github.com/commercialhaskell/intero
 license-file:
   LICENSE
 author:
   Chris Done, The University of Glasgow
 maintainer:
-  chrisdone@gmail.com
+  chrisdone@fpcomplete.com
 copyright:
+  2016 FP Complete,
   2016 Chris Done,
   2012 Kazu Yamamoto,
   2008 Claus Reinke,
@@ -38,7 +39,7 @@ source-repository head
   type:
     git
   location:
-    git://github.com/chrisdone/intero.git
+    git://github.com/commercialhaskell/intero.git
 
 executable intero
   default-language:
