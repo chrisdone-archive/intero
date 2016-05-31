@@ -1,3 +1,6 @@
+0.1.13:
+	* Fix bug in :type-at returning outer span info (https://github.com/commercialhaskell/intero/issues/47)
+
 0.1.12:
 	* Emacs mode automatically installs latest intero.
 	* intero-list-buffers command.
