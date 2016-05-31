@@ -88,6 +88,7 @@ import           Data.Maybe
 
 main :: IO ()
 main = do
+   env <- getEnvironment
    initGCStatistics -- See Note [-Bsymbolic and hooks]
    hSetBuffering stdout LineBuffering
    hSetBuffering stderr LineBuffering
@@ -98,6 +99,16 @@ main = do
        then do putStrLn (Data.Version.showVersion Paths_intero.version)
                exitSuccess
        else return ()
+    case lookup "STACK_EXE" env of
+      Just{} -> return ()
+      Nothing ->
+        hPutStr stderr ("WARNING: it is HIGHLY RECOMMENDED to use intero with stack:\n\n"
+                       ++ "  To install:\n"
+                       ++ "    stack build intero\n\n"
+                       ++ "  To run with no project:\n"
+                       ++ "    stack exec intero\n"
+                       ++ "  To run with your project:\n"
+                       ++ "    stack ghci --with-ghc intero\n\n")
     let argv0 = ("-B" ++ GHC.Paths.libdir) :
                 if any (`elem` argv00) ["--info", "--interactive", "--make", "-c"]
                   then argv00 -- needed for "cabal repl --with-ghc=ghci-ng"

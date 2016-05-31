@@ -37,6 +37,11 @@ The following dependencies are necessary:
 
 ## Installing
 
+Use `stack build` (not `install`) for each of your package sets. Each
+LTS or nightly should have a separate `stack build`. **If you use**
+`stack install` **you will run into incompatibility issues
+between package sets.**
+
 Standard:
 
     $ stack build intero
