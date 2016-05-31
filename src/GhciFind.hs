@@ -322,7 +322,16 @@ findType infos fp string sl sc el ec =
 -- | Try to resolve the type display from the given span.
 resolveSpanInfo :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe SpanInfo
 resolveSpanInfo spanList spanSL spanSC spanEL spanEC =
-  find (contains spanSL spanSC spanEL spanEC) spanList
+  listToMaybe
+    (sortBy (flip compareSpanInfoStart)
+            (filter (contains spanSL spanSC spanEL spanEC) spanList))
+
+-- | Compare the start of two span infos.
+compareSpanInfoStart :: SpanInfo -> SpanInfo -> Ordering
+compareSpanInfoStart this that =
+  case compare (spaninfoStartLine this) (spaninfoStartLine that) of
+    EQ -> compare (spaninfoStartCol this) (spaninfoStartCol that)
+    c -> c
 
 -- | Does the 'SpanInfo' contain the location given by the Ints?
 contains :: Int -> Int -> Int -> Int -> SpanInfo -> Bool

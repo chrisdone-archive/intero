@@ -147,7 +147,15 @@ types =
                      (typeAt testFile (4,8,4,10," 1") " 1 :: IO ()\n")
                issue ":type-at part of a line within a do block (2)"
                      "https://github.com/commercialhaskell/intero/issues/29"
-                     (typeAt testFile (4,9,4,10,"1") "1 :: Integer\n"))
+                     (typeAt testFile (4,9,4,10,"1") "1 :: Integer\n")
+               issue ":type-at with operator resolution"
+                     "https://github.com/commercialhaskell/intero/issues/47"
+                     (typeAt (unlines ["data X = X"
+                                      ,"instance Show X where"
+                                      ,"  show _ = show (1::Int,())"
+                                      ,"p s = id s * s == id s * s"])
+                             (3,18,3,19,"1")
+                             "1 :: Int\n"))
   where testFile :: String
         testFile =
           unlines ["test = putStrLn (concat3 \"aa\" \"bb\" \"cc\")"
