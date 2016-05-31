@@ -1,3 +1,10 @@
+0.1.12:
+	* Emacs mode automatically installs latest intero.
+	* intero-list-buffers command.
+	* Fix cl-case reference
+	* Add warning when used outside of stack exec/stack ghci
+	* Transfer to commercialhaskell
+
 0.1.11:
 	* Support --version
 
