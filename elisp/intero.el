@@ -738,7 +738,7 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
   (let ((source-buffer (or source-buffer (current-buffer))))
     (switch-to-buffer buffer)
     (erase-buffer)
-    (insert (case install-status
+    (insert (cl-case install-status
               (not-installed "Intero is not installed in the Stack environment.")
               (wrong-version "The wrong version of Intero is installed for this Emacs package."))
             (format "
