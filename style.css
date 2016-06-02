@@ -227,3 +227,7 @@ code .diff              { color:#555 }
 .navbar-default,.navbar-collapse {
   border: 0;
 }
+
+@media (max-width: 767px){
+  .navbar-header { margin-left: 0px !important; }
+}
