@@ -1,0 +1,229 @@
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+   Global styles
+*/
+
+html {
+  position:relative;
+  min-height:100%;
+}
+
+body {
+  background:#fff;
+  font-family: "Open Sans", sans-serif;
+  font-size:14px;
+  margin:0 0 6em;
+  padding:0;
+  overflow-y:scroll;
+}
+
+pre {
+  font-family: ubuntu mono, monospace;
+}
+
+code {
+  background: #eee;
+  color: #4F4371;
+  font-family: ubuntu mono, monospace;
+}
+
+.wrap {
+  background:#fff;
+  padding-bottom:2em;
+}
+
+p,ul,li {
+  font-size:15px;
+}
+
+h1 {
+  margin-top:.1em;
+  margin-left:0;
+  text-indent:-.05em;
+}
+
+h2 {
+  color:#6e618d;
+}
+
+.muted {
+  opacity: 0.6;
+}
+
+.footer {
+  background-color:#323232;
+  color:#999;
+  position:absolute;
+  bottom:0;
+  width:100%;
+  height:4em;
+  overflow: hidden;
+  line-height:2em;
+}
+
+.footer p {
+  margin-top:1em;
+  font-size:13px;
+  height: 30px;
+  overflow: hidden;
+}
+
+.footer a {
+  color: #fff;
+}
+
+.footer .item + .item {
+  margin-left: 2em;
+}
+
+.logo {
+  background-image: url(haskell-logo.png);
+  background-size: 21px auto;
+  background-repeat: no-repeat;
+  background-position: center;
+  padding: 10px;
+}
+
+.span12 ul li + li {
+  margin-top: 0.5em;
+}
+
+.api-docs, .api-docs:hover {
+             font-size: 15px;
+             padding-left: 0.25em;
+             padding-right: 0.25em;
+             padding-bottom: 0.125em;
+             border-radius: 0.125em;
+             background: #4f4371;
+             color: #fff;
+             text-decoration: none;
+           }
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+   Syntax highlighting (hscolour)
+*/
+
+pre .hs-comment        { color:#555 }
+pre .hs-keyword        { color:#397460 }
+pre .hs-str            { color:#366354 }
+pre .hs-conid          { color:#4F4371 }
+pre .hs-varop, pre .hs-keyglyph          { color:#8f4e8b }
+pre .hs-varid          { color:#333 }
+pre .hs-num            { color:#4F4371 }
+pre .hs-definition     { color: #2e659c }
+pre .diff              { color:#555 }
+pre code .title        { color:#333 }
+pre code .string       { color:#366354 }
+pre code .built_in     { color:#397460 }
+pre code .preprocessor { color:#4F4371 }
+pre code .comment      { color:#555 }
+pre code .command      { color:#397460 }
+pre code .special      { color:#333 }
+pre code .formula      { color:#4F4371 }
+pre code .keyword      { color:#397460 }
+pre code .number       { color:#4F4371 }
+pre code .header       { color:#555 }
+pre code .deletion     { background-color:#FDD; color:#695B5B }
+pre code .addition     { background-color:#DFD; color:#000 }
+
+code .hs-definition     { color: #2e659c }
+code .hs-comment        { color:#555 }
+code .hs-keyword        { color:#397460 }
+code .hs-str            { color:#366354 }
+code .hs-conid          { color:#4F4371 }
+code .hs-varop, code .hs-keyglyph          { color:#8f4e8b }
+code .hs-varid          { color:#333 }
+code .hs-num            { color:#4F4371 }
+code .diff              { color:#555 }
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+   Navigation
+*/
+
+.mobile > .navbar {
+  display: none;
+}
+.navbar {
+  background-color:#352f44;
+  border-radius:0;
+  border:0;
+}
+
+.navbar-brand {
+  color:#fff;
+  font-size:inherit;
+  font-weight:700;
+  margin-left: 0 !important;
+  padding-left:0;
+}
+
+.navbar-default .navbar-brand {
+  color:#fff;
+}
+
+.navbar-brand .logo {
+  margin-right:.5em;
+  color:#fff;
+}
+
+.navbar-default .navbar-nav > .active > a {
+  color:#d1cddc!important;
+  background-color:#312b3f;
+  border-bottom:.3em solid #465787;
+}
+
+.navbar-default .navbar-brand:hover,
+.navbar-default .navbar-brand:focus {
+  color:#fff;
+}
+
+.navbar-default .navbar-nav > .active > a:hover,
+.navbar-default .navbar-nav a:hover,
+.navbar-default .navbar-nav > .active > a:focus {
+  color:#fff!important;
+  background-color:#312b3f;
+}
+
+.navbar-default .navbar-nav > li > a {
+  color:#d1cddc!important;
+  background-color:inherit;
+}
+
+.navbar a:hover {
+  color: #c3a6e0;
+}
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+   Template
+*/
+
+.template .navbar {
+  margin-bottom:.5em;
+}
+
+.template code {
+  background-color:#f5f5f5;
+  color:#366354;
+}
+
+.template pre {
+  font-size:14px;
+  word-wrap: normal;
+}
+
+.template .container > .row {
+  max-width:none;
+}
+
+.template .breadcrumb {
+  padding-left:0;
+  background-color:inherit;
+  margin-bottom:0;
+}
+
+.template .breadcrumb li {
+  margin-right: 5px;
+}
+
+.navbar-default,.navbar-collapse {
+  border: 0;
+}
