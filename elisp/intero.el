@@ -321,7 +321,7 @@ warnings, adding CHECKER and BUFFER to each one."
                                  buffer)
                        :filename file)
                       messages))))
-      messages)))
+      (delete-dups messages))))
 
 (defconst intero-error-regexp-alist
   `((,(concat
