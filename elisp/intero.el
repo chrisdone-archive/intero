@@ -63,6 +63,7 @@
 (defvar intero-mode-map (make-sparse-keymap)
   "Intero minor mode's map.")
 
+;;;###autoload
 (define-minor-mode intero-mode "Minor mode for Intero"
   :lighter " Intero"
   :keymap intero-mode-map
