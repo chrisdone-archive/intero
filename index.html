@@ -25,15 +25,20 @@
 
         <div class="container">
           <div class="row">
-            <div class="span12 col-md-12">
+            <div class="span6 col-md-6">
               <h1>Intero for Emacs</h1>
+              <p>
+                Complete interactive development program for Haskell
+              </p>
+            </div>
+            <div class="span6 col-md-6">
+              <blockquote>
+                &ldquo;I just tried this and it works. It just works. I have never had this experience with Haskell + Emacs. Thank you so much for this.&rdquo;
+              </blockquote>
             </div>
           </div>
           <div class="row">
             <div class="span6 col-md-6">
-              <p>
-                Complete interactive development program for Haskell
-              </p>
               <h3>
                 Modern and backwards compatible
               </h3>
@@ -134,9 +139,41 @@
                 One can also jump to errors: <code>C-c ! n</code> for
                 next error, <code>C-c ! p</code> for
                 previous error.
+              </p>
             </div>
             <div class="span6 col-md-6">
               <p><img src="gifs/flycheck.gif" width="500px"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="container">
+          <div class="row">
+            <div class="span12 col-md-12">
+              <h3>Easy target switching</h3>
+            </div>
+            <div class="span6 col-md-6">
+              <p>
+                Working on the test suite now? Just hit <code>M-x
+                  intero-targets</code> and enter a stack target.
+              </p>
+              <p>
+                In the example on the right, the target is
+                <code>weigh:test:weigh-test</code>, but we can write
+                <code>:weigh-test</code> for short because it's
+                unambiguous.
+              </p>
+              <p>
+                Intero restarts with those targets configured, and
+                re-runs the flychecker. Everything is now good to go!
+              </p>
+              <p>
+                There will be interactive completion for targets in
+                the future.
+              </p>
+            </div>
+            <div class="span6 col-md-6">
+              <p><img src="gifs/targets.gif" width="500px"></p>
             </div>
           </div>
         </div>
@@ -208,7 +245,6 @@
             </div>
           </div>
         </div>
-
 
         <div class="footer">
           <div class="container">

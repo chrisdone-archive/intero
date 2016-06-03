@@ -197,7 +197,7 @@ code .diff              { color:#555 }
 */
 
 .template .navbar {
-  margin-bottom:.5em;
+  margin-bottom: 1em;
 }
 
 .template code {
@@ -230,4 +230,11 @@ code .diff              { color:#555 }
 
 @media (max-width: 767px){
   .navbar-header { margin-left: 0px !important; }
+}
+
+blockquote {
+  margin-bottom: 0;
+  font-style: italic;
+  border: 0;
+  padding-left: 0;
 }
