@@ -67,7 +67,7 @@
 (define-minor-mode intero-mode "Minor mode for Intero"
   :lighter " Intero"
   :keymap intero-mode-map
-  (when (buffer-file-name)
+  (when (intero-buffer-file-name)
     (if intero-mode
         (progn (flycheck-select-checker 'intero)
                (flycheck-mode)
@@ -256,11 +256,11 @@ running context across :load/:reloads in Intero."
 (defun intero-check (checker cont)
   "Run a check and pass the status onto CONT."
   (let ((file-buffer (current-buffer)))
-    (write-region (point-min) (point-max) (buffer-file-name))
+    (write-region (point-min) (point-max) (intero-buffer-file-name))
     (clear-visited-file-modtime)
     (intero-async-call
      'backend
-     (concat ":l " (buffer-file-name))
+     (concat ":l " (intero-buffer-file-name))
      (list :cont cont
            :file-buffer file-buffer
            :checker checker)
@@ -318,7 +318,7 @@ warnings, adding CHECKER and BUFFER to each one."
                 (cons (flycheck-error-new-at
                        line column type msg
                        :checker checker
-                       :buffer (when (string= (buffer-file-name buffer)
+                       :buffer (when (string= (intero-buffer-file-name buffer)
                                               file)
                                  buffer)
                        :filename file)
@@ -447,7 +447,7 @@ warnings, adding CHECKER and BUFFER to each one."
 (defun intero-repl-load ()
   "Load the current file in the REPL."
   (interactive)
-  (let ((file (buffer-file-name))
+  (let ((file (intero-buffer-file-name))
         (repl-buffer (intero-repl-buffer)))
     (with-current-buffer repl-buffer
       (comint-send-string
@@ -496,7 +496,7 @@ warnings, adding CHECKER and BUFFER to each one."
 :set prompt \"\\4 \"
 ")
                     (basic-save-buffer)
-                    (buffer-file-name))))
+                    (intero-buffer-file-name))))
       (let ((process (apply #'start-process "intero" (current-buffer) "stack" "ghci"
                             (append arguments
                                     (list "--verbosity" "silent")
@@ -597,6 +597,10 @@ May return a qualified name."
         (unless (= start end)
           (cons start end))))))
 
+(defun intero-buffer-file-name (&optional buffer)
+  "Return buffer-file-name stripped of any text properties."
+  (substring-no-properties (buffer-file-name buffer)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Query/commands
 
@@ -611,7 +615,7 @@ May return a qualified name."
    (intero-blocking-call
     'backend
     (format ":type-at %S %d %d %d %d %S"
-            (buffer-file-name)
+            (intero-buffer-file-name)
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
@@ -637,7 +641,7 @@ May return a qualified name."
    (intero-blocking-call
     'backend
     (format ":loc-at %S %d %d %d %d %S"
-            (buffer-file-name)
+            (intero-buffer-file-name)
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
@@ -655,7 +659,7 @@ May return a qualified name."
    (intero-blocking-call
     'backend
     (format ":uses %S %d %d %d %d %S"
-            (buffer-file-name)
+            (intero-buffer-file-name)
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
@@ -672,7 +676,7 @@ May return a qualified name."
    (intero-blocking-call
     'backend
     (format ":complete-at %S %d %d %d %d %S"
-            (buffer-file-name)
+            (intero-buffer-file-name)
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
