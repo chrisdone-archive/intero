@@ -33,7 +33,10 @@
 ;; * Info ✓
 ;; * REPL
 ;; * Find uses
+;; * Completion of stack targets
 ;; * List all types in all expressions
+;; * Import management
+;; * Dependency management
 
 ;;; Code:
 
