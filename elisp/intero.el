@@ -5,7 +5,13 @@
 ;; Copyright (c) 2013 Herbert Valerio Riedel
 ;; Copyright (c) 2007 Stefan Monnier
 
-;; Package-Requires: ((flycheck "26") (company "0.9.0"))
+;; Author: Chris Done <chrisdone@fpcomplete.com>
+;; Maintainer: Chris Done <chrisdone@fpcomplete.com>
+;; URL: https://github.com/commercialhaskell/intero
+;; Created: 3rd June 2016
+;; Version: 0.1.13
+;; Keywords: haskell, tools
+;; Package-Requires: ((flycheck "0.25") (company "0.9.0"))
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
