@@ -302,10 +302,12 @@ warnings, adding CHECKER and BUFFER to each one."
               nil t 1)
         (let* ((file (match-string 1))
                (location-raw (match-string 2))
-               (msg (match-string 3))
+               (msg (match-string 3)) ;; Replace gross bullet points.
                (type (cond ((string-match "^Warning:" msg)
                             (setq msg (replace-regexp-in-string "^Warning: *" "" msg))
-                            'warning)
+                            (if (string-match "^\\[-Wdeferred-type-errors\\]" msg)
+                                'error
+                              'warning))
                            ((string-match "^Splicing " msg) 'splice)
                            (t                               'error)))
                (location (intero-parse-error
