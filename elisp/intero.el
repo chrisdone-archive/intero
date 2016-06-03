@@ -599,7 +599,9 @@ May return a qualified name."
 
 (defun intero-buffer-file-name (&optional buffer)
   "Return buffer-file-name stripped of any text properties."
-  (substring-no-properties (buffer-file-name buffer)))
+  (let ((name (buffer-file-name buffer)))
+    (when name
+      (substring-no-properties name))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Query/commands
