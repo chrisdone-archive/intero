@@ -107,6 +107,7 @@
 
 (defun intero-use-nix ()
   "Configure intero to invoke GHC in nix-shell."
+  (interactive)
   (setq intero-wrapper "nix-shell")
   (setq intero-wrap-process
         (lambda (proc arguments &optional verbosity script)
@@ -579,8 +580,6 @@ warnings, adding CHECKER and BUFFER to each one."
                                      "silent" script)
                             )))
         (when (process-live-p process)
-          (message "exec-path %s" exec-path)
-          (message "PATH %s" (getenv "PATH"))
           (message "Started Intero process for REPL."))))))
 
 ;; For live migration, remove later
@@ -824,9 +823,7 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
   (let* ((buffer (intero-get-buffer-create worker)))
     (if (get-buffer-process buffer)
         buffer
-      (let ((install-status (if (string-equal "nix-shell" intero-wrapper)
-                                'installed
-                              (intero-installed-p))))
+      (let ((install-status (intero-installed-p)))
         (if (eq install-status 'installed)
             (intero-start-process-in-buffer buffer targets source-buffer)
           (intero-auto-install buffer install-status targets source-buffer))))))
@@ -882,8 +879,8 @@ performing a initial actions in SOURCE-BUFFER, if specified."
                (list (buffer-local-value 'intero-package-name buffer)))))
          (arguments options)
          (process (with-current-buffer buffer
-                    (setq intero-project-root (with-current-buffer source-buffer intero-project-root))
-                    (cd intero-project-root)
+                    (setq intero-project-root (with-current-buffer source-buffer
+                                                intero-project-root))
                     (when debug-on-error
                       (message "Intero arguments: %S" arguments))
                     (message "Booting up intero ...")
@@ -958,17 +955,13 @@ performing a initial actions in SOURCE-BUFFER, if specified."
       (setq intero-project-root dir)
       (if (= 0 (apply #'call-process
                       intero-wrapper nil t nil
-                      (funcall intero-wrap-process "intero" '("--version"))
-                      ))
-           
+                      (funcall intero-wrap-process "intero" '("--version"))))
           (progn
-            (message (buffer-string))
             (goto-char (point-min))
             (if (string= (buffer-substring (point-min) (line-end-position))
                          intero-package-version)
                 'installed
               'wrong-version))
-        (message (buffer-string))
         'not-installed))))
 
 (defun intero-show-process-problem (process change)
