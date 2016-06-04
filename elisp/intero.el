@@ -525,6 +525,7 @@ warnings, adding CHECKER and BUFFER to each one."
                                     (list "--ghci-options"
                                           (concat "-ghci-script=" script))))))
         (when (process-live-p process)
+          (set-process-query-on-exit-flag process nil)
           (message "Started Intero process for REPL."))))))
 
 ;; For live migration, remove later
@@ -823,6 +824,7 @@ performing a initial actions in SOURCE-BUFFER, if specified."
                     (message "Booting up intero ...")
                     (apply #'start-process "stack" buffer "stack" "ghci"
                            arguments))))
+    (set-process-query-on-exit-flag process nil)
     (process-send-string process ":set -fobject-code\n")
     (process-send-string process ":set prompt \"\\4\"\n")
     (with-current-buffer buffer
