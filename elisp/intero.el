@@ -322,7 +322,7 @@ warnings, adding CHECKER and BUFFER to each one."
               (concat "[\r\n]\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\):\\([0-9()-:]+\\):"
                       "[ \n\r]+\\([[:unibyte:][:nonascii:]]+?\\)\n[^ ]")
               nil t 1)
-        (let* ((file (match-string 1))
+        (let* ((file (canonicalize-path (match-string 1)))
                (location-raw (match-string 2))
                (msg (match-string 3)) ;; Replace gross bullet points.
                (type (cond ((string-match "^Warning:" msg)
@@ -624,7 +624,19 @@ May return a qualified name."
   "Return buffer-file-name stripped of any text properties."
   (let ((name (buffer-file-name buffer)))
     (when name
-      (substring-no-properties name))))
+      (canonicalize-path (substring-no-properties name)))))
+
+(defun canonicalize-path (path)
+  "Standardizes path names and ensures drive names are capitalized (relevant on Windows)"
+  (capitalize-drive-letter (convert-standard-filename path)))
+
+(defun capitalize-drive-letter (path)
+  "Ensures the drive letter is capitalized in paths of the form x:\\foo\\bar (i.e., Windows)."
+  (save-match-data
+    (let ((drive-path (split-string path ":\\\\")))
+      (if (or (null (car drive-path)) (null (cdr drive-path)))
+        path
+        (concat (upcase (car drive-path)) ":\\" (cadr drive-path))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Query/commands
@@ -934,7 +946,7 @@ You can kill this buffer when you're done reading it.\n")
         (let* ((next-callback (pop intero-callbacks))
                (state (nth 0 next-callback))
                (func (nth 1 next-callback)))
-          (let ((string (buffer-substring (point-min) (1- (point)))))
+          (let ((string (strip-carriage-returns (buffer-substring (point-min) (1- (point))))))
             (if next-callback
                 (progn (with-temp-buffer
                          (funcall func state string))
@@ -943,6 +955,10 @@ You can kill this buffer when you're done reading it.\n")
                 (warn "Received output but no callback in `intero-callbacks': %S"
                       string)))))
         (delete-region (point-min) (point))))))
+
+(defun strip-carriage-returns (string)
+  "Removes the \r from \r\n newlines on Windows"
+  (replace-regexp-in-string "\r" "" string))
 
 (defun intero-get-buffer-create (worker)
   "Get or create the stack buffer for this current directory and
