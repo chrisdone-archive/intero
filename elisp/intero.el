@@ -103,7 +103,7 @@
 
 (defvar intero-make-options-list
   (lambda (&rest args) (apply #'intero-make-stack-options-list args))
-  "intero ghci options")
+  "Wrapper-specific intero ghci options.")
 
 (defun intero-use-nix ()
   "Configure intero to invoke GHC in nix-shell."
@@ -111,13 +111,12 @@
   (setq intero-wrap-process
         (lambda (proc arguments &optional verbosity script)
           (list (concat (if (null intero-project-root)
-                            ;; default-directory
                             (file-name-directory (intero-cabal-find-file))
                           intero-project-root) "shell.nix")
                 "--pure"
                 "--run"
                 (concat (if (string-equal "ghci" proc)
-                            "cabal repl --with-ghc=intero"
+                            "cabal repl"
                           proc)
                         (unless (null arguments)
                           (concat " " (mapconcat #'identity arguments " ")))
@@ -126,6 +125,29 @@
                         ))))
   (setq intero-make-options-list #'intero-make-nix-options-list)
   t)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Modes
+
+(defvar intero-mode-map (make-sparse-keymap)
+  "Intero minor mode's map.")
+
+;;;###autoload
+(define-minor-mode intero-mode "Minor mode for Intero"
+  :lighter " Intero"
+  :keymap intero-mode-map
+  (when (buffer-file-name)
+    (if intero-mode
+        (progn (flycheck-select-checker 'intero)
+               (flycheck-mode)
+               (add-to-list (make-local-variable 'company-backends) 'company-intero)
+               (company-mode))
+      (message "Intero mode disabled."))))
+
+(define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
+(define-key intero-mode-map (kbd "C-c C-i") 'intero-info)
+(define-key intero-mode-map (kbd "M-.") 'intero-goto-definition)
+(define-key intero-mode-map (kbd "C-c C-l") 'intero-repl-load)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer-local variables/state
@@ -911,11 +933,12 @@ performing a initial actions in SOURCE-BUFFER, if specified."
 
 (defun intero-make-nix-options-list (targets)
   "Make the nix ghci options list."
-  (append (let ((dir (make-temp-file "intero" t)))
-            '()
-            ;; (list (format "%S" (concat "-odir=" dir))
-            ;;       (format "%S" (concat "-hidir=" dir)))
-            )
+  (append (list "--with-ghc"
+                "intero"
+                (let ((dir (make-temp-file "intero" t)))
+                  (format "--ghc-options=\"-odir=%s -hidir=%s\""
+                          (concat "-odir=" dir)
+                          (concat "-hidir=" dir))))
           targets))
 
 (defun intero-sentinel (process change)
