@@ -38,7 +38,22 @@
               </blockquote>
             </div>
           </div>
+
           <div class="row">
+            <div class="span6 col-md-6">
+              <h3 id="install">Install package</h3>
+              <p>
+                Use Emacs's built in package manager. Make sure you
+                have MELPA in your package archives:
+              </p>
+              <pre>(require 'package)
+(add-to-list
+  'package-archives
+  '("melpa" . "http://stable.melpa.org/packages/") t)</pre>
+              <p>With MELPA, add the following to your <code>.emacs</code>:</p>
+<pre>(package-install 'intero)
+(global-intero-mode)</pre>
+            </div>
             <div class="span6 col-md-6">
               <h3>
                 Modern and backwards compatible
@@ -51,8 +66,6 @@
                 Backwards compatibility will be maintained as far back
                 as is possible.
               </p>
-            </div>
-            <div class="span6 col-md-6">
               <h3>General backend</h3>
               <p>
                 The Intero backend used by the Emacs mode is a fork of
@@ -88,7 +101,6 @@
             </div>
           </div>
         </div>
-
 
         <div class="container">
           <div class="row">
@@ -243,6 +255,22 @@
             </div>
             <div class="span6 col-md-6">
               <p><img src="gifs/type-info.gif" width="500px"></p>
+            </div>
+          </div>
+        </div>
+
+        <div class="container">
+          <div class="row">
+            <div class="span12 col-md-12">
+              <h3>Next steps</h3>
+            </div>
+            <div class="span6 col-md-6">
+              <p>
+                What are you waiting for? Give it a try.
+              </p>
+              <p>
+                <a href="#install">↑ Install now</a>
+              </p>
             </div>
           </div>
         </div>
