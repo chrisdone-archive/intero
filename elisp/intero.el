@@ -256,7 +256,7 @@ running context across :load/:reloads in Intero."
 (defun intero-check (checker cont)
   "Run a check and pass the status onto CONT."
   (let ((file-buffer (current-buffer)))
-    (write-region (point-min) (point-max) (intero-buffer-file-name))
+    (write-region (point-min) (point-max) (intero-buffer-file-name) nil 'no-message)
     (clear-visited-file-modtime)
     (intero-async-call
      'backend
