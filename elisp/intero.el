@@ -81,6 +81,76 @@
 (define-key intero-mode-map (kbd "C-c C-l") 'intero-repl-load)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Configuration
+
+(defvar intero-wrapper "stack"
+  "Command that launches a shell in which to run intero.")
+
+(defvar intero-wrap-process
+  (lambda (proc arguments &optional verbosity script)
+    (append (if (string-equal "ghci" proc)
+                '("ghci")
+              '("exec" "--" proc))
+          (append arguments
+                  (unless (null verbosity) (list "--verbosity" verbosity))
+                  (unless (null script)
+                    (list "--ghci-options" (concat "-ghci-script=" script))))))
+  "Wrap a process call with its associated arguments. For
+  example, calls to `ghci` are wrapped to `stack gchi`, while
+  calls to `intero` are wrapped to `stack exec --
+  intero`. Likewise for other process wrappers such as
+  `nix-shell`.")
+
+(defvar intero-make-options-list
+  (lambda (&rest args) (apply #'intero-make-stack-options-list args))
+  "Wrapper-specific intero ghci options.")
+
+(defun intero-use-nix ()
+  "Configure intero to invoke GHC in nix-shell."
+  (interactive)
+  (setq intero-wrapper "nix-shell")
+  (setq intero-wrap-process
+        (lambda (proc arguments &optional verbosity script)
+          (list (concat (if (null intero-project-root)
+                            (file-name-directory (intero-cabal-find-file))
+                          intero-project-root) "shell.nix")
+                "--pure"
+                "--run"
+                (concat (if (string-equal "ghci" proc)
+                            "cabal repl"
+                          proc)
+                        (unless (null arguments)
+                          (concat " " (mapconcat #'identity arguments " ")))
+                        (unless (null script)
+                          (concat " --ghc-options=\"-ghci-script=" script "\""))
+                        ))))
+  (setq intero-make-options-list #'intero-make-nix-options-list)
+  t)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Modes
+
+(defvar intero-mode-map (make-sparse-keymap)
+  "Intero minor mode's map.")
+
+;;;###autoload
+(define-minor-mode intero-mode "Minor mode for Intero"
+  :lighter " Intero"
+  :keymap intero-mode-map
+  (when (buffer-file-name)
+    (if intero-mode
+        (progn (flycheck-select-checker 'intero)
+               (flycheck-mode)
+               (add-to-list (make-local-variable 'company-backends) 'company-intero)
+               (company-mode))
+      (message "Intero mode disabled."))))
+
+(define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
+(define-key intero-mode-map (kbd "C-c C-i") 'intero-info)
+(define-key intero-mode-map (kbd "M-.") 'intero-goto-definition)
+(define-key intero-mode-map (kbd "C-c C-l") 'intero-repl-load)
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer-local variables/state
 
 (defvar intero-callbacks (list)
@@ -466,11 +536,13 @@ warnings, adding CHECKER and BUFFER to each one."
          (name (format "*intero:%s:%s:repl*"
                        (file-name-nondirectory root)
                        package-name))
+         (_ (cd root))
          (backend-buffer (intero-buffer 'backend)))
     (if (get-buffer name)
         (get-buffer name)
       (with-current-buffer
           (get-buffer-create name)
+        (setq intero-project-root root)
         (cd root)
         (intero-repl-mode)
         (intero-repl-mode-start (buffer-local-value 'intero-targets backend-buffer))
@@ -486,9 +558,13 @@ warnings, adding CHECKER and BUFFER to each one."
 (defun intero-repl-mode-start (targets)
   "Start the process for the repl buffer."
   (setq intero-targets targets)
-  (let ((arguments (intero-make-options-list intero-targets)))
+  (let ((arguments (funcall intero-make-options-list intero-targets)))
     (insert (propertize
-             (format "Starting:\n  stack ghci %s\n" (mapconcat #'identity arguments " "))
+             (format "Starting:\n  %s %s\n"
+                     intero-wrapper
+                     (mapconcat #'identity
+                                (funcall intero-wrap-process "ghci" arguments)
+                                " "))
              'face 'font-lock-comment-face))
     (let ((script (with-current-buffer (find-file-noselect (make-temp-file "intero-script"))
                     (insert ":set prompt \"\"
@@ -497,11 +573,12 @@ warnings, adding CHECKER and BUFFER to each one."
 ")
                     (basic-save-buffer)
                     (intero-buffer-file-name))))
-      (let ((process (apply #'start-process "intero" (current-buffer) "stack" "ghci"
-                            (append arguments
-                                    (list "--verbosity" "silent")
-                                    (list "--ghci-options"
-                                          (concat "-ghci-script=" script))))))
+      (cd (intero-project-root))
+      (let ((process (apply #'start-process "intero" (current-buffer)
+                            intero-wrapper
+                            (funcall intero-wrap-process "ghci" arguments
+                                     "silent" script)
+                            )))
         (when (process-live-p process)
           (message "Started Intero process for REPL."))))))
 
@@ -756,51 +833,60 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
   (let ((source-buffer (or source-buffer (current-buffer))))
     (switch-to-buffer buffer)
     (erase-buffer)
-    (insert (cl-case install-status
-              (not-installed "Intero is not installed in the Stack environment.")
-              (wrong-version "The wrong version of Intero is installed for this Emacs package."))
-            (format "
+    (if (not (string-equal intero-wrapper "stack"))
+        (progn
+          (insert "You are not using Stack, and will have to install intero manually.
+ If you are using Nix, add intero to the shell.nix file for your project.")
+          (redisplay))
+      (insert (cl-case install-status
+                (not-installed "Intero is not installed in the Stack environment.")
+                (wrong-version "The wrong version of Intero is installed for this Emacs package."))
+              (format "
 
 Installing intero-%s automatically ...
 
 " intero-package-version))
-    (redisplay)
-    (cl-case (call-process "stack" nil (current-buffer) t "build"
-                           (with-current-buffer buffer
-                             (let* ((cabal-file (intero-cabal-find-file))
-                                    (package-name (intero-package-name cabal-file)))
-                               ;; For local development. Most users'll
-                               ;; never hit this behaviour.
-                               (if (string= package-name "intero")
-                                   "intero"
-                                 (concat "intero-" intero-package-version)))))
-      (0
-       (message "Installed successfully! Starting Intero in a moment ...")
-       (bury-buffer buffer)
-       (switch-to-buffer source-buffer)
-       (intero-start-process-in-buffer buffer targets source-buffer))
-      (1 (insert (propertize "Could not install Intero!
+      (redisplay)
+      (cl-case (call-process "stack" nil (current-buffer) t "build"
+                             (with-current-buffer buffer
+                               (let* ((cabal-file (intero-cabal-find-file))
+                                      (package-name (intero-package-name cabal-file)))
+                                 ;; For local development. Most users'll
+                                 ;; never hit this behaviour.
+                                 (if (string= package-name "intero")
+                                     "intero"
+                                   (concat "intero-" intero-package-version)))))
+        (0
+         (message "Installed successfully! Starting Intero in a moment ...")
+         (bury-buffer buffer)
+         (switch-to-buffer source-buffer)
+         (intero-start-process-in-buffer buffer targets source-buffer))
+        (1 (insert (propertize "Could not install Intero!
 
 We don't know why it failed. Please read the above output and try
 installing manually. If that doesn't work, report this as a
 problem.
 "
-                             'face 'compilation-error))))))
+                               'face 'compilation-error)))))))
 
 (defun intero-start-process-in-buffer (buffer &optional targets source-buffer)
   "Start an Intero worker in BUFFER for TARGETS, automatically
 performing a initial actions in SOURCE-BUFFER, if specified."
   (let* ((options
-          (intero-make-options-list
+          (funcall
+           intero-make-options-list
            (or targets
                (list (buffer-local-value 'intero-package-name buffer)))))
          (arguments options)
          (process (with-current-buffer buffer
+                    (setq intero-project-root (with-current-buffer source-buffer
+                                                intero-project-root))
                     (when debug-on-error
                       (message "Intero arguments: %S" arguments))
                     (message "Booting up intero ...")
-                    (apply #'start-process "stack" buffer "stack" "ghci"
-                           arguments))))
+                    (apply #'start-process intero-wrapper buffer
+                           intero-wrapper
+                           (funcall intero-wrap-process "ghci" arguments)))))
     (process-send-string process ":set -fobject-code\n")
     (process-send-string process ":set prompt \"\\4\"\n")
     (with-current-buffer buffer
@@ -828,7 +914,7 @@ performing a initial actions in SOURCE-BUFFER, if specified."
     (set-process-sentinel process 'intero-sentinel)
     buffer))
 
-(defun intero-make-options-list (targets)
+(defun intero-make-stack-options-list (targets)
   "Make the stack ghci options list."
   (append (list "--with-ghc"
                 "intero"
@@ -840,6 +926,16 @@ performing a initial actions in SOURCE-BUFFER, if specified."
                   (format "%S" (concat "-odir=" dir))
                   "--ghci-options"
                   (format "%S" (concat "-hidir=" dir))))
+          targets))
+
+(defun intero-make-nix-options-list (targets)
+  "Make the nix ghci options list."
+  (append (list "--with-ghc"
+                "intero"
+                (let ((dir (make-temp-file "intero" t)))
+                  (format "--ghc-options=\"-odir=%s -hidir=%s\""
+                          (concat "-odir=" dir)
+                          (concat "-hidir=" dir))))
           targets))
 
 (defun intero-sentinel (process change)
@@ -854,15 +950,19 @@ performing a initial actions in SOURCE-BUFFER, if specified."
 (defun intero-installed-p ()
   "Is intero (of the right version) installed in the stack environment?"
   (redisplay)
-  (with-temp-buffer
-    (if (= 0 (call-process "stack" nil t nil "exec" "--" "intero" "--version"))
-        (progn
-          (goto-char (point-min))
-          (if (string= (buffer-substring (point-min) (line-end-position))
-                       intero-package-version)
-              'installed
-            'wrong-version))
-      'not-installed)))
+  (let ((dir (intero-project-root)))
+    (with-temp-buffer
+      (setq intero-project-root dir)
+      (if (= 0 (apply #'call-process
+                      intero-wrapper nil t nil
+                      (funcall intero-wrap-process "intero" '("--version"))))
+          (progn
+            (goto-char (point-min))
+            (if (string= (buffer-substring (point-min) (line-end-position))
+                         intero-package-version)
+                'installed
+              'wrong-version))
+        'not-installed))))
 
 (defun intero-show-process-problem (process change)
   "Show the user that a CHANGE occurred on PROCESS, causing it to
@@ -888,7 +988,8 @@ The process ended. Here is the reason that Emacs gives us:
      "For troubleshooting purposes, here are the arguments used to launch intero:
 
 "
-     (format "  stack ghci %s"
+     (format "  %s ghci %s"
+             intero-wrapper
              (mapconcat #'identity
                         intero-arguments
                         " "))
@@ -929,6 +1030,7 @@ the given targets."
          (default-directory (file-name-directory cabal-file)))
     (with-current-buffer
         (get-buffer-create buffer-name)
+      (setq intero-project-root default-directory)
       (setq intero-package-name package-name)
       (cd default-directory)
       (current-buffer))))
@@ -950,19 +1052,22 @@ the given targets."
 
 (defun intero-project-root ()
   "Get the directory where the stack.yaml is placed for this
-project, or the global one."
+project, or the global one. If not using stack, the first
+ancestral directory containing a .cabal file is returned."
   (if intero-project-root
       intero-project-root
     (setq intero-project-root
-          (with-temp-buffer
-            (save-excursion
-              (call-process "stack" nil
-                            (current-buffer)
-                            nil
-                            "path"
-                            "--project-root"
-                            "--verbosity" "silent"))
-            (buffer-substring (line-beginning-position) (line-end-position))))))
+          (if (string-equal intero-wrapper "stack")
+              (with-temp-buffer
+                (save-excursion
+                  (call-process "stack" nil
+                                (current-buffer)
+                                nil
+                                "path"
+                                "--project-root"
+                                "--verbosity" "silent"))
+                (buffer-substring (line-beginning-position) (line-end-position)))
+            (file-name-directory (intero-cabal-find-file))))))
 
 (defun intero-package-name (&optional cabal-file)
   "Get the current package name from a nearby .cabal file. If
