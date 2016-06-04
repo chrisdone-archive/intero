@@ -81,6 +81,24 @@
 (define-key intero-mode-map (kbd "C-c C-l") 'intero-repl-load)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Global variables/state
+
+(defvar intero-global-mode nil
+  "Global mode is enabled?")
+
+(defun global-intero-mode ()
+  "Enable Intero on all Haskell mode buffers."
+  (interactive)
+  (setq intero-global-mode (not intero-global-mode))
+  (if intero-global-mode
+      (add-hook 'haskell-mode-hook 'intero-mode)
+    (remove-hook 'haskell-mode-hook 'intero-mode))
+  (when (eq this-command 'global-intero-mode)
+    (message "Intero mode is now %s on all future Haskell buffers."
+             (if intero-global-mode
+                 "enabled" "disabled"))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer-local variables/state
 
 (defvar intero-callbacks (list)
