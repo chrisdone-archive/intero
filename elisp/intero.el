@@ -76,7 +76,8 @@
         (progn (flycheck-select-checker 'intero)
                (flycheck-mode)
                (add-to-list (make-local-variable 'company-backends) 'company-intero)
-               (company-mode))
+               (company-mode)
+	       (set (make-local-variable 'eldoc-documentation-function) 'eldoc-intero))
       (message "Intero mode disabled."))))
 
 (define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
@@ -460,6 +461,21 @@ warnings, adding CHECKER and BUFFER to each one."
           (when (nth 8 (syntax-ppss))
             (setq type 'haskell-completions-general-prefix))
           (when value (list start end value type)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; ELDoc integration
+
+(defun eldoc-intero ()
+  "ELDoc backend for intero."
+  (let* ((ty (apply #'intero-get-type-at (intero-thing-at-point)))
+	 (isError (string-match "^<.+>:.+:" ty)))
+    (unless isError
+      (with-temp-buffer
+	(when (fboundp 'haskell-mode)
+	  (haskell-mode))
+	(insert ty)
+	(font-lock-fontify-buffer)
+	(buffer-string)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; REPL
