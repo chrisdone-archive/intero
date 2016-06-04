@@ -67,6 +67,10 @@
 (define-minor-mode intero-mode "Minor mode for Intero"
   :lighter " Intero"
   :keymap intero-mode-map
+  (when (bound-and-true-p interactive-haskell-mode)
+    (when (fboundp 'interactive-haskell-mode)
+      (message "Disabling interactive-haskell-mode ...")
+      (interactive-haskell-mode -1)))
   (when (intero-buffer-file-name)
     (if intero-mode
         (progn (flycheck-select-checker 'intero)
