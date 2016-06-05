@@ -469,6 +469,7 @@ warnings, adding CHECKER and BUFFER to each one."
 (defun intero-repl-load ()
   "Load the current file in the REPL."
   (interactive)
+  (save-buffer)
   (let ((file (intero-buffer-file-name))
         (repl-buffer (intero-repl-buffer)))
     (with-current-buffer repl-buffer
