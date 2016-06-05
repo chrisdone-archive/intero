@@ -9,10 +9,10 @@ Please see
 
 ### Default key bindings
 
-. intero-goto-definition `M-.`
-. intero-info `C-c TAB`
-. intero-repl-load `C-c C-l`
-. intero-type-at `C-c C-t`
+- intero-goto-definition `M-.`
+- intero-info `C-c TAB`
+- intero-repl-load `C-c C-l`
+- intero-type-at `C-c C-t`
 
 ## Intero for IDE writers
 
