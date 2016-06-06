@@ -654,7 +654,7 @@ x:\\foo\\bar (i.e., Windows)."
   (save-match-data
     (let ((drive-path (split-string path ":\\\\")))
       (if (or (null (car drive-path)) (null (cdr drive-path)))
-        path
+          path
         (concat (upcase (car drive-path)) ":\\" (cadr drive-path))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
