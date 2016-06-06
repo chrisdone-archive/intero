@@ -9,10 +9,12 @@ Please see
 
 ### Default key bindings
 
-- intero-goto-definition `M-.`
-- intero-info `C-c TAB`
-- intero-repl-load `C-c C-l`
-- intero-type-at `C-c C-t`
+Key binding | Description
+--- | ---
+`M-.` | Jump to definition
+`C-c C-i` | Show information of identifier at point
+`C-c C-t` | Show the type of thing at point, or the selection
+`C-c C-l` | Load this module in the REPL
 
 ## Intero for IDE writers
 
