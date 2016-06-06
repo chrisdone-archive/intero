@@ -980,10 +980,15 @@ You can kill this buffer when you're done reading it.\n")
 (defun intero-get-buffer-create (worker)
   "Get or create the stack buffer for this current directory and
 the given targets."
-  (let* ((cabal-file (intero-cabal-find-file))
-         (package-name (intero-package-name cabal-file))
+  (let* ((root (intero-project-root))
+         (cabal-file (intero-cabal-find-file))
+         (package-name (if cabal-file
+                           (intero-package-name cabal-file)
+                         "global"))
          (buffer-name (intero-buffer-name worker))
-         (default-directory (file-name-directory cabal-file)))
+         (default-directory (if cabal-file
+                                (file-name-directory cabal-file)
+                              root)))
     (with-current-buffer
         (get-buffer-create buffer-name)
       (setq intero-package-name package-name)
