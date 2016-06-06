@@ -510,7 +510,7 @@ warnings, adding CHECKER and BUFFER to each one."
   (setq intero-targets targets)
   (let ((arguments (intero-make-options-list intero-targets)))
     (insert (propertize
-             (format "Starting:\n  stack ghci %s\n" (mapconcat #'identity arguments " "))
+             (format "Starting:\n  stack ghci %s\n" (combine-and-quote-strings arguments))
              'face 'font-lock-comment-face))
     (let ((script (with-current-buffer (find-file-noselect (make-temp-file "intero-script"))
                     (insert ":set prompt \"\"
@@ -820,7 +820,7 @@ performing a initial actions in SOURCE-BUFFER, if specified."
          (arguments options)
          (process (with-current-buffer buffer
                     (when debug-on-error
-                      (message "Intero arguments: %S" arguments))
+                      (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
                     (message "Booting up intero ...")
                     (apply #'start-process "stack" buffer "stack" "ghci"
                            arguments))))
@@ -913,9 +913,7 @@ The process ended. Here is the reason that Emacs gives us:
 
 "
      (format "  stack ghci %s"
-             (mapconcat #'identity
-                        intero-arguments
-                        " "))
+             (combine-and-quote-strings intero-arguments))
      "
 
 After fixing this problem, you could switch back to your code and
