@@ -7,6 +7,13 @@ Complete interactive development program for Haskell
 Please see
 [the homepage for Intero for Emacs](http://commercialhaskell.github.io/intero).
 
+### Default key bindings
+
+- intero-goto-definition `M-.`
+- intero-info `C-c TAB`
+- intero-repl-load `C-c C-l`
+- intero-type-at `C-c C-t`
+
 ## Intero for IDE writers
 
 Please see
