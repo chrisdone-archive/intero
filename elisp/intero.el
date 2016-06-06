@@ -861,9 +861,9 @@ performing a initial actions in SOURCE-BUFFER, if specified."
                 "--no-build")
           (let ((dir (make-temp-file "intero" t)))
             (list "--ghci-options"
-                  (format "%S" (concat "-odir=" dir))
+                  (concat "-odir=" dir)
                   "--ghci-options"
-                  (format "%S" (concat "-hidir=" dir))))
+                  (concat "-hidir=" dir)))
           targets))
 
 (defun intero-sentinel (process change)
