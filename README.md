@@ -7,7 +7,7 @@ Complete interactive development program for Haskell
 Please see
 [the homepage for Intero for Emacs](http://commercialhaskell.github.io/intero).
 
-### Default key bindings
+#### Default key bindings
 
 Key binding | Description
 --- | ---
