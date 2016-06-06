@@ -468,8 +468,8 @@ warnings, adding CHECKER and BUFFER to each one."
 (defun eldoc-intero ()
   "ELDoc backend for intero."
   (let* ((ty (apply #'intero-get-type-at (intero-thing-at-point)))
-	 (isError (string-match "^<.+>:.+:" ty)))
-    (unless isError
+	 (is-error (string-match "^<.+>:.+:" ty)))
+    (unless is-error
       (with-temp-buffer
 	(when (fboundp 'haskell-mode)
 	  (haskell-mode))
