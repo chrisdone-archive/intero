@@ -512,7 +512,8 @@ warnings, adding CHECKER and BUFFER to each one."
           (get-buffer-create name)
         (cd root)
         (intero-repl-mode)
-        (intero-repl-mode-start (buffer-local-value 'intero-targets backend-buffer))
+        (intero-repl-mode-start backend-buffer
+                                (buffer-local-value 'intero-targets backend-buffer))
         (current-buffer)))))
 
 (define-derived-mode intero-repl-mode comint-mode "Intero-REPL"
@@ -522,10 +523,12 @@ warnings, adding CHECKER and BUFFER to each one."
     (error "You probably meant to run: M-x intero-repl"))
   (set (make-local-variable 'comint-prompt-regexp) intero-prompt-regexp))
 
-(defun intero-repl-mode-start (targets)
+(defun intero-repl-mode-start (buffer targets)
   "Start the process for the repl buffer."
   (setq intero-targets targets)
-  (let ((arguments (intero-make-options-list intero-targets)))
+  (let ((arguments (intero-make-options-list
+                    (or targets
+                        (list (buffer-local-value 'intero-package-name buffer))))))
     (insert (propertize
              (format "Starting:\n  stack ghci %s\n" (combine-and-quote-strings arguments))
              'face 'font-lock-comment-face))
