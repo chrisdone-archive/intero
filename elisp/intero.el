@@ -473,7 +473,7 @@ warnings, adding CHECKER and BUFFER to each one."
       (with-temp-buffer
 	(when (fboundp 'haskell-mode)
 	  (haskell-mode))
-	(insert (replace-regexp-in-string "[ \n]+" ty " "))
+	(insert (replace-regexp-in-string "[ \n]+" " " ty))
 	(font-lock-fontify-buffer)
 	(buffer-string)))))
 
