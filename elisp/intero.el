@@ -830,7 +830,8 @@ Installing intero-%s automatically ...
                                ;; never hit this behaviour.
                                (if (string= package-name "intero")
                                    "intero"
-                                 (concat "intero-" intero-package-version)))))
+                                 (concat "intero-" intero-package-version))))
+                           "ghc-paths" "syb")
       (0
        (message "Installed successfully! Starting Intero in a moment ...")
        (bury-buffer buffer)
