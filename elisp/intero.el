@@ -953,12 +953,11 @@ problem and flycheck is stuck."
   "Handle a CHANGE to the PROCESS."
   (when (buffer-live-p (process-buffer process))
     (when (and (not (process-live-p process)))
-      (if (with-current-buffer (process-buffer process)
-            intero-deleting)
-          (message "Intero process deleted.")
-        (progn (with-current-buffer (process-buffer process)
-                 (setq-local intero-give-up t))
-               (intero-show-process-problem process change))))))
+      (let ((buffer (process-buffer process)))
+        (if (with-current-buffer buffer intero-deleting)
+            (message "Intero process deleted.")
+          (progn (with-current-buffer buffer (setq-local intero-give-up t))
+                 (intero-show-process-problem process change)))))))
 
 (defun intero-installed-p ()
   "Is intero (of the right version) installed in the stack environment?"
