@@ -133,6 +133,14 @@
   "The process of the buffer is being deleted.")
 (make-variable-buffer-local 'intero-deleting)
 
+(defvar intero-give-up nil
+  "The backend could not start, or could not be
+  installed. Abandon trying to automate it. The user will have to
+  manually run M-x intero-restart or M-x intero-targets to
+  destroy the buffer and create a fresh one without this variable
+  enabled.")
+(make-variable-buffer-local 'intero-give-up)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
@@ -285,30 +293,35 @@ running context across :load/:reloads in Intero."
 
 (defun intero-check (checker cont)
   "Run a check and pass the status onto CONT."
-  (let ((file-buffer (current-buffer)))
-    (write-region (point-min) (point-max) (intero-buffer-file-name) nil 'no-message)
-    (clear-visited-file-modtime)
-    (intero-async-call
-     'backend
-     (concat ":l " (intero-buffer-file-name))
-     (list :cont cont
-           :file-buffer file-buffer
-           :checker checker)
-     (lambda (state string)
-       (with-current-buffer (plist-get state :file-buffer)
-         (funcall (plist-get state :cont)
-                  'finished
-                  (intero-parse-errors-warnings
-                   (plist-get state :checker)
-                   (current-buffer)
-                   string))
-         (when (string-match "OK, modules loaded: \\(.*\\)\\.$" string)
-           (let ((modules (match-string 1 string)))
-             (intero-async-call 'backend
-                                (concat ":m + "
-                                        (replace-regexp-in-string modules "," ""))
-                                nil
-                                (lambda (_st _))))))))))
+  (if (intero-gave-up 'backend)
+      (run-with-timer 0
+                      nil
+                      cont
+                      'interrupted)
+    (let ((file-buffer (current-buffer)))
+      (write-region (point-min) (point-max) (intero-buffer-file-name) nil 'no-message)
+      (clear-visited-file-modtime)
+      (intero-async-call
+       'backend
+       (concat ":l " (intero-buffer-file-name))
+       (list :cont cont
+             :file-buffer file-buffer
+             :checker checker)
+       (lambda (state string)
+         (with-current-buffer (plist-get state :file-buffer)
+           (funcall (plist-get state :cont)
+                    'finished
+                    (intero-parse-errors-warnings
+                     (plist-get state :checker)
+                     (current-buffer)
+                     string))
+           (when (string-match "OK, modules loaded: \\(.*\\)\\.$" string)
+             (let ((modules (match-string 1 string)))
+               (intero-async-call 'backend
+                                  (concat ":m + "
+                                          (replace-regexp-in-string modules "," ""))
+                                  nil
+                                  (lambda (_st _)))))))))))
 
 (flycheck-define-generic-checker 'intero
   "A syntax and type checker for Haskell using an Intero worker
@@ -403,17 +416,20 @@ warnings, adding CHECKER and BUFFER to each one."
   (interactive (list 'interactive))
   (cl-case command
     (interactive (company-begin-backend 'company-intero))
-    (prefix (let ((prefix-info (intero-completions-grab-prefix)))
-              (when prefix-info
-                (cl-destructuring-bind
-                    (beg end prefix _type) prefix-info
-                  prefix))))
+    (prefix
+     (unless (intero-gave-up 'backend)
+       (let ((prefix-info (intero-completions-grab-prefix)))
+         (when prefix-info
+           (cl-destructuring-bind
+               (beg end prefix _type) prefix-info
+             prefix)))))
     (candidates
-     (let ((prefix-info (intero-completions-grab-prefix)))
-       (when prefix-info
-         (cl-destructuring-bind
-             (beg end prefix _type) prefix-info
-           (intero-get-completions beg end)))))))
+     (unless (intero-gave-up 'backend)
+       (let ((prefix-info (intero-completions-grab-prefix)))
+         (when prefix-info
+           (cl-destructuring-bind
+               (beg end prefix _type) prefix-info
+             (intero-get-completions beg end))))))))
 
 (defun intero-completions-grab-prefix (&optional minlen)
   "Grab prefix at point for possible completion."
@@ -785,14 +801,17 @@ x:\\foo\\bar (i.e., Windows)."
 (defun intero-async-call (worker cmd &optional state callback)
   "Make an asynchronous call of CMD (string) to the process,
 calling CALLBACK as (CALLBACK STATE REPLY)."
-  (with-current-buffer (intero-buffer worker)
-    (setq intero-callbacks
-          (append intero-callbacks
-                  (list (list state
-                              (or callback #'ignore)
-                              cmd)))))
-  (process-send-string (intero-process worker)
-                       (concat cmd "\n")))
+  (let ((buffer (intero-buffer worker)))
+    (if (and buffer (process-live-p (get-buffer-process buffer)))
+        (progn (with-current-buffer buffer
+                 (setq intero-callbacks
+                       (append intero-callbacks
+                               (list (list state
+                                           (or callback #'ignore)
+                                           cmd)))))
+               (process-send-string (intero-process worker)
+                                    (concat cmd "\n")))
+      (error "Intero process is not running. Run M-x intero-restart to start it."))))
 
 (defun intero-buffer (worker)
   "Get the worker buffer for the current directory."
@@ -817,82 +836,104 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
 
 (defun intero-auto-install (buffer install-status &optional targets source-buffer)
   "Automatically install Intero."
-  (let ((source-buffer (or source-buffer (current-buffer))))
-    (switch-to-buffer buffer)
-    (erase-buffer)
-    (insert (cl-case install-status
-              (not-installed "Intero is not installed in the Stack environment.")
-              (wrong-version "The wrong version of Intero is installed for this Emacs package."))
-            (format "
+  (if (buffer-local-value 'intero-give-up buffer)
+      buffer
+    (let ((source-buffer (or source-buffer (current-buffer))))
+      (switch-to-buffer buffer)
+      (erase-buffer)
+      (insert (cl-case install-status
+                (not-installed "Intero is not installed in the Stack environment.")
+                (wrong-version "The wrong version of Intero is installed for this Emacs package."))
+              (format "
 
 Installing intero-%s automatically ...
 
 " intero-package-version))
-    (redisplay)
-    (cl-case (call-process "stack" nil (current-buffer) t "build"
-                           (with-current-buffer buffer
-                             (let* ((cabal-file (intero-cabal-find-file))
-                                    (package-name (intero-package-name cabal-file)))
-                               ;; For local development. Most users'll
-                               ;; never hit this behaviour.
-                               (if (string= package-name "intero")
-                                   "intero"
-                                 (concat "intero-" intero-package-version))))
-                           "ghc-paths" "syb")
-      (0
-       (message "Installed successfully! Starting Intero in a moment ...")
-       (bury-buffer buffer)
-       (switch-to-buffer source-buffer)
-       (intero-start-process-in-buffer buffer targets source-buffer))
-      (1 (insert (propertize "Could not install Intero!
+      (redisplay)
+      (cl-case (call-process "stack" nil (current-buffer) t "build"
+                             (with-current-buffer buffer
+                               (let* ((cabal-file (intero-cabal-find-file))
+                                      (package-name (intero-package-name cabal-file)))
+                                 ;; For local development. Most users'll
+                                 ;; never hit this behaviour.
+                                 (if (string= package-name "intero")
+                                     "intero"
+                                   (concat "intero-" intero-package-version))))
+                             "ghc-paths" "syb")
+        (0
+         (message "Installed successfully! Starting Intero in a moment ...")
+         (bury-buffer buffer)
+         (switch-to-buffer source-buffer)
+         (intero-start-process-in-buffer buffer targets source-buffer))
+        (1
+         (with-current-buffer buffer (setq-local intero-give-up t))
+         (insert (propertize "Could not install Intero!
 
 We don't know why it failed. Please read the above output and try
 installing manually. If that doesn't work, report this as a
 problem.
+
+WHAT TO DO NEXT
+
+If you don't want to Intero to try installing itself again for
+this project, just keep this buffer around in your Emacs.
+
+If you'd like to try again next time you try use an Intero
+feature, kill this buffer.
 "
-                             'face 'compilation-error))))))
+                             'face 'compilation-error))
+         nil)))))
 
 (defun intero-start-process-in-buffer (buffer &optional targets source-buffer)
   "Start an Intero worker in BUFFER for TARGETS, automatically
 performing a initial actions in SOURCE-BUFFER, if specified."
-  (let* ((options
-          (intero-make-options-list
-           (or targets
-               (list (buffer-local-value 'intero-package-name buffer)))))
-         (arguments options)
-         (process (with-current-buffer buffer
-                    (when debug-on-error
-                      (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
-                    (message "Booting up intero ...")
-                    (apply #'start-process "stack" buffer "stack" "ghci"
-                           arguments))))
-    (set-process-query-on-exit-flag process nil)
-    (process-send-string process ":set -fobject-code\n")
-    (process-send-string process ":set prompt \"\\4\"\n")
-    (with-current-buffer buffer
-      (erase-buffer)
-      (setq intero-targets targets)
-      (setq intero-arguments arguments)
-      (setq intero-callbacks
-            (list (list source-buffer
-                        (lambda (source-buffer _msg)
-                          (when source-buffer
-                            (with-current-buffer source-buffer
-                              (when flycheck-mode
-                                (run-with-timer 0 nil
-                                                'intero-call-in-buffer
-                                                (current-buffer)
-                                                'flycheck-buffer))))
-                          (message "Booted up intero!"))))))
-    (set-process-filter process
-                        (lambda (process string)
-                          (when (buffer-live-p (process-buffer process))
-                            (with-current-buffer (process-buffer process)
-                              (goto-char (point-max))
-                              (insert string)
-                              (intero-read-buffer)))))
-    (set-process-sentinel process 'intero-sentinel)
-    buffer))
+  (if (buffer-local-value 'intero-give-up buffer)
+      buffer
+    (let* ((options
+            (intero-make-options-list
+             (or targets
+                 (list (buffer-local-value 'intero-package-name buffer)))))
+           (arguments options)
+           (process (with-current-buffer buffer
+                      (when debug-on-error
+                        (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
+                      (message "Booting up intero ...")
+                      (apply #'start-process "stack" buffer "stack" "ghci"
+                             arguments))))
+      (set-process-query-on-exit-flag process nil)
+      (process-send-string process ":set -fobject-code\n")
+      (process-send-string process ":set prompt \"\\4\"\n")
+      (with-current-buffer buffer
+        (erase-buffer)
+        (setq intero-targets targets)
+        (setq intero-arguments arguments)
+        (setq intero-callbacks
+              (list (list source-buffer
+                          (lambda (source-buffer _msg)
+                            (when source-buffer
+                              (with-current-buffer source-buffer
+                                (when flycheck-mode
+                                  (run-with-timer 0 nil
+                                                  'intero-call-in-buffer
+                                                  (current-buffer)
+                                                  'intero-flycheck-buffer))))
+                            (message "Booted up intero!"))))))
+      (set-process-filter process
+                          (lambda (process string)
+                            (when (buffer-live-p (process-buffer process))
+                              (with-current-buffer (process-buffer process)
+                                (goto-char (point-max))
+                                (insert string)
+                                (intero-read-buffer)))))
+      (set-process-sentinel process 'intero-sentinel)
+      buffer)))
+
+(defun intero-flycheck-buffer ()
+  "Run flycheck in the buffer. Restarting in case there was a
+problem and flycheck is stuck."
+  (flycheck-mode -1)
+  (flycheck-mode)
+  (flycheck-buffer))
 
 (defun intero-make-options-list (targets)
   "Make the stack ghci options list."
@@ -915,7 +956,9 @@ performing a initial actions in SOURCE-BUFFER, if specified."
       (if (with-current-buffer (process-buffer process)
             intero-deleting)
           (message "Intero process deleted.")
-        (intero-show-process-problem process change)))))
+        (progn (with-current-buffer (process-buffer process)
+                 (setq-local intero-give-up t))
+               (intero-show-process-problem process change))))))
 
 (defun intero-installed-p ()
   "Is intero (of the right version) installed in the stack environment?"
@@ -943,6 +986,8 @@ end."
      "This is the buffer where Emacs talks to intero. It's normally hidden,
 but a problem occcured.
 
+TROUBLESHOOTING
+
 It may be obvious if there is some text above this message
 indicating a problem.
 
@@ -958,10 +1003,19 @@ The process ended. Here is the reason that Emacs gives us:
              (combine-and-quote-strings intero-arguments))
      "
 
-After fixing this problem, you could switch back to your code and
-run M-x intero-restart to try again.
+WHAT TO DO NEXT
 
-You can kill this buffer when you're done reading it.\n")
+If you fixed the problem, just kill this buffer, Intero will make
+a fresh one and attempt to start the process automatically as
+soon as you start editing code again.
+
+If you are unable to fix the problem, just leave this buffer
+around in Emacs and Intero will not attempt to start the process
+anymore.
+
+You can always run M-x intero-restart to make it try again.
+
+")
     'face 'compilation-error)))
 
 (defun intero-read-buffer ()
@@ -1005,6 +1059,12 @@ the given targets."
       (setq intero-package-name package-name)
       (cd default-directory)
       (current-buffer))))
+
+(defun intero-gave-up (worker)
+  "Did starting/installation give up?"
+  (and (intero-buffer-p worker)
+       (let ((buffer (get-buffer (intero-buffer-name worker))))
+         (buffer-local-value 'intero-give-up buffer))))
 
 (defun intero-buffer-p (worker)
   "Does a buffer exist for a given worker?"
