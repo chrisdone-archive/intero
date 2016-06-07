@@ -64,7 +64,10 @@
   "Intero minor mode's map.")
 
 ;;;###autoload
-(define-minor-mode intero-mode "Minor mode for Intero"
+(define-minor-mode intero-mode
+  "Minor mode for Intero
+
+\\{intero-mode-map}"
   :lighter " Intero"
   :keymap intero-mode-map
   (when (bound-and-true-p interactive-haskell-mode)
