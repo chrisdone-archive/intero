@@ -121,6 +121,10 @@
   "Targets used for the stack process.")
 (make-variable-buffer-local 'intero-targets)
 
+(defvar intero-source-buffer (list)
+  "Buffer from which Intero was first requested to start.")
+(make-variable-buffer-local 'intero-source-buffer)
+
 (defvar intero-project-root nil
   "The project root of the current buffer.")
 (make-variable-buffer-local 'intero-project-root)
@@ -140,6 +144,15 @@
   destroy the buffer and create a fresh one without this variable
   enabled.")
 (make-variable-buffer-local 'intero-give-up)
+
+(defvar intero-try-with-build nil
+  "Try starting intero without --no-build. Slower, but will build
+  required dependencies.")
+(make-variable-buffer-local 'intero-try-with-build)
+
+(defvar intero-starting nil
+  "Is the intero process starting up?")
+(make-variable-buffer-local 'intero-starting)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
@@ -551,7 +564,8 @@ warnings, adding CHECKER and BUFFER to each one."
   (setq intero-targets targets)
   (let ((arguments (intero-make-options-list
                     (or targets
-                        (list (buffer-local-value 'intero-package-name buffer))))))
+                        (list (buffer-local-value 'intero-package-name buffer)))
+                    t)))
     (insert (propertize
              (format "Starting:\n  stack ghci %s\n" (combine-and-quote-strings arguments))
              'face 'font-lock-comment-face))
@@ -892,7 +906,8 @@ performing a initial actions in SOURCE-BUFFER, if specified."
     (let* ((options
             (intero-make-options-list
              (or targets
-                 (list (buffer-local-value 'intero-package-name buffer)))))
+                 (list (buffer-local-value 'intero-package-name buffer)))
+             (not (buffer-local-value 'intero-try-with-build buffer))))
            (arguments options)
            (process (with-current-buffer buffer
                       (when debug-on-error
@@ -906,17 +921,24 @@ performing a initial actions in SOURCE-BUFFER, if specified."
       (with-current-buffer buffer
         (erase-buffer)
         (setq intero-targets targets)
+        (setq intero-source-buffer source-buffer)
         (setq intero-arguments arguments)
+        (setq intero-starting t)
         (setq intero-callbacks
-              (list (list source-buffer
-                          (lambda (source-buffer _msg)
-                            (when source-buffer
-                              (with-current-buffer source-buffer
-                                (when flycheck-mode
-                                  (run-with-timer 0 nil
-                                                  'intero-call-in-buffer
-                                                  (current-buffer)
-                                                  'intero-flycheck-buffer))))
+              (list (list (cons source-buffer
+                                buffer)
+                          (lambda (buffers _msg)
+                            (let ((source-buffer (car buffers))
+                                  (process-buffer (cdr buffers)))
+                              (with-current-buffer process-buffer
+                                (setq-local intero-starting nil))
+                              (when source-buffer
+                                (with-current-buffer source-buffer
+                                  (when flycheck-mode
+                                    (run-with-timer 0 nil
+                                                    'intero-call-in-buffer
+                                                    (current-buffer)
+                                                    'intero-flycheck-buffer)))))
                             (message "Booted up intero!"))))))
       (set-process-filter process
                           (lambda (process string)
@@ -924,6 +946,20 @@ performing a initial actions in SOURCE-BUFFER, if specified."
                               (with-current-buffer (process-buffer process)
                                 (goto-char (point-max))
                                 (insert string)
+                                (when (and intero-try-with-build
+                                           intero-starting)
+                                  (let ((last-line (buffer-substring-no-properties
+                                                    (line-beginning-position)
+                                                    (line-end-position))))
+                                    (if (string-match "^Progress" last-line)
+                                        (message "Booting up intero (building dependencies: %s)"
+                                                 (downcase
+                                                  (or (car (split-string (replace-regexp-in-string
+                                                                          "\u0008+" "\n"
+                                                                          last-line)
+                                                                         "\n" t))
+                                                      "...")))
+                                      (message "Booting up intero ..."))))
                                 (intero-read-buffer)))))
       (set-process-sentinel process 'intero-sentinel)
       buffer)))
@@ -935,13 +971,15 @@ problem and flycheck is stuck."
   (flycheck-mode)
   (flycheck-buffer))
 
-(defun intero-make-options-list (targets)
+(defun intero-make-options-list (targets no-build)
   "Make the stack ghci options list."
   (append (list "--with-ghc"
                 "intero"
                 "--docker-run-args=--interactive=true --tty=false"
                 "--no-load"
-                "--no-build")
+                )
+          (when no-build
+            (list "--no-build"))
           (let ((dir (make-temp-file "intero" t)))
             (list "--ghci-options"
                   (concat "-odir=" dir)
@@ -956,8 +994,22 @@ problem and flycheck is stuck."
       (let ((buffer (process-buffer process)))
         (if (with-current-buffer buffer intero-deleting)
             (message "Intero process deleted.")
-          (progn (with-current-buffer buffer (setq-local intero-give-up t))
-                 (intero-show-process-problem process change)))))))
+          (if (and (intero-unsatisfied-package-p buffer)
+                   (not (buffer-local-value 'intero-try-with-build buffer)))
+              (progn (with-current-buffer buffer (setq-local intero-try-with-build t))
+                     (intero-start-process-in-buffer
+                      buffer
+                      (buffer-local-value 'intero-targets buffer)
+                      (buffer-local-value 'intero-source-buffer buffer)))
+            (progn (with-current-buffer buffer (setq-local intero-give-up t))
+                   (intero-show-process-problem process change))))))))
+
+(defun intero-unsatisfied-package-p (buffer)
+  "Does the buffer contain GHCi's unsatisfied package complaint?"
+  (with-current-buffer buffer
+    (save-excursion
+      (goto-char (point-min))
+      (search-forward-regexp "cannot satisfy -package" nil t 1))))
 
 (defun intero-installed-p ()
   "Is intero (of the right version) installed in the stack environment?"
