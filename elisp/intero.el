@@ -1102,7 +1102,7 @@ the given targets."
          (cabal-file (intero-cabal-find-file))
          (package-name (if cabal-file
                            (intero-package-name cabal-file)
-                         "global"))
+                         ""))
          (buffer-name (intero-buffer-name worker))
          (default-directory (if cabal-file
                                 (file-name-directory cabal-file)
