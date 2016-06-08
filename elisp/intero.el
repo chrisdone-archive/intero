@@ -564,7 +564,9 @@ warnings, adding CHECKER and BUFFER to each one."
   (setq intero-targets targets)
   (let ((arguments (intero-make-options-list
                     (or targets
-                        (list (buffer-local-value 'intero-package-name buffer)))
+                        (let ((package-name (buffer-local-value 'intero-package-name buffer)))
+                          (unless (equal "" package-name)
+                            (list package-name))))
                     t)))
     (insert (propertize
              (format "Starting:\n  stack ghci %s\n" (combine-and-quote-strings arguments))
@@ -906,7 +908,9 @@ performing a initial actions in SOURCE-BUFFER, if specified."
     (let* ((options
             (intero-make-options-list
              (or targets
-                 (list (buffer-local-value 'intero-package-name buffer)))
+                 (let ((package-name (buffer-local-value 'intero-package-name buffer)))
+                          (unless (equal "" package-name)
+                            (list package-name))))
              (not (buffer-local-value 'intero-try-with-build buffer))))
            (arguments options)
            (process (with-current-buffer buffer
