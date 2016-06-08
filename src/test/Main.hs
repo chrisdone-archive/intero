@@ -6,6 +6,7 @@ module Main where
 import Control.Exception
 import Control.Monad.IO.Class
 import Data.Char
+import System.Environment (getEnvironment)
 import System.IO
 import System.IO.Temp
 import System.Process
@@ -59,7 +60,7 @@ basics =
                         withIntero []
                                    (\_ repl -> repl ":i Nothing")
                       shouldBe (subRegex (mkRegex "Data.Maybe") reply "GHC.Base")
-                               "data Maybe a = Nothing | ... \t-- Defined in ‘GHC.Base’\n")
+                               "data Maybe a = Nothing | ... \t-- Defined in `GHC.Base'\n")
                it ":k Just" (eval ":k Maybe" "Maybe :: * -> *\n"))
 
 -- | Loading files and seeing the results.
@@ -381,12 +382,13 @@ withIntero arguments cont =
   liftIO (withSystemTempDirectory
             "withIntero"
             (\dir ->
-               do (inp,out,err,pid) <-
+               do env <- getEnvironment
+                  (inp,out,err,pid) <-
                     catch (runInteractiveProcess
                              "intero"
                              ("-ignore-dot-ghci" : arguments)
                              (Just dir)
-                             Nothing)
+                             (Just (("LC_ALL", "C"):env)))
                           (\(_ :: IOException) ->
                              error "Couldn't launch intero process.")
                   hSetBuffering inp NoBuffering
