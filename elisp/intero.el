@@ -1015,7 +1015,9 @@ problem and flycheck is stuck."
   "Is intero (of the right version) installed in the stack environment?"
   (redisplay)
   (with-temp-buffer
-    (if (= 0 (call-process "stack" nil t nil "exec" "--" "intero" "--version"))
+    (if (= 0 (call-process "stack" nil t nil "exec"
+                           "--verbosity" "silent"
+                           "--" "intero" "--version"))
         (progn
           (goto-char (point-min))
           (if (string= (buffer-substring (point-min) (line-end-position))
