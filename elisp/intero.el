@@ -447,23 +447,37 @@ warnings, adding CHECKER and BUFFER to each one."
      (unless (intero-gave-up 'backend)
        (let ((prefix-info (intero-completions-grab-prefix)))
          (when prefix-info
-           (cl-destructuring-bind
-               (beg end prefix type) prefix-info
-             (or (cl-case type
-                   (haskell-completions-module-name-prefix
-                    (intero-get-repl-completions (concat "import " prefix)))
-                   (haskell-completions-identifier-prefix
-                    (intero-get-completions beg end))
-                   (haskell-completions-language-extension-prefix
-                    (mapcar (lambda (x)
-                              (replace-regexp-in-string "^-X" "" x))
-                            (intero-get-repl-completions (concat ":set -X" prefix))))
-                   (haskell-completions-pragma-name-prefix
+           (cons :async
+                 (-partial 'intero-company-callback
+                           (current-buffer)
+                           prefix-info))))))))
+
+(defun intero-company-callback (source-buffer prefix-info cont)
+  "Generate completions and call CONT on the results."
+  (cl-destructuring-bind
+      (beg end prefix type) prefix-info
+    (or (cl-case type
+          (haskell-completions-module-name-prefix
+           (intero-get-repl-completions source-buffer (concat "import " prefix) cont))
+          (haskell-completions-identifier-prefix
+           (intero-get-completions source-buffer beg end cont))
+          (haskell-completions-language-extension-prefix
+           (intero-get-repl-completions
+            source-buffer
+            (concat ":set -X" prefix)
+            (-partial (lambda (cont results)
+                        (funcall cont
+                                 (mapcar (lambda (x)
+                                           (replace-regexp-in-string "^-X" "" x))
+                                         results)))
+                      cont)))
+          (haskell-completions-pragma-name-prefix
+           (funcall cont
                     (cl-remove-if-not
                      (lambda (candidate)
                        (string-match (concat "^" prefix) candidate))
-                     intero-pragmas)))
-                 (intero-get-repl-completions prefix)))))))))
+                     intero-pragmas))))
+        (intero-get-repl-completions source-buffer prefix cont))))
 
 (defun intero-completions-grab-prefix (&optional minlen)
   "Grab prefix at point for possible completion."
@@ -860,36 +874,48 @@ x:\\foo\\bar (i.e., Windows)."
                             (1+ (current-column)))
             (buffer-substring-no-properties beg end)))))
 
-(defun intero-get-completions (beg end)
+(defun intero-get-completions (source-buffer beg end cont)
   "Get completions for a PREFIX."
-  (split-string
-   (intero-blocking-call
-    'backend
-    (format ":complete-at %S %d %d %d %d %S"
-            (intero-buffer-file-name)
-            (save-excursion (goto-char beg)
-                            (line-number-at-pos))
-            (save-excursion (goto-char beg)
-                            (1+ (current-column)))
-            (save-excursion (goto-char end)
-                            (line-number-at-pos))
-            (save-excursion (goto-char end)
-                            (1+ (current-column)))
-            (buffer-substring-no-properties beg end)))
-   "\n"
-   t))
+  (intero-async-call
+   'backend
+   (format ":complete-at %S %d %d %d %d %S"
+           (intero-buffer-file-name)
+           (save-excursion (goto-char beg)
+                           (line-number-at-pos))
+           (save-excursion (goto-char beg)
+                           (1+ (current-column)))
+           (save-excursion (goto-char end)
+                           (line-number-at-pos))
+           (save-excursion (goto-char end)
+                           (1+ (current-column)))
+           (buffer-substring-no-properties beg end))
+   (list :cont cont :source-buffer source-buffer)
+   (lambda (state reply)
+     (with-current-buffer
+         (plist-get state :source-buffer)
+       (funcall
+        (plist-get state :cont)
+        (mapcar
+         (lambda (x)
+           (replace-regexp-in-string "\\\"" "" x))
+         (cdr (split-string reply "\n" t))))))))
 
-(defun intero-get-repl-completions (prefix)
-  "Get REPL completions for PREFIX."
-  (mapcar
-   (lambda (x) (replace-regexp-in-string "\\\"" "" x))
-   (cdr
-    (split-string
-     (intero-blocking-call
-      'backend
-      (format ":complete repl %S" prefix))
-     "\n"
-     t))))
+(defun intero-get-repl-completions (source-buffer prefix cont)
+  "Get REPL completions for PREFIX, calling CONT with the results
+in buffer SOURCE-BUFFER."
+  (intero-async-call
+   'backend
+   (format ":complete repl %S" prefix)
+   (list :cont cont :source-buffer source-buffer)
+   (lambda (state reply)
+     (with-current-buffer
+         (plist-get state :source-buffer)
+       (funcall
+        (plist-get state :cont)
+        (mapcar
+         (lambda (x)
+           (replace-regexp-in-string "\\\"" "" x))
+         (cdr (split-string reply "\n" t))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Process communication
