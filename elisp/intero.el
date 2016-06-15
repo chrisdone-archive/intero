@@ -256,7 +256,8 @@ You can use this to kill them or look inside."
     (intero-get-worker-create 'backend targets (current-buffer))))
 
 (defun intero-destroy (&optional worker)
-  "Stop the current worker process and kill its associated."
+  "Stop the current worker process and kill its associated
+process buffer."
   (interactive)
   (if worker
       (intero-delete-worker worker)
