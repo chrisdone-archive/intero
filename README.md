@@ -14,6 +14,7 @@ Key binding | Description
 `M-.` | Jump to definition
 `C-c C-i` | Show information of identifier at point
 `C-c C-t` | Show the type of thing at point, or the selection
+`C-u C-c C-t` | Insert a type signature for the thing at point
 `C-c C-l` | Load this module in the REPL
 
 ## Intero for IDE writers

@@ -182,7 +182,10 @@ You can use this to kill them or look inside."
            (read-directory-name "Change Intero directory: "))))
 
 (defun intero-type-at (insert)
-  "Get the type of the thing or selection at point."
+  "Get the type of the thing or selection at point.
+
+With universal-argument (C-u), inserts the type above the current
+line as a type signature."
   (interactive "P")
   (let ((ty (apply #'intero-get-type-at (intero-thing-at-point))))
     (if insert
