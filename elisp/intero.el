@@ -344,8 +344,7 @@ running context across :load/:reloads in Intero."
   "A syntax and type checker for Haskell using an Intero worker
 process."
   :start 'intero-check
-  :modes '(haskell-mode literate-haskell-mode)
-  :next-checkers '((warning . haskell-hlint)))
+  :modes '(haskell-mode literate-haskell-mode))
 
 (add-to-list 'flycheck-checkers 'intero)
 
