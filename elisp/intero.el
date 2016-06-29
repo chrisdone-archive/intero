@@ -50,6 +50,9 @@
 (require 'cl-lib)
 (require 'company)
 (require 'comint)
+(require 'widget)
+(eval-when-compile
+  (require 'wid-edit))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configuration
@@ -1342,6 +1345,61 @@ a list is returned instead of failing with a nil result."
      ((= (length cabal-files) 1) (car cabal-files)) ;; exactly one candidate found
      (allow-multiple cabal-files) ;; pass-thru multiple candidates
      (t nil))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Multiselection
+
+(defun intero-multiswitch (title options)
+  "Read multiple flags from a list of OPTIONS each of which is a
+  plist of (:key :default :title). :key should be a number or
+  symbol, :title should be a string, :default (boolean) specifies
+  the default checkedness."
+  (let ((available-width (window-total-width)))
+    (save-window-excursion
+      (with-temp-buffer
+        (rename-buffer (generate-new-buffer-name "multiswitch"))
+        (widget-insert (concat title "\n\n"))
+        (widget-insert (propertize "Hit " 'face 'font-lock-comment-face))
+        (widget-create 'push-button :notify
+                       (lambda (&rest ignore)
+                         (exit-recursive-edit))
+                       "C-c C-c")
+        (widget-insert (propertize " to apply these choices.\n\n" 'face 'font-lock-comment-face))
+        (let* ((me (current-buffer))
+               (choices (mapcar (lambda (option)
+                                  (append option (list :value (plist-get option :default))))
+                                options)))
+          (cl-loop for option in choices
+                   do (widget-create
+                       'toggle
+                       :notify (lambda (widget &rest ignore)
+                                 (setq choices
+                                       (mapcar (lambda (choice)
+                                                 (if (eq (plist-get choice :key)
+                                                         (plist-get (cdr widget) :key))
+                                                     (plist-put choice :value (plist-get (cdr widget) :value))
+                                                   choice))
+                                               choices)))
+                       :on (concat "[x] " (plist-get option :title))
+                       :off (concat "[ ] " (plist-get option :title))
+                       :key (plist-get option :key)))
+          (let ((lines (line-number-at-pos)))
+            (select-window (split-window-below (- 0 (max window-min-height (1+ lines)))))
+            (switch-to-buffer me)
+            (goto-char (point-min)))
+          (use-local-map
+           (let ((map (copy-keymap widget-keymap)))
+             (define-key map (kbd "C-c C-c") 'exit-recursive-edit)
+             (define-key map (kbd "C-g") 'abort-recursive-edit)
+             map))
+          (widget-setup)
+          (recursive-edit)
+          (kill-buffer me)
+          (mapcar (lambda (choice)
+                    (plist-get choice :key))
+                  (cl-remove-if-not (lambda (choice)
+                                      (plist-get choice :value))
+                                    choices)))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
