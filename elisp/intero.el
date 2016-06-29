@@ -255,9 +255,21 @@ line as a type signature."
 (defun intero-targets ()
   "Set the targets to use for stack ghci."
   (interactive)
-  (let ((targets (split-string (read-from-minibuffer "Targets: ")
-                               " "
-                               t)))
+  (let* ((old-targets
+          (with-current-buffer (intero-buffer 'backend)
+            intero-targets))
+         (available-targets (intero-get-targets))
+         (targets (if available-targets
+                      (intero-multiswitch
+                       "Targets:"
+                       (mapcar (lambda (target)
+                                 (list :key target
+                                       :title target
+                                       :default (member target old-targets)))
+                               available-targets))
+                    (split-string (read-from-minibuffer "Targets: " nil nil nil nil old-targets)
+                                  " "
+                                  t))))
     (intero-destroy)
     (intero-get-worker-create 'backend targets (current-buffer))))
 
@@ -1290,6 +1302,14 @@ project, or the global one."
                             "--verbosity" "silent"))
             (buffer-substring (line-beginning-position) (line-end-position))))))
 
+(defun intero-get-targets ()
+  "Get all available targets."
+  (with-temp-buffer
+    (cl-case (call-process "stack" nil (current-buffer) t "ide" "targets")
+      (0
+       (split-string (buffer-string) nil t))
+      (1 nil))))
+
 (defun intero-package-name (&optional cabal-file)
   "Get the current package name from a nearby .cabal file. If
 there is none, return empty string."
@@ -1351,9 +1371,9 @@ a list is returned instead of failing with a nil result."
 
 (defun intero-multiswitch (title options)
   "Read multiple flags from a list of OPTIONS each of which is a
-  plist of (:key :default :title). :key should be a number or
-  symbol, :title should be a string, :default (boolean) specifies
-  the default checkedness."
+  plist of (:key :default :title). :key should be something
+  comparable with EQUAL, :title should be a
+  string, :default (boolean) specifies the default checkedness."
   (let ((available-width (window-total-width)))
     (save-window-excursion
       (with-temp-buffer
@@ -1375,13 +1395,14 @@ a list is returned instead of failing with a nil result."
                        :notify (lambda (widget &rest ignore)
                                  (setq choices
                                        (mapcar (lambda (choice)
-                                                 (if (eq (plist-get choice :key)
-                                                         (plist-get (cdr widget) :key))
+                                                 (if (equal (plist-get choice :key)
+                                                            (plist-get (cdr widget) :key))
                                                      (plist-put choice :value (plist-get (cdr widget) :value))
                                                    choice))
                                                choices)))
                        :on (concat "[x] " (plist-get option :title))
                        :off (concat "[ ] " (plist-get option :title))
+                       :value (plist-get option :default)
                        :key (plist-get option :key)))
           (let ((lines (line-number-at-pos)))
             (select-window (split-window-below (- 0 (max window-min-height (1+ lines)))))
