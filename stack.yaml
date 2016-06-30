@@ -5,5 +5,4 @@ extra-deps: []
 flags: {}
 extra-package-dbs: []
 nix:
-  enable: true
   packages: [ ncurses ]
