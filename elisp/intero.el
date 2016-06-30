@@ -1405,7 +1405,7 @@ a list is returned instead of failing with a nil result."
                        :value (plist-get option :default)
                        :key (plist-get option :key)))
           (let ((lines (line-number-at-pos)))
-            (select-window (split-window-below (- 0 (max window-min-height (1+ lines)))))
+            (select-window (split-window-below))
             (switch-to-buffer me)
             (goto-char (point-min)))
           (use-local-map
