@@ -109,6 +109,13 @@
              (if intero-global-mode
                  "enabled" "disabled"))))
 
+(defvar intero-repl-no-load t
+  "When starting the repl, pass --no-load to skip loading the files
+  from the selected target")
+
+(defvar intero-repl-no-build t
+  "When starting the repl, pass --no-build to skip building the target")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer-local variables/state
 
@@ -642,6 +649,21 @@ pragma is supported also."
 
 (defconst intero-prompt-regexp "^\4 ")
 
+(defun intero-repl-options ()
+  "Open an option menu to set options used when starting the REPL."
+  (interactive)
+  (let* ((old-options
+          (list
+            (list :key "load-all"
+                  :title "Load all modules"
+                  :default (not intero-repl-no-load))
+            (list :key "build-first"
+                  :title "Build project first"
+                  :default (not intero-repl-no-build))))
+         (new-options (intero-multiswitch "REPL Options:" old-options)))
+    (setq intero-repl-no-load (not (member "load-all" new-options)))
+    (setq intero-repl-no-build (not (member "build-first" new-options)))))
+
 (defun intero-repl-load ()
   "Load the current file in the REPL."
   (interactive)
@@ -691,7 +713,8 @@ pragma is supported also."
                         (let ((package-name (buffer-local-value 'intero-package-name buffer)))
                           (unless (equal "" package-name)
                             (list package-name))))
-                    t)))
+                    intero-repl-no-build
+                    intero-repl-no-load)))
     (insert (propertize
              (format "Starting:\n  stack ghci %s\n" (combine-and-quote-strings arguments))
              'face 'font-lock-comment-face))
@@ -1059,7 +1082,9 @@ performing a initial actions in SOURCE-BUFFER, if specified."
                  (let ((package-name (buffer-local-value 'intero-package-name buffer)))
                    (unless (equal "" package-name)
                      (list package-name))))
-             (not (buffer-local-value 'intero-try-with-build buffer))))
+             (not (buffer-local-value 'intero-try-with-build buffer))
+             t ;; pass --no-load
+             ))
            (arguments options)
            (process (with-current-buffer buffer
                       (when debug-on-error
@@ -1123,15 +1148,16 @@ problem and flycheck is stuck."
   (flycheck-mode)
   (flycheck-buffer))
 
-(defun intero-make-options-list (targets no-build)
+(defun intero-make-options-list (targets no-build no-load)
   "Make the stack ghci options list."
   (append (list "--with-ghc"
                 "intero"
                 "--docker-run-args=--interactive=true --tty=false"
-                "--no-load"
                 )
           (when no-build
             (list "--no-build"))
+          (when no-load
+            (list "--no-load"))
           (let ((dir (make-temp-file "intero" t)))
             (list "--ghci-options"
                   (concat "-odir=" dir)
