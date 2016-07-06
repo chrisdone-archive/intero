@@ -1,3 +1,6 @@
+0.1.16:
+	* Re-add back collecting type info after any load
+
 0.1.14:
 	* Bring back :completion
 
