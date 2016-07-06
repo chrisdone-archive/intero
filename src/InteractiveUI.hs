@@ -1493,15 +1493,7 @@ loadModule' files = do
   _ <- GHC.load LoadAllTargets
 
   GHC.setTargets targets
-  flag <- doLoad False LoadAllTargets
-  case flag of
-    Succeeded -> do
-      loaded <- getModuleGraph >>= filterM GHC.isLoaded . map GHC.ms_mod_name
-      v <- lift (fmap mod_infos getGHCiState)
-      !newInfos <- collectInfo v loaded
-      lift (modifyGHCiState (\s -> s { mod_infos = newInfos }))
-    _ -> return ()
-  return flag
+  doLoad False LoadAllTargets
 
 -- :add
 addModule :: [FilePath] -> InputT GHCi ()
@@ -1543,8 +1535,12 @@ doLoad retain_context howmuch = do
       afterLoad ok retain_context
       return ok
   case wasok of
-    Succeeded -> do names <- GHC.getRdrNamesInScope
-                    lift (modifyGHCiState (\s -> s { rdrNamesInScope = names }))
+    Succeeded -> do
+      names <- GHC.getRdrNamesInScope
+      loaded <- getModuleGraph >>= filterM GHC.isLoaded . map GHC.ms_mod_name
+      v <- lift (fmap mod_infos getGHCiState)
+      !newInfos <- collectInfo v loaded
+      lift (modifyGHCiState (\s -> s { mod_infos = newInfos, rdrNamesInScope = names }))
     _ -> return ()
   return wasok
 
