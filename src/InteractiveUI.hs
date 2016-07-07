@@ -397,7 +397,6 @@ defFullHelpText =
   "    +r            revert top-level expressions after each evaluation\n" ++
   "    +s            print timing/memory stats after each evaluation\n" ++
   "    +t            print type after evaluation\n" ++
-  "    +c            collect type/location info after loading modules\n" ++
   "    -<flags>      most GHC command line flags can also be set here\n" ++
   "                         (eg. -v2, -XFlexibleInstances, etc.)\n" ++
   "                    for GHCi-specific flags, see User's Guide,\n"++
