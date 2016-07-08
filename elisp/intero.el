@@ -57,8 +57,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configuration
 
-(defconst intero-package-version "0.1.15"
-  "Package version to auto-install.")
+(defgroup intero nil
+  "Complete development mode for Haskell"
+  :group 'haskell)
+
+(defcustom intero-package-version
+  "0.1.15"
+  "Package version to auto-install."
+  :group 'intero
+  :type 'string)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
