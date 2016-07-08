@@ -67,6 +67,22 @@
   :group 'intero
   :type 'string)
 
+(defcustom intero-repl-no-load
+  t
+  "When starting the repl, pass --no-load to skip loading the
+files from the selected target."
+  :group 'intero
+  :type 'boolean)
+(make-variable-buffer-local 'intero-repl-no-load)
+
+(defcustom intero-repl-no-build
+  t
+  "When starting the repl, pass --no-build to skip building the
+target."
+  :group 'intero
+  :type 'boolean)
+(make-variable-buffer-local 'intero-repl-no-build)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
 
@@ -115,13 +131,6 @@
     (message "Intero mode is now %s on all future Haskell buffers."
              (if intero-global-mode
                  "enabled" "disabled"))))
-
-(defvar intero-repl-no-load t
-  "When starting the repl, pass --no-load to skip loading the files
-  from the selected target")
-
-(defvar intero-repl-no-build t
-  "When starting the repl, pass --no-build to skip building the target")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer-local variables/state
@@ -656,39 +665,28 @@ pragma is supported also."
 
 (defconst intero-prompt-regexp "^\4 ")
 
-(defun intero-repl-options ()
-  "Open an option menu to set options used when starting the REPL."
-  (interactive)
-  (let* ((old-options
-          (list
-            (list :key "load-all"
-                  :title "Load all modules"
-                  :default (not intero-repl-no-load))
-            (list :key "build-first"
-                  :title "Build project first"
-                  :default (not intero-repl-no-build))))
-         (new-options (intero-multiswitch "REPL Options:" old-options)))
-    (setq intero-repl-no-load (not (member "load-all" new-options)))
-    (setq intero-repl-no-build (not (member "build-first" new-options)))))
-
-(defun intero-repl-load ()
-  "Load the current file in the REPL."
-  (interactive)
+(defun intero-repl-load (&optional prompt-options)
+  "Load the current file in the REPL, prompting with an options
+list if PROMPT-OPTIONS is t."
+  (interactive "P")
   (save-buffer)
   (let ((file (intero-buffer-file-name))
-        (repl-buffer (intero-repl-buffer)))
+        (repl-buffer (intero-repl-buffer prompt-options)))
     (with-current-buffer repl-buffer
       (comint-send-string
        (get-buffer-process (current-buffer))
        (concat ":l " file "\n")))
     (pop-to-buffer repl-buffer)))
 
-(defun intero-repl ()
-  "Start up the REPL for this stack project."
-  (interactive)
-  (switch-to-buffer (intero-repl-buffer)))
+(defun intero-repl (&optional prompt-options)
+  "Start up the REPL for this stack project, prompting with an
+options list if PROMPT-OPTIONS is t."
+  (interactive "P")
+  (switch-to-buffer (intero-repl-buffer prompt-options)))
 
-(defun intero-repl-buffer ()
+(defun intero-repl-buffer (prompt-options)
+  "Start the REPL buffer, prompting with an options list if
+PROMPT-OPTIONS is t."
   (let* ((root (intero-project-root))
          (package-name (intero-package-name))
          (name (format "*intero:%s:%s:repl*"
@@ -702,7 +700,8 @@ pragma is supported also."
         (cd root)
         (intero-repl-mode)
         (intero-repl-mode-start backend-buffer
-                                (buffer-local-value 'intero-targets backend-buffer))
+                                (buffer-local-value 'intero-targets backend-buffer)
+                                prompt-options)
         (current-buffer)))))
 
 (define-derived-mode intero-repl-mode comint-mode "Intero-REPL"
@@ -712,16 +711,21 @@ pragma is supported also."
     (error "You probably meant to run: M-x intero-repl"))
   (set (make-local-variable 'comint-prompt-regexp) intero-prompt-regexp))
 
-(defun intero-repl-mode-start (buffer targets)
-  "Start the process for the repl buffer."
+(defun intero-repl-mode-start (backend-buffer targets prompt-options)
+  "Start the process for the repl in the current buffer, using
+BACKEND-BUFFER for options, TARGETS to load, and prompting with
+an options list if PROMPT-OPTIONS is t."
   (setq intero-targets targets)
+  (when prompt-options
+    (intero-repl-options backend-buffer))
   (let ((arguments (intero-make-options-list
                     (or targets
-                        (let ((package-name (buffer-local-value 'intero-package-name buffer)))
+                        (let ((package-name (buffer-local-value 'intero-package-name
+                                                                backend-buffer)))
                           (unless (equal "" package-name)
                             (list package-name))))
-                    intero-repl-no-build
-                    intero-repl-no-load)))
+                    (buffer-local-value 'intero-repl-no-build backend-buffer)
+                    (buffer-local-value 'intero-repl-no-load backend-buffer))))
     (insert (propertize
              (format "Starting:\n  stack ghci %s\n" (combine-and-quote-strings arguments))
              'face 'font-lock-comment-face))
@@ -740,6 +744,24 @@ pragma is supported also."
         (when (process-live-p process)
           (set-process-query-on-exit-flag process nil)
           (message "Started Intero process for REPL."))))))
+
+(defun intero-repl-options (backend-buffer)
+  "Open an option menu to set options used when starting the
+REPL, default options come from user customization and any
+temporary changes in the BACKEND-BUFFER."
+  (interactive)
+  (let* ((old-options
+          (list
+            (list :key "load-all"
+                  :title "Load all modules"
+                  :default (not (buffer-local-value 'intero-repl-no-load backend-buffer)))
+            (list :key "build-first"
+                  :title "Build project first"
+                  :default (not (buffer-local-value 'intero-repl-no-build backend-buffer)))))
+         (new-options (intero-multiswitch "Start REPL with options:" old-options)))
+    (with-current-buffer backend-buffer
+      (setq intero-repl-no-load (not (member "load-all" new-options)))
+      (setq intero-repl-no-build (not (member "build-first" new-options))))))
 
 ;; For live migration, remove later
 (font-lock-remove-keywords
