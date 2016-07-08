@@ -234,18 +234,39 @@ line as a type signature."
          (font-lock-fontify-buffer)
          (buffer-string))))))
 
-(defun intero-info (insert)
+(defun intero-info (ident)
   "Get the info of the thing at point."
-  (interactive "P")
-  (let ((info (intero-get-info-of (intero-ident-at-point))))
-    (message
-     "%s"
-     (with-temp-buffer
-       (when (fboundp 'haskell-mode)
-         (haskell-mode))
-       (insert info)
-       (font-lock-fontify-buffer)
-       (buffer-string)))))
+  (interactive (list (intero-ident-at-point)))
+  (let ((origin-buffer (current-buffer))
+        (package (intero-package-name))
+        (info (intero-get-info-of ident))
+        (help-xref-following nil)
+        (origin (buffer-name)))
+    (help-setup-xref (list #'intero-call-in-buffer origin-buffer 'intero-info ident)
+                     (called-interactively-p 'interactive))
+    (save-excursion
+      (let ((help-xref-following nil))
+        (with-help-window (help-buffer)
+          (with-current-buffer (help-buffer)
+            (insert
+             (with-temp-buffer
+               (when (fboundp 'haskell-mode)
+                 (haskell-mode))
+               (insert ident)
+               (font-lock-fontify-buffer)
+               (buffer-string))
+             " in `"
+             origin
+             "'"
+             " (" package ")"
+             "\n\n"
+             (with-temp-buffer
+               (when (fboundp 'haskell-mode)
+                 (haskell-mode))
+               (insert info)
+               (font-lock-fontify-buffer)
+               (buffer-string)))
+            (goto-char (point-min))))))))
 
 (defun intero-goto-definition ()
   "Jump to the definition of the thing at point."
@@ -752,12 +773,12 @@ temporary changes in the BACKEND-BUFFER."
   (interactive)
   (let* ((old-options
           (list
-            (list :key "load-all"
-                  :title "Load all modules"
-                  :default (not (buffer-local-value 'intero-repl-no-load backend-buffer)))
-            (list :key "build-first"
-                  :title "Build project first"
-                  :default (not (buffer-local-value 'intero-repl-no-build backend-buffer)))))
+           (list :key "load-all"
+                 :title "Load all modules"
+                 :default (not (buffer-local-value 'intero-repl-no-load backend-buffer)))
+           (list :key "build-first"
+                 :title "Build project first"
+                 :default (not (buffer-local-value 'intero-repl-no-build backend-buffer)))))
          (new-options (intero-multiswitch "Start REPL with options:" old-options)))
     (with-current-buffer backend-buffer
       (setq intero-repl-no-load (not (member "load-all" new-options)))
@@ -902,11 +923,33 @@ x:\\foo\\bar (i.e., Windows)."
 
 (defun intero-get-info-of (thing)
   "Get info for the thing."
-  (replace-regexp-in-string
-   "\n$" ""
-   (intero-blocking-call
-    'backend
-    (format ":i %s" thing))))
+  (let ((optimistic-result
+         (replace-regexp-in-string
+          "\n$" ""
+          (intero-blocking-call
+           'backend
+           (format ":i %s" thing)))))
+    (if (string-match "^<interactive>" optimistic-result)
+        ;; Load the module Interpreted so that we get information,
+        ;; then restore bytecode.
+        (progn (intero-async-call
+                'backend
+                ":set -fbyte-code")
+               (set-buffer-modified-p t)
+               (save-buffer)
+               (unless (member 'save flycheck-check-syntax-automatically)
+                 (intero-async-call
+                  'backend
+                  (concat ":l " (intero-buffer-file-name))))
+               (intero-async-call
+                'backend
+                ":set -fobject-code")
+               (replace-regexp-in-string
+                "\n$" ""
+                (intero-blocking-call
+                 'backend
+                 (format ":i %s" thing))))
+      optimistic-result)))
 
 (defun intero-get-loc-at (beg end)
   "Get the location of the identifier denoted by BEG and END."
@@ -1025,6 +1068,8 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
                                (list (list state
                                            (or callback #'ignore)
                                            cmd)))))
+               (when debug-on-error
+                 (message "[Intero] -> %s" cmd))
                (process-send-string (intero-process worker)
                                     (concat cmd "\n")))
       (error "Intero process is not running. Run M-x intero-restart to start it."))))
@@ -1146,27 +1191,30 @@ performing a initial actions in SOURCE-BUFFER, if specified."
                                                     (current-buffer)
                                                     'intero-flycheck-buffer)))))
                             (message "Booted up intero!"))))))
-      (set-process-filter process
-                          (lambda (process string)
-                            (when (buffer-live-p (process-buffer process))
-                              (with-current-buffer (process-buffer process)
-                                (goto-char (point-max))
-                                (insert string)
-                                (when (and intero-try-with-build
-                                           intero-starting)
-                                  (let ((last-line (buffer-substring-no-properties
-                                                    (line-beginning-position)
-                                                    (line-end-position))))
-                                    (if (string-match "^Progress" last-line)
-                                        (message "Booting up intero (building dependencies: %s)"
-                                                 (downcase
-                                                  (or (car (split-string (replace-regexp-in-string
-                                                                          "\u0008+" "\n"
-                                                                          last-line)
-                                                                         "\n" t))
-                                                      "...")))
-                                      (message "Booting up intero ..."))))
-                                (intero-read-buffer)))))
+      (set-process-filter
+       process
+       (lambda (process string)
+         (when debug-on-error
+           (message "[Intero] <- %s" string))
+         (when (buffer-live-p (process-buffer process))
+           (with-current-buffer (process-buffer process)
+             (goto-char (point-max))
+             (insert string)
+             (when (and intero-try-with-build
+                        intero-starting)
+               (let ((last-line (buffer-substring-no-properties
+                                 (line-beginning-position)
+                                 (line-end-position))))
+                 (if (string-match "^Progress" last-line)
+                     (message "Booting up intero (building dependencies: %s)"
+                              (downcase
+                               (or (car (split-string (replace-regexp-in-string
+                                                       "\u0008+" "\n"
+                                                       last-line)
+                                                      "\n" t))
+                                   "...")))
+                   (message "Booting up intero ..."))))
+             (intero-read-buffer)))))
       (set-process-sentinel process 'intero-sentinel)
       buffer)))
 
