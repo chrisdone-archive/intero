@@ -83,6 +83,11 @@ target."
   :type 'boolean)
 (make-variable-buffer-local 'intero-repl-no-build)
 
+(defcustom intero-debug nil
+  "Show debug output."
+  :group 'intero
+  :type 'boolean)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
 
@@ -1068,7 +1073,7 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
                                (list (list state
                                            (or callback #'ignore)
                                            cmd)))))
-               (when debug-on-error
+               (when intero-debug
                  (message "[Intero] -> %s" cmd))
                (process-send-string (intero-process worker)
                                     (concat cmd "\n")))
@@ -1161,7 +1166,7 @@ performing a initial actions in SOURCE-BUFFER, if specified."
              ))
            (arguments options)
            (process (with-current-buffer buffer
-                      (when debug-on-error
+                      (when intero-debug
                         (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
                       (message "Booting up intero ...")
                       (apply #'start-process "stack" buffer "stack" "ghci"
@@ -1194,7 +1199,7 @@ performing a initial actions in SOURCE-BUFFER, if specified."
       (set-process-filter
        process
        (lambda (process string)
-         (when debug-on-error
+         (when intero-debug
            (message "[Intero] <- %s" string))
          (when (buffer-live-p (process-buffer process))
            (with-current-buffer (process-buffer process)
@@ -1341,7 +1346,7 @@ You can always run M-x intero-restart to make it try again.
                 (progn (with-temp-buffer
                          (funcall func state string))
                        (setq repeat t))
-              (when debug-on-error
+              (when intero-debug
                 (warn "Received output but no callback in `intero-callbacks': %S"
                       string)))))
         (delete-region (point-min) (point))))))
