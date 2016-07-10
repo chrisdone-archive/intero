@@ -47,6 +47,7 @@
 ;;; Code:
 
 (require 'flycheck)
+(require 'json)
 (require 'cl-lib)
 (require 'company)
 (require 'comint)
@@ -185,6 +186,10 @@ This is slower, but will build required dependencies.")
 (defvar intero-starting nil
   "When non-nil, indicates that the intero process starting up.")
 (make-variable-buffer-local 'intero-starting)
+
+(defvar intero-hoogle-port nil
+  "Port that hoogle server is listening on.")
+(make-variable-buffer-local 'intero-hoogle-port)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
@@ -1534,6 +1539,110 @@ Each option is a plist of (:key :default :title) wherein:
                   (cl-remove-if-not (lambda (choice)
                                       (plist-get choice :value))
                                     choices)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Hoogle
+
+(defun intero-hoogle-blocking-query (query)
+  "Make a request of QUERY using the local hoogle server, if
+running. Otherwise returns nil.
+
+It is the responsibility of the caller to make sure the server is
+running; the user might not want to start the server
+automatically."
+  (let ((buffer (intero-hoogle-get-buffer)))
+    (when buffer
+      (let ((url (intero-hoogle-url buffer query)))
+        (with-current-buffer (url-retrieve-synchronously url t)
+          (search-forward "\n\n" nil t 1)
+          (json-read-from-string
+           (buffer-substring (line-beginning-position)
+                             (line-end-position))))))))
+
+(defun intero-hoogle-url (buffer query)
+  "Make the HTTP URL for QUERY from the hoogle server running in
+BUFFER."
+  (format "http://127.0.0.1:%d/?hoogle=%s&mode=json"
+          (buffer-local-value 'intero-hoogle-port buffer)
+          (url-encode-url query)))
+
+(defun intero-hoogle-get-worker-create ()
+  "Get or create the hoogle worker."
+  (let* ((buffer (intero-hoogle-get-buffer-create)))
+    (if (get-buffer-process buffer)
+        buffer
+      (intero-start-hoogle-process-in-buffer buffer))))
+
+(defun intero-start-hoogle-process-in-buffer (buffer)
+  "Start the process in BUFFER, returning BUFFER."
+  (let* ((port (intero-free-port))
+         (process (with-current-buffer buffer
+                    (message "Booting up hoogle ...")
+                    (setq intero-hoogle-port port)
+                    (start-process "hoogle"
+                                   buffer
+                                   "stack"
+                                   "hoogle"
+                                   "server"
+                                   "--no-setup"
+                                   "--"
+                                   "--local"
+                                   "--port"
+                                   (number-to-string port)))))
+    (set-process-query-on-exit-flag process nil)
+    (set-process-sentinel process 'intero-hoogle-sentinel)
+    buffer))
+
+(defun intero-free-port ()
+  "Get the next free port to use."
+  (let ((proc (make-network-process
+               :name "port-check"
+               :family 'ipv4
+               :host "127.0.0.1"
+               :service t
+               :server t)))
+    (delete-process proc)
+    (process-contact proc :service)))
+
+(defun intero-hoogle-sentinel (process change)
+  "Problem handler for the hoogle process."
+  (message "Hoogle sentinel: %S %S" process change))
+
+(defun intero-hoogle-get-buffer-create ()
+  "Get or create the Hoogle buffer for the current stack project."
+  (let* ((root (intero-project-root))
+         (buffer-name (intero-hoogle-buffer-name root))
+         (buf (get-buffer buffer-name))
+         (default-directory root))
+    (if buf
+        buf
+      (with-current-buffer (get-buffer-create buffer-name)
+        (cd default-directory)
+        (current-buffer)))))
+
+(defun intero-hoogle-get-buffer ()
+  "Get the Hoogle buffer for the current stack project."
+  (let* ((root (intero-project-root))
+         (buffer-name (intero-hoogle-buffer-name root)))
+    (get-buffer buffer-name)))
+
+(defun intero-hoogle-buffer-name (root)
+  "For a given WORKER, create a buffer name."
+  (concat "*Hoogle:" root "*"))
+
+(defun intero-hoogle-ready-p ()
+  "Is hoogle ready to be started?"
+  (with-temp-buffer
+    (cl-case (call-process "stack" nil (current-buffer) t
+                           "hoogle" "--no-setup" "--verbosity" "silent")
+      (0 t))))
+
+(defun intero-hoogle-supported-p ()
+  "Is the stack hoogle command supported?"
+  (with-temp-buffer
+    (cl-case (call-process "stack" nil (current-buffer) t
+                           "hoogle" "--help")
+      (0 t))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
