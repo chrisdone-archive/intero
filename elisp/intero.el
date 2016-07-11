@@ -69,16 +69,16 @@
 
 (defcustom intero-repl-no-load
   t
-  "When starting the repl, pass --no-load to skip loading the
-files from the selected target."
+  "Pass --no-load when starting the repl.
+This causes it to skip loading the files from the selected target."
   :group 'intero
   :type 'boolean)
 (make-variable-buffer-local 'intero-repl-no-load)
 
 (defcustom intero-repl-no-build
   t
-  "When starting the repl, pass --no-build to skip building the
-target."
+  "Pass --no-build when starting the repl.
+This causes it to skip building the target."
   :group 'intero
   :type 'boolean)
 (make-variable-buffer-local 'intero-repl-no-build)
@@ -136,7 +136,8 @@ target."
 ;; Buffer-local variables/state
 
 (defvar intero-callbacks (list)
-  "List of callbacks waiting for output. FIFO.")
+  "List of callbacks waiting for output.
+LIST is a FIFO.")
 (make-variable-buffer-local 'intero-callbacks)
 
 (defvar intero-arguments (list)
@@ -164,20 +165,20 @@ target."
 (make-variable-buffer-local 'intero-deleting)
 
 (defvar intero-give-up nil
-  "The backend could not start, or could not be
-  installed. Abandon trying to automate it. The user will have to
-  manually run M-x intero-restart or M-x intero-targets to
-  destroy the buffer and create a fresh one without this variable
-  enabled.")
+  "When non-nil, give up trying to start the backend.
+A true value indicates that the backend could not start, or could
+not be installed.  The user will have to manually run
+`intero-restart' or `intero-targets' to destroy the buffer and
+create a fresh one without this variable enabled.")
 (make-variable-buffer-local 'intero-give-up)
 
 (defvar intero-try-with-build nil
-  "Try starting intero without --no-build. Slower, but will build
-  required dependencies.")
+  "Try starting intero without --no-build.
+This is slower, but will build required dependencies.")
 (make-variable-buffer-local 'intero-try-with-build)
 
 (defvar intero-starting nil
-  "Is the intero process starting up?")
+  "When non-nil, indicates that the intero process starting up.")
 (make-variable-buffer-local 'intero-starting)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -197,7 +198,7 @@ You can use this to kill them or look inside."
          (list-buffers-noselect
           nil
           buffers))
-      (error "There are no Intero process buffers."))))
+      (error "There are no Intero process buffers"))))
 
 (defun intero-cd ()
   "Change directory in the backend process."
@@ -210,7 +211,7 @@ You can use this to kill them or look inside."
 (defun intero-type-at (insert)
   "Get the type of the thing or selection at point.
 
-With universal-argument (C-u), inserts the type above the current
+With prefix argument INSERT, inserts the type above the current
 line as a type signature."
   (interactive "P")
   (let ((ty (apply #'intero-get-type-at (intero-thing-at-point))))
@@ -235,7 +236,7 @@ line as a type signature."
          (buffer-string))))))
 
 (defun intero-info (ident)
-  "Get the info of the thing at point."
+  "Get the info of the thing with IDENT at point."
   (interactive (list (intero-ident-at-point)))
   (let ((origin-buffer (current-buffer))
         (package (intero-package-name))
@@ -318,8 +319,8 @@ line as a type signature."
     (intero-get-worker-create 'backend targets (current-buffer))))
 
 (defun intero-destroy (&optional worker)
-  "Stop the current worker process and kill its associated
-process buffer."
+  "Stop WORKER and kill its associated process buffer.
+If not provided, WORKER defaults to the current worker process."
   (interactive)
   (if worker
       (intero-delete-worker worker)
@@ -341,9 +342,9 @@ running context across :load/:reloads in Intero."
       (with-current-buffer
           (or (get-buffer "DevelMain.hs")
               (if (y-or-n-p
-                   "You need to open a buffer named DevelMain.hs. Find now?")
+                   "You need to open a buffer named DevelMain.hs.  Find now? ")
                   (ido-find-file)
-                (error "No DevelMain.hs buffer.")))
+                (error "No DevelMain.hs buffer")))
         (message "Reloading ...")
         (intero-async-call
          'backend
@@ -368,7 +369,7 @@ running context across :load/:reloads in Intero."
 ;; Flycheck integration
 
 (defun intero-check (checker cont)
-  "Run a check and pass the status onto CONT."
+  "Run a check with CHECKER and pass the status onto CONT."
   (if (intero-gave-up 'backend)
       (run-with-timer 0
                       nil
@@ -408,8 +409,8 @@ process."
 (add-to-list 'flycheck-checkers 'intero)
 
 (defun intero-parse-errors-warnings (checker buffer string)
-  "Parse from the given STRING a list of flycheck errors and
-warnings, adding CHECKER and BUFFER to each one."
+  "Parse flycheck errors and warnings.
+CHECKER and BUFFER are added to each item parsed from STRING."
   (with-temp-buffer
     (insert string)
     (goto-char (point-min))
@@ -464,7 +465,7 @@ warnings, adding CHECKER and BUFFER to each one."
   "Regexps used for matching GHC compile messages.")
 
 (defun intero-parse-error (string)
-  "Parse the line number from the error."
+  "Parse the line number from the error in STRING."
   (let ((span nil))
     (cl-loop for regex
              in intero-error-regexp-alist
@@ -480,7 +481,7 @@ warnings, adding CHECKER and BUFFER to each one."
     span))
 
 (defun intero-call-in-buffer (buffer func &rest args)
-  "Utility function which calls FUNC in BUFFER with ARGS."
+  "In BUFFER, call FUNC with ARGS."
   (with-current-buffer buffer
     (apply func args)))
 
@@ -495,6 +496,8 @@ warnings, adding CHECKER and BUFFER to each one."
   "Pragmas that GHC supports.")
 
 (defun company-intero (command &optional arg &rest ignored)
+  "Company source for intero, with the standard COMMAND and ARG args.
+Other arguments are IGNORED."
   (interactive (list 'interactive))
   (cl-case command
     (interactive (company-begin-backend 'company-intero))
@@ -515,7 +518,7 @@ warnings, adding CHECKER and BUFFER to each one."
                            prefix-info))))))))
 
 (defun intero-company-callback (source-buffer prefix-info cont)
-  "Generate completions and call CONT on the results."
+  "Generate completions for SOURCE-BUFFER based on PREFIX-INFO and call CONT on the results."
   (cl-destructuring-bind
       (beg end prefix type) prefix-info
     (or (cl-case type
@@ -542,7 +545,9 @@ warnings, adding CHECKER and BUFFER to each one."
         (intero-get-repl-completions source-buffer prefix cont))))
 
 (defun intero-completions-grab-prefix (&optional minlen)
-  "Grab prefix at point for possible completion."
+  "Grab prefix at point for possible completion.
+If specified, MINLEN is the shortest completion which will be
+considered."
   (when (intero-completions-can-grab-prefix)
     (let ((prefix (cond
                    ((intero-completions-grab-pragma-prefix))
@@ -687,8 +692,8 @@ pragma is supported also."
 (defconst intero-prompt-regexp "^\4 ")
 
 (defun intero-repl-load (&optional prompt-options)
-  "Load the current file in the REPL, prompting with an options
-list if PROMPT-OPTIONS is t."
+  "Load the current file in the REPL.
+If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (interactive "P")
   (save-buffer)
   (let ((file (intero-buffer-file-name))
@@ -700,14 +705,14 @@ list if PROMPT-OPTIONS is t."
     (pop-to-buffer repl-buffer)))
 
 (defun intero-repl (&optional prompt-options)
-  "Start up the REPL for this stack project, prompting with an
-options list if PROMPT-OPTIONS is t."
+  "Start up the REPL for this stack project.
+If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (interactive "P")
   (switch-to-buffer (intero-repl-buffer prompt-options)))
 
 (defun intero-repl-buffer (prompt-options)
-  "Start the REPL buffer, prompting with an options list if
-PROMPT-OPTIONS is t."
+  "Start the REPL buffer.
+If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (let* ((root (intero-project-root))
          (package-name (intero-package-name))
          (name (format "*intero:%s:%s:repl*"
@@ -733,9 +738,10 @@ PROMPT-OPTIONS is t."
   (set (make-local-variable 'comint-prompt-regexp) intero-prompt-regexp))
 
 (defun intero-repl-mode-start (backend-buffer targets prompt-options)
-  "Start the process for the repl in the current buffer, using
-BACKEND-BUFFER for options, TARGETS to load, and prompting with
-an options list if PROMPT-OPTIONS is t."
+  "Start the process for the repl in the current buffer.
+BACKEND-BUFFER is used for options.
+TARGETS is the targets to load.
+If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (setq intero-targets targets)
   (when prompt-options
     (intero-repl-options backend-buffer))
@@ -767,9 +773,9 @@ an options list if PROMPT-OPTIONS is t."
           (message "Started Intero process for REPL."))))))
 
 (defun intero-repl-options (backend-buffer)
-  "Open an option menu to set options used when starting the
-REPL, default options come from user customization and any
-temporary changes in the BACKEND-BUFFER."
+  "Open an option menu to set options used when starting the REPL.
+Default options come from user customization and any temporary
+changes in the BACKEND-BUFFER."
   (interactive)
   (let* ((old-options
           (list
@@ -877,18 +883,21 @@ May return a qualified name."
           (cons start end))))))
 
 (defun intero-buffer-file-name (&optional buffer)
-  "Return buffer-file-name stripped of any text properties."
+  "Call function `buffer-file-name' for BUFFER and clean its result.
+The path returned is canonicalized and stripped of any text properties."
   (let ((name (buffer-file-name buffer)))
     (when name
       (intero-canonicalize-path (substring-no-properties name)))))
 
 (defun intero-canonicalize-path (path)
-  "Standardizes path names and ensures drive names are
-capitalized (relevant on Windows)"
+  "Return a standardized version of PATH.
+Path names are standardised and drive names are
+capitalized (relevant on Windows)."
   (intero-capitalize-drive-letter (convert-standard-filename path)))
 
 (defun intero-capitalize-drive-letter (path)
-  "Ensures the drive letter is capitalized in paths of the form
+  "Ensures the drive letter is capitalized in PATH.
+This applies to paths of the form
 x:\\foo\\bar (i.e., Windows)."
   (save-match-data
     (let ((drive-path (split-string path ":\\\\")))
@@ -922,7 +931,7 @@ x:\\foo\\bar (i.e., Windows)."
             (buffer-substring-no-properties beg end)))))
 
 (defun intero-get-info-of (thing)
-  "Get info for the thing."
+  "Get info for THING."
   (let ((optimistic-result
          (replace-regexp-in-string
           "\n$" ""
@@ -970,7 +979,7 @@ x:\\foo\\bar (i.e., Windows)."
             (buffer-substring-no-properties beg end)))))
 
 (defun intero-get-uses-at (beg end)
-  "Get the uses of the identifier denoted by BEG and END."
+  "Return usage list for identifier denoted by BEG and END."
   (replace-regexp-in-string
    "\n$" ""
    (intero-blocking-call
@@ -988,7 +997,9 @@ x:\\foo\\bar (i.e., Windows)."
             (buffer-substring-no-properties beg end)))))
 
 (defun intero-get-completions (source-buffer beg end cont)
-  "Get completions for a PREFIX."
+  "Get completions and send to SOURCE-BUFFER.
+Prefix is marked by positions BEG and END.  Completions are
+passed to CONT in SOURCE-BUFFER."
   (intero-async-call
    'backend
    (format ":complete-at %S %d %d %d %d %S"
@@ -1014,8 +1025,8 @@ x:\\foo\\bar (i.e., Windows)."
          (cdr (split-string reply "\n" t))))))))
 
 (defun intero-get-repl-completions (source-buffer prefix cont)
-  "Get REPL completions for PREFIX, calling CONT with the results
-in buffer SOURCE-BUFFER."
+  "Get REPL completions and send to SOURCE-BUFFER.
+Completions for PREFIX are passed to CONT in SOURCE-BUFFER."
   (intero-async-call
    'backend
    (format ":complete repl %S" prefix)
@@ -1034,7 +1045,7 @@ in buffer SOURCE-BUFFER."
 ;; Process communication
 
 (defun intero-delete-worker (worker)
-  "Delete the given worker."
+  "Delete the given WORKER."
   (when (intero-buffer-p worker)
     (with-current-buffer (intero-get-buffer-create worker)
       (when (get-buffer-process (current-buffer))
@@ -1044,7 +1055,7 @@ in buffer SOURCE-BUFFER."
       (kill-buffer (current-buffer)))))
 
 (defun intero-blocking-call (worker cmd)
-  "Make a synchronous call of CMD to the process."
+  "Send WORKER the command string CMD and block pending its result."
   (let ((result (list nil)))
     (intero-async-call
      worker
@@ -1058,8 +1069,9 @@ in buffer SOURCE-BUFFER."
     (car result)))
 
 (defun intero-async-call (worker cmd &optional state callback)
-  "Make an asynchronous call of CMD (string) to the process,
-calling CALLBACK as (CALLBACK STATE REPLY)."
+  "Send WORKER the command string CMD.
+The result, along with the given STATE, is passed to CALLBACK
+as (CALLBACK STATE REPLY)."
   (let ((buffer (intero-buffer worker)))
     (if (and buffer (process-live-p (get-buffer-process buffer)))
         (progn (with-current-buffer buffer
@@ -1072,21 +1084,22 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
                  (message "[Intero] -> %s" cmd))
                (process-send-string (intero-process worker)
                                     (concat cmd "\n")))
-      (error "Intero process is not running. Run M-x intero-restart to start it."))))
+      (error "Intero process is not running: run M-x intero-restart to start it"))))
 
 (defun intero-buffer (worker)
-  "Get the worker buffer for the current directory."
+  "Get the WORKER buffer for the current directory."
   (let ((buffer (intero-get-buffer-create worker)))
     (if (get-buffer-process buffer)
         buffer
       (intero-get-worker-create worker nil (current-buffer)))))
 
 (defun intero-process (worker)
-  "Get the worker process for the current directory."
+  "Get the WORKER process for the current directory."
   (get-buffer-process (intero-buffer worker)))
 
 (defun intero-get-worker-create (worker &optional targets source-buffer)
-  "Start an Intero worker."
+  "Start the given WORKER.
+If provided, use the specified TARGETS and SOURCE-BUFFER."
   (let* ((buffer (intero-get-buffer-create worker)))
     (if (get-buffer-process buffer)
         buffer
@@ -1096,7 +1109,9 @@ calling CALLBACK as (CALLBACK STATE REPLY)."
           (intero-auto-install buffer install-status targets source-buffer))))))
 
 (defun intero-auto-install (buffer install-status &optional targets source-buffer)
-  "Automatically install Intero."
+  "Automatically install Intero appropriately for BUFFER.
+INSTALL-STATUS indicates the current installation status.
+If supplied, use the given TARGETS and SOURCE-BUFFER."
   (if (buffer-local-value 'intero-give-up buffer)
       buffer
     (let ((source-buffer (or source-buffer (current-buffer))))
@@ -1146,8 +1161,8 @@ feature, kill this buffer.
          nil)))))
 
 (defun intero-start-process-in-buffer (buffer &optional targets source-buffer)
-  "Start an Intero worker in BUFFER for TARGETS, automatically
-performing a initial actions in SOURCE-BUFFER, if specified."
+  "Start an Intero worker in BUFFER, for the default or specified TARGETS.
+Automatically performs initial actions in SOURCE-BUFFER, if specified."
   (if (buffer-local-value 'intero-give-up buffer)
       buffer
     (let* ((options
@@ -1219,14 +1234,16 @@ performing a initial actions in SOURCE-BUFFER, if specified."
       buffer)))
 
 (defun intero-flycheck-buffer ()
-  "Run flycheck in the buffer. Restarting in case there was a
-problem and flycheck is stuck."
+  "Run flycheck in the buffer.
+Restarts flycheck in case there was a problem and flycheck is stuck."
   (flycheck-mode -1)
   (flycheck-mode)
   (flycheck-buffer))
 
 (defun intero-make-options-list (targets no-build no-load)
-  "Make the stack ghci options list."
+  "Make the stack ghci options list.
+TARGETS are the build targets.  When non-nil, NO-BUILD and
+NO-LOAD enable the correspondingly-named stack options."
   (append (list "--with-ghc"
                 "intero"
                 "--docker-run-args=--interactive=true --tty=false"
@@ -1243,7 +1260,8 @@ problem and flycheck is stuck."
           targets))
 
 (defun intero-sentinel (process change)
-  "Handle a CHANGE to the PROCESS."
+  "Handle when PROCESS reports a CHANGE.
+This is a standard process sentinel function."
   (when (buffer-live-p (process-buffer process))
     (when (and (not (process-live-p process)))
       (let ((buffer (process-buffer process)))
@@ -1260,14 +1278,14 @@ problem and flycheck is stuck."
                    (intero-show-process-problem process change))))))))
 
 (defun intero-unsatisfied-package-p (buffer)
-  "Does the buffer contain GHCi's unsatisfied package complaint?"
+  "Return non-nil if BUFFER contain GHCi's unsatisfied package complaint."
   (with-current-buffer buffer
     (save-excursion
       (goto-char (point-min))
       (search-forward-regexp "cannot satisfy -package" nil t 1))))
 
 (defun intero-installed-p ()
-  "Is intero (of the right version) installed in the stack environment?"
+  "Return non-nil if intero (of the right version) is installed in the stack environment."
   (redisplay)
   (with-temp-buffer
     (if (= 0 (call-process "stack" nil t nil "exec"
@@ -1282,8 +1300,7 @@ problem and flycheck is stuck."
       'not-installed)))
 
 (defun intero-show-process-problem (process change)
-  "Show the user that a CHANGE occurred on PROCESS, causing it to
-end."
+  "Report to the user that PROCESS reported CHANGE, causing it to end."
   (message "Problem with Intero!")
   (switch-to-buffer (process-buffer process))
   (goto-char (point-max))
@@ -1347,12 +1364,12 @@ You can always run M-x intero-restart to make it try again.
         (delete-region (point-min) (point))))))
 
 (defun strip-carriage-returns (string)
-  "Removes the \r from \r\n newlines on Windows"
+  "Strip the \\r from Windows \\r\\n line endings in STRING."
   (replace-regexp-in-string "\r" "" string))
 
 (defun intero-get-buffer-create (worker)
-  "Get or create the stack buffer for this current directory and
-the given targets."
+  "Get or create the stack buffer for WORKER.
+Uses the directory of the current buffer for context."
   (let* ((root (intero-project-root))
          (cabal-file (intero-cabal-find-file))
          (package-name (if cabal-file
@@ -1369,13 +1386,13 @@ the given targets."
       (current-buffer))))
 
 (defun intero-gave-up (worker)
-  "Did starting/installation give up?"
+  "Return non-nil if starting WORKER or installing intero failed."
   (and (intero-buffer-p worker)
        (let ((buffer (get-buffer (intero-buffer-name worker))))
          (buffer-local-value 'intero-give-up buffer))))
 
 (defun intero-buffer-p (worker)
-  "Does a buffer exist for a given worker?"
+  "Return non-nil if a buffer exists for WORKER."
   (get-buffer (intero-buffer-name worker)))
 
 (defun intero-buffer-name (worker)
@@ -1390,8 +1407,10 @@ the given targets."
             root)))
 
 (defun intero-project-root ()
-  "Get the directory where the stack.yaml is placed for this
-project, or the global one."
+  "Get the current stack config directory.
+This is either the directory where the stack.yaml is placed for
+this project, or the global one if no such project-specific
+config exists."
   (if intero-project-root
       intero-project-root
     (setq intero-project-root
@@ -1414,8 +1433,9 @@ project, or the global one."
       (1 nil))))
 
 (defun intero-package-name (&optional cabal-file)
-  "Get the current package name from a nearby .cabal file. If
-there is none, return empty string."
+  "Get the current package name from a nearby .cabal file.
+If there is none, return an empty string.  If specified, use
+CABAL-FILE rather than trying to locate one."
   (or intero-package-name
       (setq intero-package-name
             (let ((cabal-file (or cabal-file
@@ -1473,10 +1493,12 @@ a list is returned instead of failing with a nil result."
 ;; Multiselection
 
 (defun intero-multiswitch (title options)
-  "Read multiple flags from a list of OPTIONS each of which is a
-  plist of (:key :default :title). :key should be something
-  comparable with EQUAL, :title should be a
-  string, :default (boolean) specifies the default checkedness."
+  "Displaying TITLE, read multiple flags from a list of OPTIONS.
+Each option is a plist of (:key :default :title) wherein:
+
+  :key should be something comparable with EQUAL
+  :title should be a string
+  :default (boolean) specifies the default checkedness"
   (let ((available-width (window-total-width)))
     (save-window-excursion
       (with-temp-buffer
