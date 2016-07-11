@@ -807,7 +807,7 @@ temporary changes in the BACKEND-BUFFER."
 (defun intero-repl-delete-backward-char ()
   "Delete backwards, excluding the prompt."
   (interactive)
-  (unless (looking-back intero-prompt-regexp)
+  (unless (looking-back intero-prompt-regexp (line-beginning-position))
     (call-interactively 'delete-backward-char)))
 
 (defun intero-repl-beginning-of-line ()
