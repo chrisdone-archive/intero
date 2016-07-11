@@ -207,6 +207,17 @@ You can use this to kill them or look inside."
    (concat ":cd "
            (read-directory-name "Change Intero directory: "))))
 
+(defun intero-fontify-expression (expression)
+  "Return a haskell-fontified version of EXPRESSION."
+  (with-temp-buffer
+    (when (fboundp 'haskell-mode)
+      (haskell-mode))
+    (insert expression)
+    (if (fboundp 'font-lock-ensure)
+        (font-lock-ensure)
+      (font-lock-fontify-buffer))
+    (buffer-string)))
+
 (defun intero-type-at (insert)
   "Get the type of the thing or selection at point.
 
@@ -217,22 +228,9 @@ line as a type signature."
     (if insert
         (save-excursion
           (goto-char (line-beginning-position))
-          (insert
-           (format "%s\n"
-                   (with-temp-buffer
-                     (when (fboundp 'haskell-mode)
-                       (haskell-mode))
-                     (insert ty)
-                     (font-lock-fontify-buffer)
-                     (buffer-string)))))
+          (insert (intero-fontify-expression ty) "\n"))
       (message
-       "%s"
-       (with-temp-buffer
-         (when (fboundp 'haskell-mode)
-           (haskell-mode))
-         (insert ty)
-         (font-lock-fontify-buffer)
-         (buffer-string))))))
+       "%s" (intero-fontify-expression ty)))))
 
 (defun intero-info (ident)
   "Get the info of the thing at point."
@@ -249,23 +247,13 @@ line as a type signature."
         (with-help-window (help-buffer)
           (with-current-buffer (help-buffer)
             (insert
-             (with-temp-buffer
-               (when (fboundp 'haskell-mode)
-                 (haskell-mode))
-               (insert ident)
-               (font-lock-fontify-buffer)
-               (buffer-string))
+             (intero-fontify-expression ident)
              " in `"
              origin
              "'"
              " (" package ")"
              "\n\n"
-             (with-temp-buffer
-               (when (fboundp 'haskell-mode)
-                 (haskell-mode))
-               (insert info)
-               (font-lock-fontify-buffer)
-               (buffer-string)))
+             (intero-fontify-expression info))
             (goto-char (point-min))))))))
 
 (defun intero-goto-definition ()
@@ -674,12 +662,7 @@ pragma is supported also."
   (let* ((ty (apply #'intero-get-type-at (intero-thing-at-point)))
 	 (is-error (string-match "^<.+>:.+:" ty)))
     (unless is-error
-      (with-temp-buffer
-	(when (fboundp 'haskell-mode)
-	  (haskell-mode))
-	(insert (replace-regexp-in-string "[ \n]+" " " ty))
-	(font-lock-fontify-buffer)
-	(buffer-string)))))
+      (intero-fontify-expression (replace-regexp-in-string "[ \n]+" " " ty)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; REPL
