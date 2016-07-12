@@ -194,6 +194,11 @@ This is slower, but will build required dependencies.")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
+(defun intero-toggle-debug ()
+  (interactive)
+  (setq intero-debug (not intero-debug))
+  (message "Intero debugging is: %s" (if intero-debug "ON" "OFF")))
+
 (defun intero-list-buffers ()
   "List hidden process buffers created by intero.
 
