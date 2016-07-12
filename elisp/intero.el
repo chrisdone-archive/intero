@@ -439,7 +439,8 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                                               file)
                                  buffer)
                        :filename file)
-                      messages))))
+                      messages)))
+        (forward-line -1))
       (delete-dups messages))))
 
 (defconst intero-error-regexp-alist
