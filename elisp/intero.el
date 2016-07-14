@@ -1681,17 +1681,20 @@ suggestions are available."
     (cl-loop
      for msg in msgs
      do (let ((start 0)
-              (text (flycheck-error-message msg)))
+              (text (flycheck-error-message msg))
+              (note nil))
           (while (string-match extension-regex text start)
+            (setq note t)
+            (add-to-list 'intero-suggestions
+                         (list :type 'add-extension
+                               :extension (match-string 0 text)))
+            (setq start (min (length text) (1+ (match-end 0)))))
+          (when note
             (setf (flycheck-error-message msg)
                   (concat text
                           "\n\n"
                           (propertize "(Hit `C-c C-r' in the Haskell buffer to apply suggestions)"
-                                      'face 'font-lock-warning)))
-            (add-to-list 'intero-suggestions
-                         (list :type 'add-extension
-                               :extension (match-string 0 text)))
-            (setq start (min (length text) (1+ (match-end 0))))))))
+                                      'face 'font-lock-warning)))))))
   (setq intero-lighter
         (if (null intero-suggestions)
             " Intero"
