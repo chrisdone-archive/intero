@@ -390,12 +390,15 @@ running context across :load/:reloads in Intero."
        (lambda (state string)
          (let ((compile-ok (string-match "OK, modules loaded: \\(.*\\)\\.$" string)))
            (with-current-buffer (plist-get state :file-buffer)
-             (funcall (plist-get state :cont)
-                      'finished
-                      (intero-parse-errors-warnings
-                       (plist-get state :checker)
-                       (current-buffer)
-                       string))
+             (let ((msgs (intero-parse-errors-warnings-splices
+                          (plist-get state :checker)
+                          (current-buffer)
+                          string)))
+               (funcall (plist-get state :cont)
+                        'finished
+                        (remove-if (lambda (msg)
+                                     (eq 'splice (flycheck-error-level msg)))
+                                   msgs)))
              (when compile-ok
                (let ((modules (match-string 1 string)))
                  (intero-async-call 'backend
@@ -412,7 +415,7 @@ process."
 
 (add-to-list 'flycheck-checkers 'intero)
 
-(defun intero-parse-errors-warnings (checker buffer string)
+(defun intero-parse-errors-warnings-splices (checker buffer string)
   "Parse flycheck errors and warnings.
 CHECKER and BUFFER are added to each item parsed from STRING."
   (with-temp-buffer
