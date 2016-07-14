@@ -388,20 +388,21 @@ running context across :load/:reloads in Intero."
              :file-buffer file-buffer
              :checker checker)
        (lambda (state string)
-         (with-current-buffer (plist-get state :file-buffer)
-           (funcall (plist-get state :cont)
-                    'finished
-                    (intero-parse-errors-warnings
-                     (plist-get state :checker)
-                     (current-buffer)
-                     string))
-           (when (string-match "OK, modules loaded: \\(.*\\)\\.$" string)
-             (let ((modules (match-string 1 string)))
-               (intero-async-call 'backend
-                                  (concat ":m + "
-                                          (replace-regexp-in-string modules "," ""))
-                                  nil
-                                  (lambda (_st _)))))))))))
+         (let ((compile-ok (string-match "OK, modules loaded: \\(.*\\)\\.$" string)))
+           (with-current-buffer (plist-get state :file-buffer)
+             (funcall (plist-get state :cont)
+                      'finished
+                      (intero-parse-errors-warnings
+                       (plist-get state :checker)
+                       (current-buffer)
+                       string))
+             (when compile-ok
+               (let ((modules (match-string 1 string)))
+                 (intero-async-call 'backend
+                                    (concat ":m + "
+                                            (replace-regexp-in-string modules "," ""))
+                                    nil
+                                    (lambda (_st _))))))))))))
 
 (flycheck-define-generic-checker 'intero
   "A syntax and type checker for Haskell using an Intero worker
