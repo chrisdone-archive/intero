@@ -394,11 +394,16 @@ running context across :load/:reloads in Intero."
                           (plist-get state :checker)
                           (current-buffer)
                           string)))
+               (run-with-timer 0 nil
+                               'intero-call-in-buffer
+                               (current-buffer)
+                               'intero-collect-compiler-messages
+                               msgs)
                (funcall (plist-get state :cont)
                         'finished
-                        (remove-if (lambda (msg)
-                                     (eq 'splice (flycheck-error-level msg)))
-                                   msgs)))
+                        (cl-remove-if (lambda (msg)
+                                        (eq 'splice (flycheck-error-level msg)))
+                                      msgs)))
              (when compile-ok
                (let ((modules (match-string 1 string)))
                  (intero-async-call 'backend
@@ -1653,6 +1658,18 @@ BUFFER."
     (cl-case (call-process "stack" nil (current-buffer) t
                            "hoogle" "--help")
       (0 t))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Collecting information from compiler messages
+
+(defun intero-collect-compiler-messages (msgs)
+  "Collect information from compiler messages.")
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Automatic actions based on compiler feedback
+
+(defun intero-auto-repopulate (msgs)
+  "Repopulate the set of auto-changes with new MSGS.")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
