@@ -456,7 +456,8 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                (column (plist-get location :col)))
           (setq messages
                 (cons (flycheck-error-new-at
-                       line column type msg
+                       line column type
+                       msg
                        :checker checker
                        :buffer (when (string= (intero-buffer-file-name buffer)
                                               file)
@@ -1683,12 +1684,32 @@ suggestions are available."
      do (let ((start 0)
               (text (flycheck-error-message msg))
               (note nil))
+          ;; Messages of this format:
+          ;;
+          ;; Can't make a derived instance of ‘Functor X’:
+          ;;       You need DeriveFunctor to derive an instance for this class
+          ;;       Try GeneralizedNewtypeDeriving for GHC's newtype-deriving extension
+          ;;       In the newtype declaration for ‘X’
           (while (string-match extension-regex text start)
             (setq note t)
             (add-to-list 'intero-suggestions
                          (list :type 'add-extension
                                :extension (match-string 0 text)))
             (setq start (min (length text) (1+ (match-end 0)))))
+          ;; Messages of this format:
+          ;;
+          ;; The import of ‘Control.Monad’ is redundant
+          ;;   except perhaps to import instances from ‘Control.Monad’
+          ;; To import instances alone, use: import Control.Monad()... (intero)
+          (when (string-match
+                 " The \\(qualified \\)?import of[ ][‘`‛]\\([^ ]+\\)['’] is redundant"
+                 text)
+            (setq note t)
+            (add-to-list 'intero-suggestions
+                         (list :type 'remove-import
+                               :module (match-string 2 text)
+                               :line (flycheck-error-line msg))))
+          ;; Add a note if we found a suggestion to make
           (when note
             (setf (flycheck-error-message msg)
                   (concat text
@@ -1725,14 +1746,34 @@ suggestions are available."
            (mapcar
             (lambda (suggestion)
               (cl-case (plist-get suggestion :type)
-                (add-extension (list :key suggestion
-                                     :title (concat "Add {-# LANGUAGE "
-                                                    (plist-get suggestion :extension)
-                                                    " #-}")
-                                     :default t))))
+                (add-extension
+                 (list :key suggestion
+                       :title (concat "Add {-# LANGUAGE "
+                                      (plist-get suggestion :extension)
+                                      " #-}")
+                       :default t))
+                (remove-import
+                 (list :key suggestion
+                       :title (concat "Remove: import "
+                                      (plist-get suggestion :module))
+                       :default t))))
             intero-suggestions)))))
     (if (null to-apply)
         (message "No changes selected to apply.")
+      (cl-loop
+       for suggestion in (sort to-apply
+                               (lambda (lt gt)
+                                 (> (plist-get lt :line)
+                                    (plist-get gt :line))))
+       do (cl-case (plist-get suggestion :type)
+            (remove-import
+             (save-excursion
+               (goto-char (point-min))
+               (forward-line (1- (plist-get suggestion :line)))
+               (delete-region (line-beginning-position)
+                              (or (when (search-forward-regexp "\n[^ \t]" nil t 1)
+                                    (1- (point)))
+                                  (line-end-position)))))))
       (cl-loop
        for suggestion in to-apply
        do (cl-case (plist-get suggestion :type)
