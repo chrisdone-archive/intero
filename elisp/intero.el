@@ -407,12 +407,7 @@ running context across :load/:reloads in Intero."
                           (plist-get state :checker)
                           (current-buffer)
                           string)))
-               (run-with-timer 0
-                               nil
-                               'intero-call-in-buffer
-                               (current-buffer)
-                               'intero-collect-compiler-messages
-                               msgs)
+               (intero-collect-compiler-messages msgs)
                (funcall (plist-get state :cont)
                         'finished
                         (cl-remove-if (lambda (msg)
@@ -1677,7 +1672,10 @@ BUFFER."
 ;; Collecting information from compiler messages
 
 (defun intero-collect-compiler-messages (msgs)
-  "Collect information from compiler messages."
+  "Collect information from compiler MSGS.
+
+This may update in-place the MSGS objects to hint that
+suggestions are available."
   (setq intero-suggestions nil)
   (let ((extension-regex (regexp-opt (intero-extensions))))
     (cl-loop
@@ -1685,6 +1683,11 @@ BUFFER."
      do (let ((start 0)
               (text (flycheck-error-message msg)))
           (while (string-match extension-regex text start)
+            (setf (flycheck-error-message msg)
+                  (concat text
+                          "\n\n"
+                          (propertize "(Hit `C-c C-r' in the Haskell buffer to apply suggestions)"
+                                      'face 'font-lock-warning)))
             (add-to-list 'intero-suggestions
                          (list :type 'add-extension
                                :extension (match-string 0 text)))
@@ -1692,8 +1695,7 @@ BUFFER."
   (setq intero-lighter
         (if (null intero-suggestions)
             " Intero"
-          (format " Intero:%d" (length intero-suggestions))))
-  (force-mode-line-update))
+          (format " Intero:%d" (length intero-suggestions)))))
 
 (defun intero-extensions ()
   "Get extensions for the current project's GHC."
@@ -1702,7 +1704,7 @@ BUFFER."
         (setq intero-extensions
               (split-string
                (shell-command-to-string
-                "stack exec -- ghc --supported-extensions"))))))
+                "stack exec --verbosity silent -- ghc --supported-extensions"))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Auto actions
@@ -1710,9 +1712,11 @@ BUFFER."
 (defun intero-apply-suggestions ()
   "Prompt and apply the suggestions."
   (interactive)
+  (when (null intero-suggestions)
+    (error "No suggestions to apply."))
   (let ((to-apply
          (intero-multiswitch
-          "Suggestions:"
+          (format "There are %d suggestions to apply:" (length intero-suggestions))
           (cl-remove-if-not
            #'identity
            (mapcar
@@ -1725,7 +1729,7 @@ BUFFER."
                                      :default t))))
             intero-suggestions)))))
     (if (null to-apply)
-        (message "No changes to apply.")
+        (message "No changes selected to apply.")
       (cl-loop
        for suggestion in to-apply
        do (cl-case (plist-get suggestion :type)
