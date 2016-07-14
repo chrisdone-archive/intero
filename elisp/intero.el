@@ -403,7 +403,8 @@ running context across :load/:reloads in Intero."
        (lambda (state string)
          (let ((compile-ok (string-match "OK, modules loaded: \\(.*\\)\\.$" string)))
            (with-current-buffer (plist-get state :file-buffer)
-             (let ((msgs (intero-parse-errors-warnings-splices
+             (let ((modules (match-string 1 string))
+                   (msgs (intero-parse-errors-warnings-splices
                           (plist-get state :checker)
                           (current-buffer)
                           string)))
@@ -412,9 +413,8 @@ running context across :load/:reloads in Intero."
                         'finished
                         (cl-remove-if (lambda (msg)
                                         (eq 'splice (flycheck-error-level msg)))
-                                      msgs)))
-             (when compile-ok
-               (let ((modules (match-string 1 string)))
+                                      msgs))
+               (when compile-ok
                  (intero-async-call 'backend
                                     (concat ":m + "
                                             (replace-regexp-in-string modules "," ""))
