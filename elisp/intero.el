@@ -1778,7 +1778,7 @@ suggestions are available."
                                       (1- (point)))
                                     (line-end-position)))))))
         (cl-loop
-         for suggestion in to-apply
+         for suggestion in sorted
          do (cl-case (plist-get suggestion :type)
               (add-extension
                (save-excursion
