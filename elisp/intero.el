@@ -1760,29 +1760,32 @@ suggestions are available."
             intero-suggestions)))))
     (if (null to-apply)
         (message "No changes selected to apply.")
-      (cl-loop
-       for suggestion in (sort to-apply
-                               (lambda (lt gt)
-                                 (> (plist-get lt :line)
-                                    (plist-get gt :line))))
-       do (cl-case (plist-get suggestion :type)
-            (remove-import
-             (save-excursion
-               (goto-char (point-min))
-               (forward-line (1- (plist-get suggestion :line)))
-               (delete-region (line-beginning-position)
-                              (or (when (search-forward-regexp "\n[^ \t]" nil t 1)
-                                    (1- (point)))
-                                  (line-end-position)))))))
-      (cl-loop
-       for suggestion in to-apply
-       do (cl-case (plist-get suggestion :type)
-            (add-extension
-             (save-excursion
-               (goto-char (point-min))
-               (insert "{-# LANGUAGE "
-                       (plist-get suggestion :extension)
-                       " #-}\n"))))))))
+      (let ((sorted (sort to-apply
+                          (lambda (lt gt)
+                            (> (or (plist-get lt :line)
+                                   0)
+                               (or (plist-get gt :line)
+                                   0))))))
+        (cl-loop
+         for suggestion in sorted
+         do (cl-case (plist-get suggestion :type)
+              (remove-import
+               (save-excursion
+                 (goto-char (point-min))
+                 (forward-line (1- (plist-get suggestion :line)))
+                 (delete-region (line-beginning-position)
+                                (or (when (search-forward-regexp "\n[^ \t]" nil t 1)
+                                      (1- (point)))
+                                    (line-end-position)))))))
+        (cl-loop
+         for suggestion in to-apply
+         do (cl-case (plist-get suggestion :type)
+              (add-extension
+               (save-excursion
+                 (goto-char (point-min))
+                 (insert "{-# LANGUAGE "
+                         (plist-get suggestion :extension)
+                         " #-}\n")))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
