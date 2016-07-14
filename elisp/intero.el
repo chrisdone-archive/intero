@@ -95,12 +95,16 @@ This causes it to skip building the target."
 (defvar intero-mode-map (make-sparse-keymap)
   "Intero minor mode's map.")
 
+(defvar intero-lighter " Intero"
+  "Lighter for the intero minor mode.")
+(make-variable-buffer-local 'intero-lighter)
+
 ;;;###autoload
 (define-minor-mode intero-mode
   "Minor mode for Intero
 
 \\{intero-mode-map}"
-  :lighter " Intero"
+  :lighter intero-lighter
   :keymap intero-mode-map
   (when (bound-and-true-p interactive-haskell-mode)
     (when (fboundp 'interactive-haskell-mode)
@@ -119,6 +123,7 @@ This causes it to skip building the target."
 (define-key intero-mode-map (kbd "C-c C-i") 'intero-info)
 (define-key intero-mode-map (kbd "M-.") 'intero-goto-definition)
 (define-key intero-mode-map (kbd "C-c C-l") 'intero-repl-load)
+(define-key intero-mode-map (kbd "C-c C-r") 'intero-apply-suggestions)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global variables/state
@@ -190,6 +195,14 @@ This is slower, but will build required dependencies.")
 (defvar intero-hoogle-port nil
   "Port that hoogle server is listening on.")
 (make-variable-buffer-local 'intero-hoogle-port)
+
+(defvar intero-suggestions nil
+  "Auto actions for the buffer.")
+(make-variable-buffer-local 'intero-suggestions)
+
+(defvar intero-extensions nil
+  "Extensions supported by the compiler.")
+(make-variable-buffer-local 'intero-extensions)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
@@ -394,7 +407,8 @@ running context across :load/:reloads in Intero."
                           (plist-get state :checker)
                           (current-buffer)
                           string)))
-               (run-with-timer 0 nil
+               (run-with-timer 0
+                               nil
                                'intero-call-in-buffer
                                (current-buffer)
                                'intero-collect-compiler-messages
@@ -1663,13 +1677,64 @@ BUFFER."
 ;; Collecting information from compiler messages
 
 (defun intero-collect-compiler-messages (msgs)
-  "Collect information from compiler messages.")
+  "Collect information from compiler messages."
+  (setq intero-suggestions nil)
+  (let ((extension-regex (regexp-opt (intero-extensions))))
+    (cl-loop
+     for msg in msgs
+     do (let ((start 0)
+              (text (flycheck-error-message msg)))
+          (while (string-match extension-regex text start)
+            (add-to-list 'intero-suggestions
+                         (list :type 'add-extension
+                               :extension (match-string 0 text)))
+            (setq start (min (length text) (1+ (match-end 0))))))))
+  (setq intero-lighter
+        (if (null intero-suggestions)
+            " Intero"
+          (format " Intero:%d" (length intero-suggestions))))
+  (force-mode-line-update))
+
+(defun intero-extensions ()
+  "Get extensions for the current project's GHC."
+  (with-current-buffer (intero-buffer 'backend)
+    (or intero-extensions
+        (setq intero-extensions
+              (split-string
+               (shell-command-to-string
+                "stack exec -- ghc --supported-extensions"))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Automatic actions based on compiler feedback
+;; Auto actions
 
-(defun intero-auto-repopulate (msgs)
-  "Repopulate the set of auto-changes with new MSGS.")
+(defun intero-apply-suggestions ()
+  "Prompt and apply the suggestions."
+  (interactive)
+  (let ((to-apply
+         (intero-multiswitch
+          "Suggestions:"
+          (cl-remove-if-not
+           #'identity
+           (mapcar
+            (lambda (suggestion)
+              (cl-case (plist-get suggestion :type)
+                (add-extension (list :key suggestion
+                                     :title (concat "Add {-# LANGUAGE "
+                                                    (plist-get suggestion :extension)
+                                                    " #-}")
+                                     :default t))))
+            intero-suggestions)))))
+    (if (null to-apply)
+        (message "No changes to apply.")
+      (cl-loop
+       for suggestion in to-apply
+       do (cl-case (plist-get suggestion :type)
+            (add-extension
+             (save-excursion
+               (goto-char (point-min))
+               (insert "{-# LANGUAGE "
+                       (plist-get suggestion :extension)
+                       " #-}\n"))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
