@@ -1433,14 +1433,14 @@ config exists."
       intero-project-root
     (setq intero-project-root
           (with-temp-buffer
-            (save-excursion
-              (call-process "stack" nil
-                            (current-buffer)
-                            nil
-                            "path"
-                            "--project-root"
-                            "--verbosity" "silent"))
-            (buffer-substring (line-beginning-position) (line-end-position))))))
+            (cl-case (save-excursion
+                       (call-process "stack" nil
+                                     (current-buffer)
+                                     nil
+                                     "path"
+                                     "--project-root"
+                                     "--verbosity" "silent"))
+              (0 (buffer-substring (line-beginning-position) (line-end-position))))))))
 
 (defun intero-get-targets ()
   "Get all available targets."
