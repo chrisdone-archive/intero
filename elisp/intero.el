@@ -208,6 +208,7 @@ This is slower, but will build required dependencies.")
 ;; Interactive commands
 
 (defun intero-toggle-debug ()
+  "Toggle debugging mode on/off."
   (interactive)
   (setq intero-debug (not intero-debug))
   (message "Intero debugging is: %s" (if intero-debug "ON" "OFF")))
@@ -1569,8 +1570,8 @@ Each option is a plist of (:key :default :title) wherein:
 ;; Hoogle
 
 (defun intero-hoogle-blocking-query (query)
-  "Make a request of QUERY using the local hoogle server, if
-running. Otherwise returns nil.
+  "Make a request of QUERY using the local hoogle server.
+If running, otherwise returns nil.
 
 It is the responsibility of the caller to make sure the server is
 running; the user might not want to start the server
@@ -1585,8 +1586,7 @@ automatically."
                              (line-end-position))))))))
 
 (defun intero-hoogle-url (buffer query)
-  "Make the HTTP URL for QUERY from the hoogle server running in
-BUFFER."
+  "Via hoogle server BUFFER make the HTTP URL for QUERY."
   (format "http://127.0.0.1:%d/?hoogle=%s&mode=json"
           (buffer-local-value 'intero-hoogle-port buffer)
           (url-encode-url query)))
@@ -1630,7 +1630,7 @@ BUFFER."
     (process-contact proc :service)))
 
 (defun intero-hoogle-sentinel (process change)
-  "Problem handler for the hoogle process."
+  "For the hoogle PROCESS there is a CHANGE to handle."
   (message "Hoogle sentinel: %S %S" process change))
 
 (defun intero-hoogle-get-buffer-create ()
@@ -1652,7 +1652,7 @@ BUFFER."
     (get-buffer buffer-name)))
 
 (defun intero-hoogle-buffer-name (root)
-  "For a given WORKER, create a buffer name."
+  "For a given worker, create a buffer name using ROOT."
   (concat "*Hoogle:" root "*"))
 
 (defun intero-hoogle-ready-p ()
@@ -1737,7 +1737,7 @@ suggestions are available."
   "Prompt and apply the suggestions."
   (interactive)
   (when (null intero-suggestions)
-    (error "No suggestions to apply."))
+    (error "No suggestions to apply"))
   (let ((to-apply
          (intero-multiswitch
           (format "There are %d suggestions to apply:" (length intero-suggestions))
