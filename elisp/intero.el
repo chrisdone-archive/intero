@@ -1725,6 +1725,30 @@ suggestions are available."
                          (list :type 'remove-import
                                :module (match-string 2 text)
                                :line (flycheck-error-line msg))))
+          ;; Messages of this format:
+          ;;
+          ;; error:
+          ;;    • Variable not in scope: lopSetup :: [Statement Exp']
+          ;;    • Perhaps you meant ‘loopSetup’ (line 437)
+          (when (string-match
+                 (rx (: "error:"
+                        (* anything)
+                        " Variable not in scope: "
+                        (group (1+ (not (any space))))
+                        (* anything)
+                        " Perhaps you meant ‘"
+                        (group (1+ (not (any space))))
+                        "’ (" (group (1+ (not (any ?\))))) ")"
+                        eol))
+                 text)
+            (setq note t)
+            (add-to-list 'intero-suggestions
+                         (list :type 'fix-typo
+                               :typo (match-string 1 text)
+                               :replacement (match-string 2 text)
+                               :replacement-src (match-string 3 text)
+                               :column (flycheck-error-column msg)
+                               :line (flycheck-error-line msg))))
           ;; Add a note if we found a suggestion to make
           (when note
             (setf (flycheck-error-message msg)
@@ -1772,6 +1796,16 @@ suggestions are available."
                  (list :key suggestion
                        :title (concat "Remove: import "
                                       (plist-get suggestion :module))
+                       :default t))
+                (fix-typo
+                 (list :key suggestion
+                       :title (concat "Replace ‘"
+                                      (plist-get suggestion :typo)
+                                      "’ with ‘"
+                                      (plist-get suggestion :replacement)
+                                      "’ ("
+                                      (plist-get suggestion :replacement-src)
+                                      ")")
                        :default t))))
             intero-suggestions)))))
     (if (null to-apply)
@@ -1801,7 +1835,17 @@ suggestions are available."
                  (goto-char (point-min))
                  (insert "{-# LANGUAGE "
                          (plist-get suggestion :extension)
-                         " #-}\n")))))))))
+                         " #-}\n")))))
+        (cl-loop
+         for suggestion in sorted
+         do (cl-case (plist-get suggestion :type)
+              (fix-typo
+               (save-excursion
+                 (goto-line (plist-get suggestion :line))
+                 (move-to-column (- (plist-get suggestion :column) 1))
+                 (delete-char (length (plist-get suggestion :typo)))
+                 (insert (plist-get suggestion :replacement))))))))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
