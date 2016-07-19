@@ -1807,7 +1807,7 @@ suggestions are available."
                                       "’ with ‘"
                                       (plist-get suggestion :replacement)
                                       "’")
-                       :default nil))))
+                       :default (null (cdr intero-suggestions))))))
             intero-suggestions)))))
     (if (null to-apply)
         (message "No changes selected to apply.")
