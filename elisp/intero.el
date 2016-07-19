@@ -1452,12 +1452,12 @@ config exists."
   (with-current-buffer (intero-buffer 'backend)
     (or intero-ghc-version
         (setq intero-ghc-version
-          (with-temp-buffer
-            (cl-case (save-excursion
-                       (call-process "stack" nil (current-buffer) t "ghc" "--" "--numeric-version"))
-              (0
-               (buffer-substring (line-beginning-position) (line-end-position)))
-              (1 nil)))))))
+              (with-temp-buffer
+                (cl-case (save-excursion
+                           (call-process "stack" nil (current-buffer) t "ghc" "--" "--numeric-version"))
+                  (0
+                   (buffer-substring (line-beginning-position) (line-end-position)))
+                  (1 nil)))))))
 
 (defun intero-get-targets ()
   "Get all available targets."
@@ -1694,11 +1694,11 @@ automatically."
 This may update in-place the MSGS objects to hint that
 suggestions are available."
   (setq intero-suggestions nil)
-  (let ((extension-regex (regexp-opt (intero-extensions))))
+  (let ((extension-regex (regexp-opt (intero-extensions)))
+        (quoted-symbol-regex "[‘`‛]\\([^ ]+\\)['’]"))
     (cl-loop
      for msg in msgs
-     do (let ((start 0)
-              (text (flycheck-error-message msg))
+     do (let ((text (flycheck-error-message msg))
               (note nil))
           ;; Messages of this format:
           ;;
@@ -1706,12 +1706,13 @@ suggestions are available."
           ;;       You need DeriveFunctor to derive an instance for this class
           ;;       Try GeneralizedNewtypeDeriving for GHC's newtype-deriving extension
           ;;       In the newtype declaration for ‘X’
-          (while (string-match extension-regex text start)
-            (setq note t)
-            (add-to-list 'intero-suggestions
-                         (list :type 'add-extension
-                               :extension (match-string 0 text)))
-            (setq start (min (length text) (1+ (match-end 0)))))
+          (let ((start 0))
+            (while (string-match extension-regex text start)
+              (setq note t)
+              (add-to-list 'intero-suggestions
+                           (list :type 'add-extension
+                                 :extension (match-string 0 text)))
+              (setq start (min (length text) (1+ (match-end 0))))))
           ;; Messages of this format:
           ;;
           ;; The import of ‘Control.Monad’ is redundant
@@ -1727,28 +1728,30 @@ suggestions are available."
                                :line (flycheck-error-line msg))))
           ;; Messages of this format:
           ;;
+          ;; Not in scope: ‘putStrn’
+          ;; Perhaps you meant one of these:
+          ;;   ‘putStr’ (imported from Prelude),
+          ;;   ‘putStrLn’ (imported from Prelude)
+          ;;
+          ;; Or this format:
+          ;;
           ;; error:
           ;;    • Variable not in scope: lopSetup :: [Statement Exp']
           ;;    • Perhaps you meant ‘loopSetup’ (line 437)
           (when (string-match
-                 (rx (: "error:"
-                        (* anything)
-                        " Variable not in scope: "
-                        (group (1+ (not (any space))))
-                        (* anything)
-                        " Perhaps you meant ‘"
-                        (group (1+ (not (any space))))
-                        "’ (" (group (1+ (not (any ?\))))) ")"
-                        eol))
+                 "Not in scope: [‘`‛]\\([^'’]+\\)['’]\n.*Perhaps you meant"
                  text)
-            (setq note t)
-            (add-to-list 'intero-suggestions
-                         (list :type 'fix-typo
-                               :typo (match-string 1 text)
-                               :replacement (match-string 2 text)
-                               :replacement-src (match-string 3 text)
-                               :column (flycheck-error-column msg)
-                               :line (flycheck-error-line msg))))
+            (let ((typo (match-string 1 text))
+                  (start (min (length text) (1+ (match-end 0)))))
+              (while (string-match quoted-symbol-regex text start)
+                (setq note t)
+                (add-to-list 'intero-suggestions
+                             (list :type 'fix-typo
+                                   :typo typo
+                                   :replacement (match-string 1 text)
+                                   :column (flycheck-error-column msg)
+                                   :line (flycheck-error-line msg)))
+                (setq start (min (length text) (1+ (match-end 0)))))))
           ;; Add a note if we found a suggestion to make
           (when note
             (setf (flycheck-error-message msg)
@@ -1803,10 +1806,8 @@ suggestions are available."
                                       (plist-get suggestion :typo)
                                       "’ with ‘"
                                       (plist-get suggestion :replacement)
-                                      "’ ("
-                                      (plist-get suggestion :replacement-src)
-                                      ")")
-                       :default t))))
+                                      "’")
+                       :default nil))))
             intero-suggestions)))))
     (if (null to-apply)
         (message "No changes selected to apply.")
@@ -1824,7 +1825,8 @@ suggestions are available."
          do (cl-case (plist-get suggestion :type)
               (fix-typo
                (save-excursion
-                 (goto-line (plist-get suggestion :line))
+                 (goto-char (point-min))
+                 (forward-line (1- (plist-get suggestion :line)))
                  (move-to-column (- (plist-get suggestion :column) 1))
                  (delete-char (length (plist-get suggestion :typo)))
                  (insert (plist-get suggestion :replacement))))))
