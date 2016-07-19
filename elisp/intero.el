@@ -1816,6 +1816,22 @@ suggestions are available."
                                    0)
                                (or (plist-get gt :line)
                                    0))))))
+        ;; # Changes that do not increase/decrease line numbers
+        ;;
+        ;; Update in-place suggestions
+        (cl-loop
+         for suggestion in sorted
+         do (cl-case (plist-get suggestion :type)
+              (fix-typo
+               (save-excursion
+                 (goto-line (plist-get suggestion :line))
+                 (move-to-column (- (plist-get suggestion :column) 1))
+                 (delete-char (length (plist-get suggestion :typo)))
+                 (insert (plist-get suggestion :replacement))))))
+        ;; # Changes that do increase/decrease line numbers
+        ;;
+        ;; Remove import lines from the file. May remove more than one
+        ;; line per import.
         (cl-loop
          for suggestion in sorted
          do (cl-case (plist-get suggestion :type)
@@ -1827,6 +1843,7 @@ suggestions are available."
                                 (or (when (search-forward-regexp "\n[^ \t]" nil t 1)
                                       (1- (point)))
                                     (line-end-position)))))))
+        ;; Add extensions to the top of the file
         (cl-loop
          for suggestion in sorted
          do (cl-case (plist-get suggestion :type)
@@ -1835,16 +1852,7 @@ suggestions are available."
                  (goto-char (point-min))
                  (insert "{-# LANGUAGE "
                          (plist-get suggestion :extension)
-                         " #-}\n")))))
-        (cl-loop
-         for suggestion in sorted
-         do (cl-case (plist-get suggestion :type)
-              (fix-typo
-               (save-excursion
-                 (goto-line (plist-get suggestion :line))
-                 (move-to-column (- (plist-get suggestion :column) 1))
-                 (delete-char (length (plist-get suggestion :typo)))
-                 (insert (plist-get suggestion :replacement))))))))))
+                         " #-}\n")))))))))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
