@@ -1739,7 +1739,7 @@ suggestions are available."
           ;;    • Variable not in scope: lopSetup :: [Statement Exp']
           ;;    • Perhaps you meant ‘loopSetup’ (line 437)
           (when (string-match
-                 "Not in scope: [‘`‛]\\([^'’]+\\)['’]\n.*Perhaps you meant"
+                 "[Nn]ot in scope: [‘`‛]?\\([^'’ ]+\\).*\n.*Perhaps you meant"
                  text)
             (let ((typo (match-string 1 text))
                   (start (min (length text) (1+ (match-end 0)))))
@@ -1807,7 +1807,7 @@ suggestions are available."
                                       "’ with ‘"
                                       (plist-get suggestion :replacement)
                                       "’")
-                       :default nil))))
+                       :default (null (cdr intero-suggestions))))))
             intero-suggestions)))))
     (if (null to-apply)
         (message "No changes selected to apply.")
