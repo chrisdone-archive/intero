@@ -204,6 +204,10 @@ This is slower, but will build required dependencies.")
   "Extensions supported by the compiler.")
 (make-variable-buffer-local 'intero-extensions)
 
+(defvar intero-ghc-version nil
+  "GHC version used by the project.")
+(make-variable-buffer-local 'intero-ghc-version)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
@@ -1442,6 +1446,18 @@ config exists."
                                      "--project-root"
                                      "--verbosity" "silent"))
               (0 (buffer-substring (line-beginning-position) (line-end-position))))))))
+
+(defun intero-ghc-version ()
+  "Get the GHC version used by the project."
+  (with-current-buffer (intero-buffer 'backend)
+    (or intero-ghc-version
+        (setq intero-ghc-version
+          (with-temp-buffer
+            (cl-case (save-excursion
+                       (call-process "stack" nil (current-buffer) t "ghc" "--" "--numeric-version"))
+              (0
+               (buffer-substring (line-beginning-position) (line-end-position)))
+              (1 nil)))))))
 
 (defun intero-get-targets ()
   "Get all available targets."
