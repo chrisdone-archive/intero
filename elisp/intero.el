@@ -1756,13 +1756,13 @@ suggestions are available."
           ;;
           ;;     Top-level binding with no type signature: main :: IO ()
           (when (string-match
-                 "Top-level binding with no type signature: "
+                 "Top-level binding with no type signature:"
                  text)
             (let ((start (min (length text) (match-end 0))))
               (setq note t)
               (add-to-list 'intero-suggestions
                            (list :type 'add-signature
-                                 :signature (substring text start)
+                                 :signature (mapconcat #'identity (split-string (substring text start)) " ")
                                  :line (flycheck-error-line msg)))))
           ;; Add a note if we found a suggestion to make
           (when note
@@ -1855,7 +1855,8 @@ suggestions are available."
          do (cl-case (plist-get suggestion :type)
               (add-signature
                (save-excursion
-                 (goto-line (plist-get suggestion :line))
+                 (goto-char (point-min))
+                 (forward-line (1- (plist-get suggestion :line)))
                  (insert (plist-get suggestion :signature))
                  (insert "\n")))))
 
