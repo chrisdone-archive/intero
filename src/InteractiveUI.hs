@@ -1317,6 +1317,10 @@ changeDirectory dir = do
   lift $ setContextAfterLoad False []
   GHC.workingDirectoryChanged
   dir' <- expandPath dir
+  lift $ modifyGHCiState
+    (\state -> state { ghci_work_directory = dir'
+                     , ghc_work_directory = dir'
+                     })
   liftIO $ setCurrentDirectory dir'
 
 trySuccess :: GHC.GhcMonad m => m SuccessFlag -> m SuccessFlag
