@@ -1752,6 +1752,18 @@ suggestions are available."
                                    :column (flycheck-error-column msg)
                                    :line (flycheck-error-line msg)))
                 (setq start (min (length text) (1+ (match-end 0)))))))
+          ;; Messages of this format:
+          ;;
+          ;;     Top-level binding with no type signature: main :: IO ()
+          (when (string-match
+                 "Top-level binding with no type signature: "
+                 text)
+            (let ((start (min (length text) (match-end 0))))
+              (setq note t)
+              (add-to-list 'intero-suggestions
+                           (list :type 'add-signature
+                                 :signature (substring text start)
+                                 :line (flycheck-error-line msg)))))
           ;; Add a note if we found a suggestion to make
           (when note
             (setf (flycheck-error-message msg)
@@ -1807,7 +1819,12 @@ suggestions are available."
                                       "’ with ‘"
                                       (plist-get suggestion :replacement)
                                       "’")
-                       :default (null (cdr intero-suggestions))))))
+                       :default (null (cdr intero-suggestions))))
+                (add-signature
+                 (list :key suggestion
+                       :title (concat "Add signature: "
+                                      (plist-get suggestion :signature))
+                       :default t))))
             intero-suggestions)))))
     (if (null to-apply)
         (message "No changes selected to apply.")
@@ -1832,6 +1849,16 @@ suggestions are available."
                  (insert (plist-get suggestion :replacement))))))
         ;; # Changes that do increase/decrease line numbers
         ;;
+        ;; Add a type signature to a top-level binding.
+        (cl-loop
+         for suggestion in sorted
+         do (cl-case (plist-get suggestion :type)
+              (add-signature
+               (save-excursion
+                 (goto-line (plist-get suggestion :line))
+                 (insert (plist-get suggestion :signature))
+                 (insert "\n")))))
+
         ;; Remove import lines from the file. May remove more than one
         ;; line per import.
         (cl-loop
