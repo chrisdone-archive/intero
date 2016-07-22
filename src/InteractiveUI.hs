@@ -535,6 +535,7 @@ interactiveUI config srcs maybe_exprs = do
 #endif
 
    default_editor <- liftIO $ findEditor
+   current_directory <- liftIO $ getCurrentDirectory
 
    startGHCi (runGHCi srcs maybe_exprs)
         GHCiState{ progname       = default_progname,
@@ -557,7 +558,9 @@ interactiveUI config srcs maybe_exprs = do
                    short_help     = shortHelpText config,
                    long_help      = fullHelpText config,
                    mod_infos      = M.empty,
-                   rdrNamesInScope = []
+                   rdrNamesInScope = [],
+                   ghci_work_directory = current_directory,
+                   ghc_work_directory  = current_directory
                  }
 
    return ()
@@ -1524,12 +1527,16 @@ doLoad retain_context howmuch = do
 
   -- Enable buffering stdout and stderr as we're compiling. Keeping these
   -- handles unbuffered will just slow the compilation down, especially when
-  -- compiling in parallel.
+  -- compiling in parallel. Also, set the the current working directory to
+  -- the value of ghc_working_directory for the duration of the call.
+  state <- lift getGHCiState
   wasok <- gbracket (liftIO $ do hSetBuffering stdout LineBuffering
-                                 hSetBuffering stderr LineBuffering)
+                                 hSetBuffering stderr LineBuffering
+                                 setCurrentDirectory (ghc_work_directory state))
                     (\_ ->
                      liftIO $ do hSetBuffering stdout NoBuffering
-                                 hSetBuffering stderr NoBuffering) $ \_ -> do
+                                 hSetBuffering stderr NoBuffering
+                                 setCurrentDirectory (ghci_work_directory state)) $ \_ -> do
       ok <- trySuccess $ GHC.load howmuch
       afterLoad ok retain_context
       return ok
