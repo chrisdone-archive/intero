@@ -1764,6 +1764,29 @@ suggestions are available."
                            (list :type 'add-signature
                                  :signature (mapconcat #'identity (split-string (substring text start)) " ")
                                  :line (flycheck-error-line msg)))))
+          ;; Messages of this format:
+          ;;
+          ;;     Redundant constraints: (Arith var, Bitwise var)
+          ;; Or
+          ;;     Redundant constraint: Arith var
+          ;; Or
+          ;;     Redundant constraints: (Arith var,
+          ;;                             Bitwise var,
+          ;;                             Functor var,
+          ;;                             Applicative var,
+          ;;                             Monad var)
+          (when (string-match "Redundant constraints?:[\n[:space:]]*\\(\\([[:alnum:][:space:]]+\\)\\|(\\([[:alnum:][:space:],\n]+\\))\\).*\n.*In the " text)
+            (setq note t)
+            (add-to-list
+             'intero-suggestions
+             (let ((rest (substring text (match-end 0)))
+                   (redundant (or (match-string 2 text) (match-string 3 text))))
+               (list :type 'redundant-constraint
+                     :redundancies (mapcar #'string-trim
+                                           (split-string redundant
+                                                         "[:space:]*,[:space:]*"))
+                     :signature (mapconcat #'identity (split-string rest) " ")
+                     :line (flycheck-error-line msg)))))
           ;; Add a note if we found a suggestion to make
           (when note
             (setf (flycheck-error-message msg)
@@ -1824,7 +1847,16 @@ suggestions are available."
                  (list :key suggestion
                        :title (concat "Add signature: "
                                       (plist-get suggestion :signature))
-                       :default t))))
+                       :default t))
+                (redundant-constraint
+                 (list :key suggestion
+                       :title (concat
+                               "Remove redundant constraints: "
+                               (string-join (plist-get suggestion :redundancies)
+                                            ", ")
+                               "\n    from the "
+                               (plist-get suggestion :signature))
+                       :default nil))))
             intero-suggestions)))))
     (if (null to-apply)
         (message "No changes selected to apply.")
@@ -1849,6 +1881,32 @@ suggestions are available."
                  (insert (plist-get suggestion :replacement))))))
         ;; # Changes that do increase/decrease line numbers
         ;;
+        ;; Remove redundant constraints
+        (cl-loop
+         for suggestion in sorted
+         do (cl-case (plist-get suggestion :type)
+              (redundant-constraint
+               (save-excursion
+                 (goto-char (point-min))
+                 (forward-line (1- (plist-get suggestion :line)))
+                 (if (search-forward-regexp "\\([[:space:]]*::\\|instance\\)[[:space:]]* (?\\([[:alnum:][:space:],?\n]+\\))?[[:space:]?\n]*=>" (point-max) t)
+                     (let* ((start (match-beginning 2))
+                            (end (match-end 2))
+                            (constraints
+                             (mapcar #'string-trim
+                                     (split-string (match-string 2)
+                                                   "[[:space:]]*,[[:space:]]*")))
+                            (nonredundant
+                             (loop for r in (plist-get suggestion :redundancies)
+                                   with nonredundant = constraints
+                                   do (setq nonredundant (delete r nonredundant))
+                                   finally return nonredundant)))
+                       (goto-char start)
+                       (delete-char (- end start))
+                       (insert (string-join nonredundant ", ")))
+                   (message "Couldn't parse constraints"))))))
+
+
         ;; Add a type signature to a top-level binding.
         (cl-loop
          for suggestion in sorted
