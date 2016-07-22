@@ -1739,9 +1739,9 @@ suggestions are available."
           ;;    • Variable not in scope: lopSetup :: [Statement Exp']
           ;;    • Perhaps you meant ‘loopSetup’ (line 437)
           (when (string-match
-                 "[Nn]ot in scope: [‘`‛]?\\([^'’ ]+\\).*\n.*Perhaps you meant"
+                 "[Nn]ot in scope: \\(data constructor \\|type constructor or class \\)?[‘`‛]?\\([^'’ ]+\\).*\n.*Perhaps you meant"
                  text)
-            (let ((typo (match-string 1 text))
+            (let ((typo (match-string 2 text))
                   (start (min (length text) (1+ (match-end 0)))))
               (while (string-match quoted-symbol-regex text start)
                 (setq note t)
