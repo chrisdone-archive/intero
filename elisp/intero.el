@@ -95,12 +95,16 @@ This causes it to skip building the target."
 (defvar intero-mode-map (make-sparse-keymap)
   "Intero minor mode's map.")
 
+(defvar intero-lighter " Intero"
+  "Lighter for the intero minor mode.")
+(make-variable-buffer-local 'intero-lighter)
+
 ;;;###autoload
 (define-minor-mode intero-mode
   "Minor mode for Intero
 
 \\{intero-mode-map}"
-  :lighter " Intero"
+  :lighter intero-lighter
   :keymap intero-mode-map
   (when (bound-and-true-p interactive-haskell-mode)
     (when (fboundp 'interactive-haskell-mode)
@@ -119,6 +123,7 @@ This causes it to skip building the target."
 (define-key intero-mode-map (kbd "C-c C-i") 'intero-info)
 (define-key intero-mode-map (kbd "M-.") 'intero-goto-definition)
 (define-key intero-mode-map (kbd "C-c C-l") 'intero-repl-load)
+(define-key intero-mode-map (kbd "C-c C-r") 'intero-apply-suggestions)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global variables/state
@@ -191,8 +196,26 @@ This is slower, but will build required dependencies.")
   "Port that hoogle server is listening on.")
 (make-variable-buffer-local 'intero-hoogle-port)
 
+(defvar intero-suggestions nil
+  "Auto actions for the buffer.")
+(make-variable-buffer-local 'intero-suggestions)
+
+(defvar intero-extensions nil
+  "Extensions supported by the compiler.")
+(make-variable-buffer-local 'intero-extensions)
+
+(defvar intero-ghc-version nil
+  "GHC version used by the project.")
+(make-variable-buffer-local 'intero-ghc-version)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
+
+(defun intero-toggle-debug ()
+  "Toggle debugging mode on/off."
+  (interactive)
+  (setq intero-debug (not intero-debug))
+  (message "Intero debugging is: %s" (if intero-debug "ON" "OFF")))
 
 (defun intero-list-buffers ()
   "List hidden process buffers created by intero.
@@ -383,20 +406,25 @@ running context across :load/:reloads in Intero."
              :file-buffer file-buffer
              :checker checker)
        (lambda (state string)
-         (with-current-buffer (plist-get state :file-buffer)
-           (funcall (plist-get state :cont)
-                    'finished
-                    (intero-parse-errors-warnings
-                     (plist-get state :checker)
-                     (current-buffer)
-                     string))
-           (when (string-match "OK, modules loaded: \\(.*\\)\\.$" string)
-             (let ((modules (match-string 1 string)))
-               (intero-async-call 'backend
-                                  (concat ":m + "
-                                          (replace-regexp-in-string modules "," ""))
-                                  nil
-                                  (lambda (_st _)))))))))))
+         (let ((compile-ok (string-match "OK, modules loaded: \\(.*\\)\\.$" string)))
+           (with-current-buffer (plist-get state :file-buffer)
+             (let ((modules (match-string 1 string))
+                   (msgs (intero-parse-errors-warnings-splices
+                          (plist-get state :checker)
+                          (current-buffer)
+                          string)))
+               (intero-collect-compiler-messages msgs)
+               (funcall (plist-get state :cont)
+                        'finished
+                        (cl-remove-if (lambda (msg)
+                                        (eq 'splice (flycheck-error-level msg)))
+                                      msgs))
+               (when compile-ok
+                 (intero-async-call 'backend
+                                    (concat ":m + "
+                                            (replace-regexp-in-string modules "," ""))
+                                    nil
+                                    (lambda (_st _))))))))))))
 
 (flycheck-define-generic-checker 'intero
   "A syntax and type checker for Haskell using an Intero worker
@@ -406,7 +434,7 @@ process."
 
 (add-to-list 'flycheck-checkers 'intero)
 
-(defun intero-parse-errors-warnings (checker buffer string)
+(defun intero-parse-errors-warnings-splices (checker buffer string)
   "Parse flycheck errors and warnings.
 CHECKER and BUFFER are added to each item parsed from STRING."
   (with-temp-buffer
@@ -433,13 +461,15 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                (column (plist-get location :col)))
           (setq messages
                 (cons (flycheck-error-new-at
-                       line column type msg
+                       line column type
+                       msg
                        :checker checker
                        :buffer (when (string= (intero-buffer-file-name buffer)
                                               file)
                                  buffer)
                        :filename file)
-                      messages))))
+                      messages)))
+        (forward-line -1))
       (delete-dups messages))))
 
 (defconst intero-error-regexp-alist
@@ -1408,14 +1438,26 @@ config exists."
       intero-project-root
     (setq intero-project-root
           (with-temp-buffer
-            (save-excursion
-              (call-process "stack" nil
-                            (current-buffer)
-                            nil
-                            "path"
-                            "--project-root"
-                            "--verbosity" "silent"))
-            (buffer-substring (line-beginning-position) (line-end-position))))))
+            (cl-case (save-excursion
+                       (call-process "stack" nil
+                                     (current-buffer)
+                                     nil
+                                     "path"
+                                     "--project-root"
+                                     "--verbosity" "silent"))
+              (0 (buffer-substring (line-beginning-position) (line-end-position))))))))
+
+(defun intero-ghc-version ()
+  "Get the GHC version used by the project."
+  (with-current-buffer (intero-buffer 'backend)
+    (or intero-ghc-version
+        (setq intero-ghc-version
+              (with-temp-buffer
+                (cl-case (save-excursion
+                           (call-process "stack" nil (current-buffer) t "ghc" "--" "--numeric-version"))
+                  (0
+                   (buffer-substring (line-beginning-position) (line-end-position)))
+                  (1 nil)))))))
 
 (defun intero-get-targets ()
   "Get all available targets."
@@ -1544,8 +1586,8 @@ Each option is a plist of (:key :default :title) wherein:
 ;; Hoogle
 
 (defun intero-hoogle-blocking-query (query)
-  "Make a request of QUERY using the local hoogle server, if
-running. Otherwise returns nil.
+  "Make a request of QUERY using the local hoogle server.
+If running, otherwise returns nil.
 
 It is the responsibility of the caller to make sure the server is
 running; the user might not want to start the server
@@ -1560,8 +1602,7 @@ automatically."
                              (line-end-position))))))))
 
 (defun intero-hoogle-url (buffer query)
-  "Make the HTTP URL for QUERY from the hoogle server running in
-BUFFER."
+  "Via hoogle server BUFFER make the HTTP URL for QUERY."
   (format "http://127.0.0.1:%d/?hoogle=%s&mode=json"
           (buffer-local-value 'intero-hoogle-port buffer)
           (url-encode-url query)))
@@ -1605,7 +1646,7 @@ BUFFER."
     (process-contact proc :service)))
 
 (defun intero-hoogle-sentinel (process change)
-  "Problem handler for the hoogle process."
+  "For the hoogle PROCESS there is a CHANGE to handle."
   (message "Hoogle sentinel: %S %S" process change))
 
 (defun intero-hoogle-get-buffer-create ()
@@ -1627,7 +1668,7 @@ BUFFER."
     (get-buffer buffer-name)))
 
 (defun intero-hoogle-buffer-name (root)
-  "For a given WORKER, create a buffer name."
+  "For a given worker, create a buffer name using ROOT."
   (concat "*Hoogle:" root "*"))
 
 (defun intero-hoogle-ready-p ()
@@ -1643,6 +1684,206 @@ BUFFER."
     (cl-case (call-process "stack" nil (current-buffer) t
                            "hoogle" "--help")
       (0 t))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Collecting information from compiler messages
+
+(defun intero-collect-compiler-messages (msgs)
+  "Collect information from compiler MSGS.
+
+This may update in-place the MSGS objects to hint that
+suggestions are available."
+  (setq intero-suggestions nil)
+  (let ((extension-regex (regexp-opt (intero-extensions)))
+        (quoted-symbol-regex "[‘`‛]\\([^ ]+\\)['’]"))
+    (cl-loop
+     for msg in msgs
+     do (let ((text (flycheck-error-message msg))
+              (note nil))
+          ;; Messages of this format:
+          ;;
+          ;; Can't make a derived instance of ‘Functor X’:
+          ;;       You need DeriveFunctor to derive an instance for this class
+          ;;       Try GeneralizedNewtypeDeriving for GHC's newtype-deriving extension
+          ;;       In the newtype declaration for ‘X’
+          (let ((start 0))
+            (while (string-match extension-regex text start)
+              (setq note t)
+              (add-to-list 'intero-suggestions
+                           (list :type 'add-extension
+                                 :extension (match-string 0 text)))
+              (setq start (min (length text) (1+ (match-end 0))))))
+          ;; Messages of this format:
+          ;;
+          ;; The import of ‘Control.Monad’ is redundant
+          ;;   except perhaps to import instances from ‘Control.Monad’
+          ;; To import instances alone, use: import Control.Monad()... (intero)
+          (when (string-match
+                 " The \\(qualified \\)?import of[ ][‘`‛]\\([^ ]+\\)['’] is redundant"
+                 text)
+            (setq note t)
+            (add-to-list 'intero-suggestions
+                         (list :type 'remove-import
+                               :module (match-string 2 text)
+                               :line (flycheck-error-line msg))))
+          ;; Messages of this format:
+          ;;
+          ;; Not in scope: ‘putStrn’
+          ;; Perhaps you meant one of these:
+          ;;   ‘putStr’ (imported from Prelude),
+          ;;   ‘putStrLn’ (imported from Prelude)
+          ;;
+          ;; Or this format:
+          ;;
+          ;; error:
+          ;;    • Variable not in scope: lopSetup :: [Statement Exp']
+          ;;    • Perhaps you meant ‘loopSetup’ (line 437)
+          (when (string-match
+                 "[Nn]ot in scope: \\(data constructor \\|type constructor or class \\)?[‘`‛]?\\([^'’ ]+\\).*\n.*Perhaps you meant"
+                 text)
+            (let ((typo (match-string 2 text))
+                  (start (min (length text) (1+ (match-end 0)))))
+              (while (string-match quoted-symbol-regex text start)
+                (setq note t)
+                (add-to-list 'intero-suggestions
+                             (list :type 'fix-typo
+                                   :typo typo
+                                   :replacement (match-string 1 text)
+                                   :column (flycheck-error-column msg)
+                                   :line (flycheck-error-line msg)))
+                (setq start (min (length text) (1+ (match-end 0)))))))
+          ;; Messages of this format:
+          ;;
+          ;;     Top-level binding with no type signature: main :: IO ()
+          (when (string-match
+                 "Top-level binding with no type signature:"
+                 text)
+            (let ((start (min (length text) (match-end 0))))
+              (setq note t)
+              (add-to-list 'intero-suggestions
+                           (list :type 'add-signature
+                                 :signature (mapconcat #'identity (split-string (substring text start)) " ")
+                                 :line (flycheck-error-line msg)))))
+          ;; Add a note if we found a suggestion to make
+          (when note
+            (setf (flycheck-error-message msg)
+                  (concat text
+                          "\n\n"
+                          (propertize "(Hit `C-c C-r' in the Haskell buffer to apply suggestions)"
+                                      'face 'font-lock-warning)))))))
+  (setq intero-lighter
+        (if (null intero-suggestions)
+            " Intero"
+          (format " Intero:%d" (length intero-suggestions)))))
+
+(defun intero-extensions ()
+  "Get extensions for the current project's GHC."
+  (with-current-buffer (intero-buffer 'backend)
+    (or intero-extensions
+        (setq intero-extensions
+              (split-string
+               (shell-command-to-string
+                "stack exec --verbosity silent -- ghc --supported-extensions"))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Auto actions
+
+(defun intero-apply-suggestions ()
+  "Prompt and apply the suggestions."
+  (interactive)
+  (when (null intero-suggestions)
+    (error "No suggestions to apply"))
+  (let ((to-apply
+         (intero-multiswitch
+          (format "There are %d suggestions to apply:" (length intero-suggestions))
+          (cl-remove-if-not
+           #'identity
+           (mapcar
+            (lambda (suggestion)
+              (cl-case (plist-get suggestion :type)
+                (add-extension
+                 (list :key suggestion
+                       :title (concat "Add {-# LANGUAGE "
+                                      (plist-get suggestion :extension)
+                                      " #-}")
+                       :default t))
+                (remove-import
+                 (list :key suggestion
+                       :title (concat "Remove: import "
+                                      (plist-get suggestion :module))
+                       :default t))
+                (fix-typo
+                 (list :key suggestion
+                       :title (concat "Replace ‘"
+                                      (plist-get suggestion :typo)
+                                      "’ with ‘"
+                                      (plist-get suggestion :replacement)
+                                      "’")
+                       :default (null (cdr intero-suggestions))))
+                (add-signature
+                 (list :key suggestion
+                       :title (concat "Add signature: "
+                                      (plist-get suggestion :signature))
+                       :default t))))
+            intero-suggestions)))))
+    (if (null to-apply)
+        (message "No changes selected to apply.")
+      (let ((sorted (sort to-apply
+                          (lambda (lt gt)
+                            (> (or (plist-get lt :line)
+                                   0)
+                               (or (plist-get gt :line)
+                                   0))))))
+        ;; # Changes that do not increase/decrease line numbers
+        ;;
+        ;; Update in-place suggestions
+        (cl-loop
+         for suggestion in sorted
+         do (cl-case (plist-get suggestion :type)
+              (fix-typo
+               (save-excursion
+                 (goto-char (point-min))
+                 (forward-line (1- (plist-get suggestion :line)))
+                 (move-to-column (- (plist-get suggestion :column) 1))
+                 (delete-char (length (plist-get suggestion :typo)))
+                 (insert (plist-get suggestion :replacement))))))
+        ;; # Changes that do increase/decrease line numbers
+        ;;
+        ;; Add a type signature to a top-level binding.
+        (cl-loop
+         for suggestion in sorted
+         do (cl-case (plist-get suggestion :type)
+              (add-signature
+               (save-excursion
+                 (goto-char (point-min))
+                 (forward-line (1- (plist-get suggestion :line)))
+                 (insert (plist-get suggestion :signature))
+                 (insert "\n")))))
+
+        ;; Remove import lines from the file. May remove more than one
+        ;; line per import.
+        (cl-loop
+         for suggestion in sorted
+         do (cl-case (plist-get suggestion :type)
+              (remove-import
+               (save-excursion
+                 (goto-char (point-min))
+                 (forward-line (1- (plist-get suggestion :line)))
+                 (delete-region (line-beginning-position)
+                                (or (when (search-forward-regexp "\n[^ \t]" nil t 1)
+                                      (1- (point)))
+                                    (line-end-position)))))))
+        ;; Add extensions to the top of the file
+        (cl-loop
+         for suggestion in sorted
+         do (cl-case (plist-get suggestion :type)
+              (add-extension
+               (save-excursion
+                 (goto-char (point-min))
+                 (insert "{-# LANGUAGE "
+                         (plist-get suggestion :extension)
+                         " #-}\n")))))))))
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
