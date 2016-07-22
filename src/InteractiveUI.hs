@@ -202,6 +202,7 @@ ghciCommands = [
   ("browse",    keepGoing' (browseCmd False),   completeModule),
   ("browse!",   keepGoing' (browseCmd True),    completeModule),
   ("cd",        keepGoing' changeDirectory,     completeFilename),
+  ("cd-ghc",    keepGoing' changeDirectoryGHC,  completeFilename),
   ("check",     keepGoing' checkModule,         completeHomeModule),
   ("continue",  keepGoing continueCmd,          noCompletion),
   ("complete",  keepGoing completeCmd,          noCompletion),
@@ -1328,6 +1329,20 @@ trySuccess act =
     handleSourceError (\e -> do GHC.printException e
                                 return Failed) $ do
       act
+
+-----------------------------------------------------------------------------
+-- :cd-ghc
+
+-- NOTE: calling :cd will reset the GHC working directory as well as
+-- the GHCi working directory.
+changeDirectoryGHC :: String -> InputT GHCi ()
+-- :cd-ghc on its own resets the ghc work directory to match
+-- the ghci work directory.
+changeDirectoryGHC "" = lift $ modifyGHCiState $ \state ->
+  state { ghc_work_directory = (ghci_work_directory state) }
+changeDirectoryGHC dir = do
+  dir' <- expandPath dir
+  lift $ modifyGHCiState $ \state -> state { ghc_work_directory = dir' }
 
 -----------------------------------------------------------------------------
 -- :edit
