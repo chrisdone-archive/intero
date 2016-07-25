@@ -1715,6 +1715,31 @@ suggestions are available."
               (setq start (min (length text) (1+ (match-end 0))))))
           ;; Messages of this format:
           ;;
+          ;; Defaulting the following constraint(s) to type ‘Integer’
+          ;;   (Num a0) arising from the literal ‘1’
+          ;; In the expression: 2
+          ;; In an equation for ‘x'’: x' = 2
+          (let ((start 0))
+            (while (string-match
+                    " Defaulting the following constraint" text start)
+              (setq note t)
+              (add-to-list 'intero-suggestions
+                           (list :type 'add-ghc-option
+                                 :option "-fno-warn-type-defaults"))
+              (setq start (min (length text) (1+ (match-end 0))))))
+          ;; Messages of this format:
+          ;;
+          ;;     This binding for ‘x’ shadows the existing binding
+          (let ((start 0))
+            (while (string-match
+                    " This binding for ‘\\(.*\\)’ shadows the existing binding" text start)
+              (setq note t)
+              (add-to-list 'intero-suggestions
+                           (list :type 'add-ghc-option
+                                 :option "-fno-warn-name-shadowing"))
+              (setq start (min (length text) (1+ (match-end 0))))))
+          ;; Messages of this format:
+          ;;
           ;; The import of ‘Control.Monad’ is redundant
           ;;   except perhaps to import instances from ‘Control.Monad’
           ;; To import instances alone, use: import Control.Monad()... (intero)
@@ -1807,6 +1832,12 @@ suggestions are available."
                                       (plist-get suggestion :extension)
                                       " #-}")
                        :default t))
+                (add-ghc-option
+                 (list :key suggestion
+                       :title (concat "Add {-# OPTIONS_GHC "
+                                      (plist-get suggestion :option)
+                                      " #-}")
+                       :default t))
                 (remove-import
                  (list :key suggestion
                        :title (concat "Remove: import "
@@ -1882,8 +1913,13 @@ suggestions are available."
                  (goto-char (point-min))
                  (insert "{-# LANGUAGE "
                          (plist-get suggestion :extension)
+                         " #-}\n")))
+              (add-ghc-option
+               (save-excursion
+                 (goto-char (point-min))
+                 (insert "{-# OPTIONS_GHC "
+                         (plist-get suggestion :option)
                          " #-}\n")))))))))
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
