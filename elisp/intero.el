@@ -37,9 +37,10 @@
 ;; * Go to definition ✓
 ;; * Type of selection ✓
 ;; * Info ✓
-;; * REPL
+;; * REPL ✓
+;; * Apply suggestions (extensions, imports, etc.) ✓
 ;; * Find uses
-;; * Completion of stack targets
+;; * Completion of stack targets ✓
 ;; * List all types in all expressions
 ;; * Import management
 ;; * Dependency management
