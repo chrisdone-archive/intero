@@ -753,12 +753,70 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
                                 prompt-options)
         (current-buffer)))))
 
+(defvar intero-make-mouse-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map [mouse-1]  (lambda () (interactive) (intero-find-file-with-line:char)))
+    (define-key map [C-return] (lambda () (interactive) (intero-find-file-with-line:char)))
+    map)
+  "Keymap for clicking on links in intero.")
+
+(defun intero-find-file-with-line:char ()
+  "Opens the file from 'file text property and moves to line:char from 'line text property."
+  (let ((file (get-text-property (point) 'file))
+        (line:char (get-text-property (point) 'line)))
+    (with-no-warnings (find-file-other-frame file))
+    (if (string-match "^\\([0-9]+\\):?\\([0-9]*\\)$" line:char 0)
+        (let ((line (string-to-number (match-string 1 line:char)))
+              (char (string-to-number (match-string 2 line:char))))
+          (goto-char (point-min))
+          (forward-line (1- line))
+          (forward-char (1- char))))))
+
+(defun intero-highlight-file:line-references ()
+  "Find occurances of <file>:<line>:<char>: and turns them into links."
+  (interactive)
+  (intero-linkify-file:line (point-min) (point-max)))
+
+(defun intero-linkify-file:line (begin end)
+  "Linkify all occurances of <file>:<line>:<char>: betwen begin and end"
+  (let ((end-marker (copy-marker end))
+        (file:line:char-regexp (concat "[\r\n]\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\):\\([0-9()-:]+\\):"
+                                       "[ \n\r]+\\([[:unibyte:][:nonascii:]]+?\\)\n[^ ]")))
+    (save-excursion
+      (goto-char begin)
+      ;; Delete unrecognized escape sequences.
+      (while (re-search-forward file:line:char-regexp end-marker t)
+        (let ((file (match-string-no-properties 1))
+              (line (match-string-no-properties 2))
+              (link-start (1+ (match-beginning 1)))
+              (link-end   (1+ (match-end 2))))
+          (add-text-properties link-start link-end
+                               (list 'keymap intero-make-mouse-map
+                                     'file   file
+                                     'line   line
+                                     'help-echo "mouse-2: visit this file")))))))
+
+(defun intero-linkify-process-output (ignored)
+  ""
+  (let ((start-marker (if (and (markerp comint-last-output-start)
+                               (eq (marker-buffer comint-last-output-start)
+                                   (current-buffer))
+                               (marker-position comint-last-output-start))
+                          comint-last-output-start
+                        (point-min-marker)))
+        (end-marker (process-mark (get-buffer-process (current-buffer)))))
+    (intero-linkify-file:line start-marker end-marker)))
+
 (define-derived-mode intero-repl-mode comint-mode "Intero-REPL"
   "Interactive prompt for Intero."
   (when (and (not (eq major-mode 'fundamental-mode))
              (eq this-command 'intero-repl-mode))
     (error "You probably meant to run: M-x intero-repl"))
-  (set (make-local-variable 'comint-prompt-regexp) intero-prompt-regexp))
+  (set (make-local-variable 'comint-prompt-regexp) intero-prompt-regexp)
+  (add-hook 'comint-output-filter-functions
+            'intero-linkify-process-output)
+  ;; (setq comint-scroll-to-bottom-on-input t)
+  (set (make-local-variable 'comint-prompt-read-only) t))
 
 (defun intero-repl-mode-start (backend-buffer targets prompt-options)
   "Start the process for the repl in the current buffer.
