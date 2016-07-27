@@ -714,6 +714,11 @@ pragma is supported also."
 
 (defconst intero-prompt-regexp "^\4 ")
 
+(defun intero-clear-buffer ()
+  (interactive)
+  (let ((comint-buffer-maximum-size 0))
+    (comint-truncate-buffer)))
+
 (defun intero-repl-load (&optional prompt-options)
   "Load the current file in the REPL.
 If PROMPT-OPTIONS is non-nil, prompt with an options list."
@@ -832,6 +837,7 @@ changes in the BACKEND-BUFFER."
 
 (define-key intero-repl-mode-map [remap move-beginning-of-line] 'intero-repl-beginning-of-line)
 (define-key intero-repl-mode-map [remap delete-backward-char] 'intero-repl-delete-backward-char)
+(define-key intero-repl-mode-map (kbd "C-c C-k") 'intero-clear-buffer)
 
 (defun intero-repl-delete-backward-char ()
   "Delete backwards, excluding the prompt."
