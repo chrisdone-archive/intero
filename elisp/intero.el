@@ -1258,8 +1258,8 @@ Automatically performs initial actions in SOURCE-BUFFER, if specified."
                       (when intero-debug
                         (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
                       (message "Booting up intero ...")
-                      (get-buffer-process (apply #'start-process "stack" buffer "stack" "ghci"
-                             arguments)))))
+                      (apply #'start-process "stack" buffer "stack" "ghci"
+                             arguments))))
       (set-process-query-on-exit-flag process nil)
       (process-send-string process ":set -fobject-code\n")
       (process-send-string process ":set prompt \"\\4\"\n")
