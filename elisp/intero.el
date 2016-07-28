@@ -1258,11 +1258,11 @@ Automatically performs initial actions in SOURCE-BUFFER, if specified."
                       (when intero-debug
                         (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
                       (message "Booting up intero ...")
-                      (get-buffer-process (apply #'make-comint-in-buffer "stack" buffer "stack" nil "ghci"
+                      (get-buffer-process (apply #'start-process "stack" buffer "stack" "ghci"
                              arguments)))))
       (set-process-query-on-exit-flag process nil)
-      (comint-simple-send process ":set -fobject-code")
-      (comint-simple-send process ":set prompt \"\\4\"")
+      (process-send-string process ":set -fobject-code\n")
+      (process-send-string process ":set prompt \"\\4\"\n")
       (with-current-buffer buffer
         (erase-buffer)
         (setq intero-targets targets)
