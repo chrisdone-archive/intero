@@ -764,7 +764,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   "Opens the file from 'file text property and moves to line:char from 'line text property."
   (let ((file (get-text-property (point) 'file))
         (line:char (get-text-property (point) 'line)))
-    (with-no-warnings (find-file-other-frame file))
+    (with-no-warnings (find-file-other-window file))
     (if (string-match "^\\([0-9]+\\):?\\([0-9]*\\)$" line:char 0)
         (let ((line (string-to-number (match-string 1 line:char)))
               (char (string-to-number (match-string 2 line:char))))
