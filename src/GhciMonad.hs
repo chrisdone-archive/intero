@@ -123,7 +123,17 @@ data GHCiState = GHCiState
 
         -- stored state
         mod_infos :: !(Map ModuleName ModInfo),
-        rdrNamesInScope :: ![GHC.RdrName]
+        rdrNamesInScope :: ![GHC.RdrName],
+
+        ghci_work_directory :: FilePath,
+            -- ^ Used to store the working directory associated with
+            -- GHCi. This is what the current directory will be reverted
+            -- to after calls to GHC.load.
+        ghc_work_directory :: FilePath
+            -- ^ Used as the working directory during calls to GHC.load.
+            -- After the call to GHC.load completes, the current working
+            -- directory will be reverted to the value of
+            -- `ghci_work_directory`.
      }
 
 type TickArray = Array Int [(BreakIndex,SrcSpan)]

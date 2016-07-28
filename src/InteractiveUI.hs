@@ -202,6 +202,7 @@ ghciCommands = [
   ("browse",    keepGoing' (browseCmd False),   completeModule),
   ("browse!",   keepGoing' (browseCmd True),    completeModule),
   ("cd",        keepGoing' changeDirectory,     completeFilename),
+  ("cd-ghc",    keepGoing' changeDirectoryGHC,  completeFilename),
   ("check",     keepGoing' checkModule,         completeHomeModule),
   ("continue",  keepGoing continueCmd,          noCompletion),
   ("complete",  keepGoing completeCmd,          noCompletion),
@@ -535,29 +536,32 @@ interactiveUI config srcs maybe_exprs = do
 #endif
 
    default_editor <- liftIO $ findEditor
+   current_directory <- liftIO $ getCurrentDirectory
 
    startGHCi (runGHCi srcs maybe_exprs)
-        GHCiState{ progname       = default_progname,
-                   GhciMonad.args = default_args,
-                   prompt         = defPrompt config,
-                   prompt2        = defPrompt2 config,
-                   stop           = default_stop,
-                   editor         = default_editor,
-                   options        = [],
-                   line_number    = 1,
-                   break_ctr      = 0,
-                   breaks         = [],
-                   tickarrays     = emptyModuleEnv,
-                   ghci_commands  = availableCommands config,
-                   last_command   = Nothing,
-                   cmdqueue       = [],
-                   remembered_ctx = [],
-                   transient_ctx  = [],
-                   ghc_e          = isJust maybe_exprs,
-                   short_help     = shortHelpText config,
-                   long_help      = fullHelpText config,
-                   mod_infos      = M.empty,
-                   rdrNamesInScope = []
+        GHCiState{ progname            = default_progname,
+                   GhciMonad.args      = default_args,
+                   prompt              = defPrompt config,
+                   prompt2             = defPrompt2 config,
+                   stop                = default_stop,
+                   editor              = default_editor,
+                   options             = [],
+                   line_number         = 1,
+                   break_ctr           = 0,
+                   breaks              = [],
+                   tickarrays          = emptyModuleEnv,
+                   ghci_commands       = availableCommands config,
+                   last_command        = Nothing,
+                   cmdqueue            = [],
+                   remembered_ctx      = [],
+                   transient_ctx       = [],
+                   ghc_e               = isJust maybe_exprs,
+                   short_help          = shortHelpText config,
+                   long_help           = fullHelpText config,
+                   mod_infos           = M.empty,
+                   rdrNamesInScope     = [],
+                   ghci_work_directory = current_directory,
+                   ghc_work_directory  = current_directory
                  }
 
    return ()
@@ -1314,6 +1318,10 @@ changeDirectory dir = do
   lift $ setContextAfterLoad False []
   GHC.workingDirectoryChanged
   dir' <- expandPath dir
+  lift $ modifyGHCiState
+    (\state -> state { ghci_work_directory = dir'
+                     , ghc_work_directory = dir'
+                     })
   liftIO $ setCurrentDirectory dir'
 
 trySuccess :: GHC.GhcMonad m => m SuccessFlag -> m SuccessFlag
@@ -1321,6 +1329,20 @@ trySuccess act =
     handleSourceError (\e -> do GHC.printException e
                                 return Failed) $ do
       act
+
+-----------------------------------------------------------------------------
+-- :cd-ghc
+
+-- NOTE: calling :cd will reset the GHC working directory as well as
+-- the GHCi working directory.
+changeDirectoryGHC :: String -> InputT GHCi ()
+-- :cd-ghc on its own resets the ghc work directory to match
+-- the ghci work directory.
+changeDirectoryGHC "" = lift $ modifyGHCiState $ \state ->
+  state { ghc_work_directory = (ghci_work_directory state) }
+changeDirectoryGHC dir = do
+  dir' <- expandPath dir
+  lift $ modifyGHCiState $ \state -> state { ghc_work_directory = dir' }
 
 -----------------------------------------------------------------------------
 -- :edit
@@ -1524,12 +1546,16 @@ doLoad retain_context howmuch = do
 
   -- Enable buffering stdout and stderr as we're compiling. Keeping these
   -- handles unbuffered will just slow the compilation down, especially when
-  -- compiling in parallel.
+  -- compiling in parallel. Also, set the the current working directory to
+  -- the value of ghc_working_directory for the duration of the call.
+  state <- lift getGHCiState
   wasok <- gbracket (liftIO $ do hSetBuffering stdout LineBuffering
-                                 hSetBuffering stderr LineBuffering)
+                                 hSetBuffering stderr LineBuffering
+                                 setCurrentDirectory (ghc_work_directory state))
                     (\_ ->
                      liftIO $ do hSetBuffering stdout NoBuffering
-                                 hSetBuffering stderr NoBuffering) $ \_ -> do
+                                 hSetBuffering stderr NoBuffering
+                                 setCurrentDirectory (ghci_work_directory state)) $ \_ -> do
       ok <- trySuccess $ GHC.load howmuch
       afterLoad ok retain_context
       return ok
