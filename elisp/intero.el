@@ -780,9 +780,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 (defun intero-linkify-file:line (begin end)
   "Linkify all occurances of <file>:<line>:<char>: betwen begin and end"
   (let ((end-marker (copy-marker end))
-        (file:line:char-regexp (concat "[\r\n]\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\):\\([0-9()-:]+\\):"
-                                       ;; "[ \n\r]+\\([[:unibyte:][:nonascii:]]+?\\)\n[^ ]"
-                                       )))
+        (file:line:char-regexp "[\r\n]\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\):\\([0-9()-:]+\\):"))
     (save-excursion
       (goto-char begin)
       ;; Delete unrecognized escape sequences.
@@ -798,7 +796,8 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
                                      'help-echo "mouse-2: visit this file")))))))
 
 (defun intero-linkify-process-output (ignored)
-  ""
+  "comint-output-filter-function to turn <file>:<line>:<char>: into
+links that can be clicked on."
   (let ((start-marker (if (and (markerp comint-last-output-start)
                                (eq (marker-buffer comint-last-output-start)
                                    (current-buffer))
@@ -816,7 +815,6 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (set (make-local-variable 'comint-prompt-regexp) intero-prompt-regexp)
   (add-hook 'comint-output-filter-functions
             'intero-linkify-process-output)
-  ;; (setq comint-scroll-to-bottom-on-input t)
   (set (make-local-variable 'comint-prompt-read-only) t))
 
 (defun intero-repl-mode-start (backend-buffer targets prompt-options)
@@ -1164,8 +1162,7 @@ as (CALLBACK STATE REPLY)."
                                            cmd)))))
                (when intero-debug
                  (message "[Intero] -> %s" cmd))
-               (process-send-string (intero-process worker)
-                                    (concat cmd "\n")))
+               (comint-simple-send (intero-process worker) cmd))
       (error "Intero process is not running: run M-x intero-restart to start it"))))
 
 (defun intero-buffer (worker)
@@ -1261,11 +1258,11 @@ Automatically performs initial actions in SOURCE-BUFFER, if specified."
                       (when intero-debug
                         (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
                       (message "Booting up intero ...")
-                      (apply #'start-process "stack" buffer "stack" "ghci"
-                             arguments))))
+                      (get-buffer-process (apply #'make-comint-in-buffer "stack" buffer "stack" nil "ghci"
+                             arguments)))))
       (set-process-query-on-exit-flag process nil)
-      (process-send-string process ":set -fobject-code\n")
-      (process-send-string process ":set prompt \"\\4\"\n")
+      (comint-simple-send process ":set -fobject-code")
+      (comint-simple-send process ":set prompt \"\\4\"")
       (with-current-buffer buffer
         (erase-buffer)
         (setq intero-targets targets)
