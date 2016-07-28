@@ -1989,10 +1989,10 @@ suggestions are available."
                                      (split-string (match-string 2)
                                                    "[[:space:]]*,[[:space:]]*")))
                             (nonredundant
-                             (loop for r in (plist-get suggestion :redundancies)
-                                   with nonredundant = constraints
-                                   do (setq nonredundant (delete r nonredundant))
-                                   finally return nonredundant)))
+                             (cl-loop for r in (plist-get suggestion :redundancies)
+                                      with nonredundant = constraints
+                                      do (setq nonredundant (delete r nonredundant))
+                                      finally return nonredundant)))
                        (goto-char start)
                        (delete-char (- end start))
                        (insert (string-join nonredundant ", ")))
