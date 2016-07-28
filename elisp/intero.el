@@ -722,9 +722,9 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (let ((file (intero-buffer-file-name))
         (repl-buffer (intero-repl-buffer prompt-options)))
     (with-current-buffer repl-buffer
-      (comint-send-string
+      (comint-simple-send
        (get-buffer-process (current-buffer))
-       (concat ":l " file "\n")))
+       (concat ":l " file)))
     (pop-to-buffer repl-buffer)))
 
 (defun intero-repl (&optional prompt-options)
@@ -781,7 +781,8 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   "Linkify all occurances of <file>:<line>:<char>: betwen begin and end"
   (let ((end-marker (copy-marker end))
         (file:line:char-regexp (concat "[\r\n]\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\):\\([0-9()-:]+\\):"
-                                       "[ \n\r]+\\([[:unibyte:][:nonascii:]]+?\\)\n[^ ]")))
+                                       ;; "[ \n\r]+\\([[:unibyte:][:nonascii:]]+?\\)\n[^ ]"
+                                       )))
     (save-excursion
       (goto-char begin)
       ;; Delete unrecognized escape sequences.
@@ -844,11 +845,11 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
 ")
                     (basic-save-buffer)
                     (intero-buffer-file-name))))
-      (let ((process (apply #'start-process "intero" (current-buffer) "stack" "ghci"
-                            (append arguments
-                                    (list "--verbosity" "silent")
-                                    (list "--ghci-options"
-                                          (concat "-ghci-script=" script))))))
+      (let ((process (get-buffer-process (apply #'make-comint-in-buffer "intero" (current-buffer) "stack" nil "ghci"
+                                               (append arguments
+                                                       (list "--verbosity" "silent")
+                                                       (list "--ghci-options"
+                                                             (concat "-ghci-script=" script)))))))
         (when (process-live-p process)
           (set-process-query-on-exit-flag process nil)
           (message "Started Intero process for REPL."))))))
