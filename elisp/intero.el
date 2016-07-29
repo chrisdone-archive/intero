@@ -398,8 +398,7 @@ running context across :load/:reloads in Intero."
                       cont
                       'interrupted)
     (let ((file-buffer (current-buffer)))
-      (write-region (point-min) (point-max) (intero-buffer-file-name) nil 'no-message)
-      (clear-visited-file-modtime)
+      (intero-save-silently)
       (intero-async-call
        'backend
        (concat ":l " (intero-buffer-file-name))
@@ -426,6 +425,27 @@ running context across :load/:reloads in Intero."
                                             (replace-regexp-in-string modules "," ""))
                                     nil
                                     (lambda (_st _))))))))))))
+
+(defun intero-save-silently ()
+  "Silently save the current buffer, if it is modified:
+
+* Does not print messages.
+* Does not trigger any hooks."
+  (interactive)
+  (let (; Attempts to disable messages:
+        (inhibit-message t) ;; Introduced in Emacs 25
+        message-log-max     ;; Introduced in Emacs 24.3
+        ;; Canonical list of hooks taken from:
+        ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Saving-Buffers.html
+        auto-save-hook
+        require-final-newline
+        before-save-hook
+        after-save-hook
+        write-contents-functions
+        write-file-functions)
+    (when (buffer-modified-p)
+      (basic-save-buffer))
+    nil))
 
 (flycheck-define-generic-checker 'intero
   "A syntax and type checker for Haskell using an Intero worker
