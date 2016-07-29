@@ -426,16 +426,26 @@ running context across :load/:reloads in Intero."
                                     nil
                                     (lambda (_st _))))))))))))
 
+(defun intero-original-write-region (&rest _)
+  "Place to store the original write-region function, to use later.")
+(fset 'intero-original-write-region (symbol-function 'write-region))
+
+(defun intero-silent-write-region (start end filename &optional append visit lockname mustbenew)
+  "Same as `write-region', but with messages supressed."
+  (let ((result (intero-original-write-region start end filename append 'no-message lockname mustbenew)))
+    ;; This is what visit normally does:
+    (when visit
+      (set-visited-file-modtime)
+      (set-buffer-modified-p nil))
+    result))
+
 (defun intero-save-silently ()
   "Silently save the current buffer, if it is modified:
 
 * Does not print messages.
 * Does not trigger any hooks."
   (interactive)
-  (let (; Attempts to disable messages:
-        (inhibit-message t) ;; Introduced in Emacs 25
-        message-log-max     ;; Introduced in Emacs 24.3
-        ;; Canonical list of hooks taken from:
+  (let (;; Canonical list of hooks taken from:
         ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Saving-Buffers.html
         auto-save-hook
         require-final-newline
@@ -444,8 +454,9 @@ running context across :load/:reloads in Intero."
         write-contents-functions
         write-file-functions)
     (when (buffer-modified-p)
-      (basic-save-buffer))
-    nil))
+      ;; Supress message output.
+      (cl-letf (((symbol-function 'write-region) #'intero-silent-write-region))
+        (basic-save-buffer)))))
 
 (flycheck-define-generic-checker 'intero
   "A syntax and type checker for Haskell using an Intero worker
@@ -726,7 +737,7 @@ pragma is supported also."
 (defun eldoc-intero ()
   "ELDoc backend for intero."
   (let* ((ty (apply #'intero-get-type-at (intero-thing-at-point)))
-	 (is-error (string-match "^<.+>:.+:" ty)))
+         (is-error (string-match "^<.+>:.+:" ty)))
     (unless is-error
       (intero-fontify-expression (replace-regexp-in-string "[ \n]+" " " ty)))))
 
