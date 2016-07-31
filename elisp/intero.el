@@ -1777,6 +1777,54 @@ automatically."
                            "hoogle" "--help")
       (0 t))))
 
+(defun intero-hoogle-helm (query)
+  "Do a Hoogle search for QUERY using stack hoogle and display using helm."
+  (interactive
+   (let ((def (intero-ident-at-point)))
+     (if (and def (symbolp def)) (setq def (symbol-name def)))
+     (list (read-string (if def
+                            (format "Hoogle query (default %s): " def)
+                          "Hoogle query: ")
+                        nil nil def))))
+  (if (intero-hoogle-supported-p)
+      (progn
+        (intero-hoogle-get-worker-create)
+        (let* ((results (intero-hoogle-blocking-query query))
+               (text (cl-loop
+                      for line in (append results nil)
+                      collect
+                      (list (format
+                             "%-30s%-12s%-20s"
+                             (alist-get 'name (alist-get 'module line))
+                             (alist-get 'name (alist-get 'package line))
+                             (with-temp-buffer
+                               (insert (alist-get 'item line))
+                               (html2text)
+                               (html2text-remove-tags '("span" "0"))
+                               (buffer-string)))
+                            line))))
+          (if (and results (> (length results) 0))
+              (helm :sources `((name . "hoogle")
+                               (candidates . ,text)
+                               (action . (("browse" .
+                                           (lambda (x)
+                                             (browse-url
+                                              (alist-get 'url (car x)))))
+                                          ("add import" .
+                                           (lambda (x)
+                                             (intero-add-import
+                                              (alist-get 'name (alist-get 'module (car x))))))
+                                          ("add package" .
+                                           (lambda (x)
+                                             (haskell-cabal-add-dependency
+                                              (alist-get 'name (alist-get 'package (car x)))))))))
+                    :buffer "*hoogle*")
+            (progn
+              (message "Nothing found. Looking remotely ...")
+              (hoogle query)))))
+    ;; default to the usual hoogle
+    (hoogle query)))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Collecting information from compiler messages
 
@@ -1869,6 +1917,21 @@ suggestions are available."
                                    :column (flycheck-error-column msg)
                                    :line (flycheck-error-line msg)))
                 (setq start (min (length text) (1+ (match-end 0)))))))
+          ;; Messages of this format:
+          ;;
+          ;; Not in scope: ‘sortBy’
+          ;; Or this format:
+          ;;
+          ;; error:
+          ;;    • Variable not in scope: lopSetup :: [Statement Exp']
+          (when (string-match
+                 "[Nn]ot in scope: \\(data constructor \\|type constructor or class \\)?[‘`‛]?\\([^'’ ]+\\)"
+                 text)
+            (let ((ident (match-string 2 text)))
+              (setq note t)
+              (add-to-list 'intero-suggestions
+                           (list :type 'hoogle-identifier
+                                 :query ident))))
           ;; Messages of this format:
           ;;
           ;;     Top-level binding with no type signature: main :: IO ()
@@ -1966,6 +2029,11 @@ suggestions are available."
                                       (plist-get suggestion :replacement)
                                       "’")
                        :default (null (cdr intero-suggestions))))
+                (hoogle-identifier
+                 (list :key suggestion
+                       :title (concat "Hoogle identifier: "
+                                      (plist-get suggestion :query))
+                       :default t))
                 (add-signature
                  (list :key suggestion
                        :title (concat "Add signature: "
@@ -2041,6 +2109,13 @@ suggestions are available."
                  (insert (plist-get suggestion :signature))
                  (insert "\n")))))
 
+        ;; search hoogle, which might possibly end up adding an import line or package.
+        (cl-loop
+         for suggestion in sorted
+         do (cl-case (plist-get suggestion :type)
+              (hoogle-identifier
+               (intero-hoogle-helm (plist-get suggestion :query)))))
+
         ;; Remove import lines from the file. May remove more than one
         ;; line per import.
         (cl-loop
@@ -2070,6 +2145,28 @@ suggestions are available."
                  (insert "{-# OPTIONS_GHC "
                          (plist-get suggestion :option)
                          " #-}\n")))))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Import management
+
+(defun intero-imports-find-import-section-end ()
+  "Return a point at the end of the import section"
+  (save-excursion
+    (goto-char (point-min))
+    ;; go past pragmas, if any
+    (while (when (search-forward-regexp "^{-#" (point-max) t)
+             (forward-line)))
+    ;; go past imports, if any
+    (while (when (search-forward-regexp "^import" (point-max) t)
+             (forward-line)))
+    (point)))
+
+(defun intero-add-import (module)
+  (save-excursion
+    (goto-char (intero-imports-find-import-section-end))
+    (insert "import ")
+    (insert module)
+    (insert "\n")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
