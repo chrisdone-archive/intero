@@ -1981,19 +1981,19 @@ suggestions are available."
 
 (defun intero-parse-comma-list (text)
   "Parse a list of comma-separated expressions."
-  (loop for tok in (split-string text "[[:space:]\n]*,[[:space:]\n]*")
-        with acc = nil
-        append (let* ((clist (string-to-list tok))
-                      (num-open (-count (lambda (c) (or (eq c ?\() (eq c ?\[)))
-                                        clist))
-                      (num-close (-count (lambda (c) (or (eq c ?\)) (eq c ?\])))
-                                         clist)))
-                 (cond
-                  ((> num-open num-close) (progn (add-to-list 'acc tok) nil))
-                  ((> num-close num-open) (let ((tmp (reverse (cons tok acc))))
-                                            (setq acc nil)
-                                            (list (string-join tmp ", "))))
-                  (t (list tok))))))
+  (cl-loop for tok in (split-string text "[[:space:]\n]*,[[:space:]\n]*")
+           with acc = nil
+           append (let* ((clist (string-to-list tok))
+                         (num-open (-count (lambda (c) (or (eq c ?\() (eq c ?\[)))
+                                           clist))
+                         (num-close (-count (lambda (c) (or (eq c ?\)) (eq c ?\])))
+                                            clist)))
+                    (cond
+                     ((> num-open num-close) (progn (add-to-list 'acc tok) nil))
+                     ((> num-close num-open) (let ((tmp (reverse (cons tok acc))))
+                                               (setq acc nil)
+                                               (list (string-join tmp ", "))))
+                     (t (list tok))))))
 
 (defun intero-apply-suggestions ()
   "Prompt and apply the suggestions."
@@ -2090,10 +2090,10 @@ suggestions are available."
                           (constraints (intero-parse-comma-list
                                         (buffer-substring start end)))
                           (nonredundant
-                             (loop for r in (plist-get suggestion :redundancies)
-                                   with nonredundant = constraints
-                                   do (setq nonredundant (delete r nonredundant))
-                                   finally return nonredundant)))
+                           (cl-loop for r in (plist-get suggestion :redundancies)
+                                    with nonredundant = constraints
+                                    do (setq nonredundant (delete r nonredundant))
+                                    finally return nonredundant)))
                      (goto-char start)
                      (delete-char (- end start))
                      (insert (string-join nonredundant ", "))))))))
