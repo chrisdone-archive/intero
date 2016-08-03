@@ -815,45 +815,61 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
 from 'line text property."
   (interactive)
   (let ((file (get-text-property (point) 'file))
-        (line:char (get-text-property (point) 'line)))
+        (line (get-text-property (point) 'line))
+        (char (get-text-property (point) 'char)))
     (with-no-warnings (find-file-other-window file))
-    (if (string-match "^\\([0-9]+\\):?\\([0-9]*\\)$" line:char 0)
-        (let ((line (string-to-number (match-string 1 line:char)))
-              (char (string-to-number (match-string 2 line:char))))
-          (goto-char (point-min))
-          (forward-line (1- line))
-          (forward-char (1- char))))))
+    (goto-char (point-min))
+    (forward-line (1- line))
+    (forward-char (1- char))))
 
-(defun intero-linkify-file:line (begin end)
+(defun intero-linkify-file-line-char (begin end)
   "Linkify all occurances of <file>:<line>:<char>: betwen begin and end"
   (let ((end-marker (copy-marker end))
-        (file:line:char-regexp "[\r\n]\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\):\\([0-9()-:]+\\):"))
+        ;; match - /path/to/file.ext:<line>:<char>:
+        ;;       - /path/to/file.ext:<line>:<char>-
+        ;;       - /path/to/file.ext:(<line>:<char>)
+        (file:line:char-regexp "\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\)[:](?\\([0-9]+\\)[:,]\\([0-9]+\\)[:)-]"))
     (save-excursion
       (goto-char begin)
       ;; Delete unrecognized escape sequences.
       (while (re-search-forward file:line:char-regexp end-marker t)
         (let ((file (match-string-no-properties 1))
               (line (match-string-no-properties 2))
+              (char (match-string-no-properties 3))
               (link-start (1+ (match-beginning 1)))
               (link-end   (1+ (match-end 2))))
           (add-text-properties
            link-start link-end
            (list 'keymap intero-hyperlink-map
                  'file   file
-                 'line   line
+                 'line   (string-to-number line)
+                 'char   (string-to-number char)
                  'help-echo "mouse-2: visit this file")))))))
+
+(defvar intero-last-output-newline-marker nil)
 
 (defun intero-linkify-process-output (ignored)
   "comint-output-filter-function to turn <file>:<line>:<char>: into
-links that can be clicked on."
-  (let ((start-marker (if (and (markerp comint-last-output-start)
-                               (eq (marker-buffer comint-last-output-start)
+links that can be clicked on.
+
+Note that this function uses the `intero-last-output-newline-marker',
+to keep track of line breaks. The `intero-linkify-file-line-char'
+function is subsequently applied to each line, once."
+  (unless intero-last-output-newline-marker
+    (setq-local intero-last-output-newline-marker (make-marker))
+    (set-marker intero-last-output-newline-marker (marker-position comint-last-output-start)))
+  (let ((start-marker (if (and (markerp intero-last-output-newline-marker)
+                               (eq (marker-buffer intero-last-output-newline-marker)
                                    (current-buffer))
-                               (marker-position comint-last-output-start))
+                               (marker-position intero-last-output-newline-marker))
                           comint-last-output-start
                         (point-min-marker)))
         (end-marker (process-mark (get-buffer-process (current-buffer)))))
-    (intero-linkify-file:line start-marker end-marker)))
+    (save-excursion
+      (goto-char start-marker)
+      (while (re-search-forward "[\n\r]" end-marker t)
+        (intero-linkify-file-line-char intero-last-output-newline-marker (match-beginning 0))
+        (set-marker intero-last-output-newline-marker (match-end 0))))))
 
 (define-derived-mode intero-repl-mode comint-mode "Intero-REPL"
   "Interactive prompt for Intero."
