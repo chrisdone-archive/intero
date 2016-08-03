@@ -17,6 +17,7 @@ Key binding | Description
 `C-u C-c C-t` | Insert a type signature for the thing at point
 `C-c C-l` | Load this module in the REPL
 `C-c C-r` | Apply suggestions from GHC
+`C-c C-k` | Clear REPL
 
 ## Intero for IDE writers
 
