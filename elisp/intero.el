@@ -117,7 +117,7 @@ This causes it to skip building the target."
                (flycheck-mode)
                (add-to-list (make-local-variable 'company-backends) 'company-intero)
                (company-mode)
-	       (set (make-local-variable 'eldoc-documentation-function) 'eldoc-intero))
+               (set (make-local-variable 'eldoc-documentation-function) 'eldoc-intero))
       (message "Intero mode disabled."))))
 
 (define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
@@ -1913,18 +1913,32 @@ suggestions are available."
           ;;                             Functor var,
           ;;                             Applicative var,
           ;;                             Monad var)
-          (when (string-match "Redundant constraints?:[\n[:space:]]*\\(\\([[:alnum:][:space:]]+\\)\\|(\\([[:alnum:][:space:],\n]+\\))\\).*\n.*In the " text)
-            (setq note t)
-            (add-to-list
-             'intero-suggestions
-             (let ((rest (substring text (match-end 0)))
-                   (redundant (or (match-string 2 text) (match-string 3 text))))
-               (list :type 'redundant-constraint
-                     :redundancies (mapcar #'string-trim
-                                           (split-string redundant
-                                                         "[:space:]*,[:space:]*"))
-                     :signature (mapconcat #'identity (split-string rest) " ")
-                     :line (flycheck-error-line msg)))))
+          (when (string-match "Redundant constraints?: " text)
+            (let* ((redundant-start (match-end 0))
+                   (parts (with-temp-buffer
+                            (insert (substring text redundant-start))
+                            (goto-char (point-min))
+                            ;; A lone unparenthesized constraint might
+                            ;; be multiple sexps.
+                            (while (not (eq (point) (point-at-eol)))
+                              (forward-sexp))
+                            (let ((redundant-end (point)))
+                              (search-forward-regexp ".*\n.*In the ")
+                              (cons (buffer-substring (point-min) redundant-end)
+                                    (buffer-substring (match-end 0) (point-max)))))))
+              (setq note t)
+              (add-to-list
+               'intero-suggestions
+               (let ((rest (cdr parts))
+                     (redundant (let ((raw (car parts)))
+                                  (if (eq (string-to-char raw) ?\()
+                                      (substring raw 1 (1- (length raw)))
+                                    raw))))
+                 (list :type 'redundant-constraint
+                       :redundancies (mapcar #'string-trim
+                                             (intero-parse-comma-list redundant))
+                       :signature (mapconcat #'identity (split-string rest) " ")
+                       :line (flycheck-error-line msg))))))
           ;; Add a note if we found a suggestion to make
           (when note
             (setf (flycheck-error-message msg)
@@ -1948,6 +1962,22 @@ suggestions are available."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Auto actions
+
+(defun intero-parse-comma-list (text)
+  "Parse a list of comma-separated expressions."
+  (loop for tok in (split-string text "[[:space:]\n]*,[[:space:]\n]*")
+        with acc = nil
+        append (let* ((clist (string-to-list tok))
+                      (num-open (-count (lambda (c) (or (eq c ?\() (eq c ?\[)))
+                                        clist))
+                      (num-close (-count (lambda (c) (or (eq c ?\)) (eq c ?\])))
+                                         clist)))
+                 (cond
+                  ((> num-open num-close) (progn (add-to-list 'acc tok) nil))
+                  ((> num-close num-open) (let ((tmp (reverse (cons tok acc))))
+                                            (setq acc nil)
+                                            (list (string-join tmp ", "))))
+                  (t (list tok))))))
 
 (defun intero-apply-suggestions ()
   "Prompt and apply the suggestions."
@@ -2033,23 +2063,21 @@ suggestions are available."
                (save-excursion
                  (goto-char (point-min))
                  (forward-line (1- (plist-get suggestion :line)))
-                 (if (search-forward-regexp "\\([[:space:]]*::\\|instance\\)[[:space:]]* (?\\([[:alnum:][:space:],?\n]+\\))?[[:space:]?\n]*=>" (point-max) t)
-                     (let* ((start (match-beginning 2))
-                            (end (match-end 2))
-                            (constraints
-                             (mapcar #'string-trim
-                                     (split-string (match-string 2)
-                                                   "[[:space:]]*,[[:space:]]*")))
-                            (nonredundant
-                             (cl-loop for r in (plist-get suggestion :redundancies)
-                                      with nonredundant = constraints
-                                      do (setq nonredundant (delete r nonredundant))
-                                      finally return nonredundant)))
-                       (goto-char start)
-                       (delete-char (- end start))
-                       (insert (string-join nonredundant ", ")))
-                   (message "Couldn't parse constraints"))))))
-
+                 (search-forward-regexp "[[:alnum:][:space:]\n]*=>")
+                 (backward-sexp 2)
+                 (let ((start (1+ (point))))
+                   (forward-sexp)
+                   (let* ((end (1- (point)))
+                          (constraints (intero-parse-comma-list
+                                        (buffer-substring start end)))
+                          (nonredundant
+                             (loop for r in (plist-get suggestion :redundancies)
+                                   with nonredundant = constraints
+                                   do (setq nonredundant (delete r nonredundant))
+                                   finally return nonredundant)))
+                     (goto-char start)
+                     (delete-char (- end start))
+                     (insert (string-join nonredundant ", "))))))))
 
         ;; Add a type signature to a top-level binding.
         (cl-loop
