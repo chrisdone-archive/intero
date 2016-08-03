@@ -878,7 +878,8 @@ function is subsequently applied to each line, once."
     (error "You probably meant to run: M-x intero-repl"))
   (set (make-local-variable 'comint-prompt-regexp) intero-prompt-regexp)
   (add-hook 'comint-output-filter-functions
-            'intero-linkify-process-output)
+            'intero-linkify-process-output
+            t)
   (set (make-local-variable 'comint-prompt-read-only) t))
 
 (defun intero-repl-mode-start (backend-buffer targets prompt-options)
