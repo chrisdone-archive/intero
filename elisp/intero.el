@@ -2052,10 +2052,13 @@ suggestions are available."
         (message "No changes selected to apply.")
       (let ((sorted (sort to-apply
                           (lambda (lt gt)
-                            (> (or (plist-get lt :line)
-                                   0)
-                               (or (plist-get gt :line)
-                                   0))))))
+                            (let ((lt-line   (or (plist-get lt :line)   0))
+                                  (lt-column (or (plist-get lt :column) 0))
+                                  (gt-line   (or (plist-get gt :line)   0))
+                                  (gt-column (or (plist-get gt :column) 0)))
+                              (or (> lt-line gt-line)
+                                  (and (= lt-line gt-line)
+                                       (> lt-column gt-column))))))))
         ;; # Changes that do not increase/decrease line numbers
         ;;
         ;; Update in-place suggestions
