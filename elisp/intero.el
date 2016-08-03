@@ -124,6 +124,7 @@ This causes it to skip building the target."
 (define-key intero-mode-map (kbd "C-c C-i") 'intero-info)
 (define-key intero-mode-map (kbd "M-.") 'intero-goto-definition)
 (define-key intero-mode-map (kbd "C-c C-l") 'intero-repl-load)
+(define-key intero-mode-map (kbd "C-c C-z") 'intero-repl)
 (define-key intero-mode-map (kbd "C-c C-r") 'intero-apply-suggestions)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -746,6 +747,10 @@ pragma is supported also."
 
 (defconst intero-prompt-regexp "^\4 ")
 
+(defvar-local intero-repl-previous-buffer nil
+  "Records the buffer to which `intero-repl-switch-back' should jump.
+This is set by `intero-repl-buffer', and should otherwise be nil.")
+
 (defun intero-clear-buffer ()
   (interactive)
   (let ((comint-buffer-maximum-size 0))
@@ -757,7 +762,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (interactive "P")
   (save-buffer)
   (let ((file (intero-buffer-file-name))
-        (repl-buffer (intero-repl-buffer prompt-options)))
+        (repl-buffer (intero-repl-buffer prompt-options t)))
     (with-current-buffer repl-buffer
       (comint-simple-send
        (get-buffer-process (current-buffer))
@@ -768,26 +773,34 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   "Start up the REPL for this stack project.
 If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (interactive "P")
-  (switch-to-buffer (intero-repl-buffer prompt-options)))
+  (switch-to-buffer-other-window (intero-repl-buffer prompt-options t)))
 
-(defun intero-repl-buffer (prompt-options)
+(defun intero-repl-buffer (prompt-options &optional store-previous)
   "Start the REPL buffer.
-If PROMPT-OPTIONS is non-nil, prompt with an options list."
+If PROMPT-OPTIONS is non-nil, prompt with an options list.  When
+STORE-PREVIOUS is non-nil, note the caller's buffer in
+`intero-repl-previous-buffer'."
   (let* ((root (intero-project-root))
          (package-name (intero-package-name))
          (name (format "*intero:%s:%s:repl*"
                        (file-name-nondirectory root)
                        package-name))
+         (initial-buffer (current-buffer))
          (backend-buffer (intero-buffer 'backend)))
-    (if (get-buffer name)
-        (get-buffer name)
-      (with-current-buffer
-          (get-buffer-create name)
-        (cd root)
-        (intero-repl-mode)
-        (intero-repl-mode-start backend-buffer
-                                (buffer-local-value 'intero-targets backend-buffer)
-                                prompt-options)
+    (with-current-buffer
+        (if (get-buffer name)
+            (get-buffer name)
+          (with-current-buffer
+              (get-buffer-create name)
+            (cd root)
+            (intero-repl-mode)
+            (intero-repl-mode-start backend-buffer
+                                    (buffer-local-value 'intero-targets backend-buffer)
+                                    prompt-options)
+            (current-buffer)))
+      (progn
+        (when store-previous
+          (setq intero-repl-previous-buffer initial-buffer))
         (current-buffer)))))
 
 (defvar intero-hyperlink-map
@@ -925,6 +938,7 @@ changes in the BACKEND-BUFFER."
 (define-key intero-repl-mode-map [remap move-beginning-of-line] 'intero-repl-beginning-of-line)
 (define-key intero-repl-mode-map [remap delete-backward-char] 'intero-repl-delete-backward-char)
 (define-key intero-repl-mode-map (kbd "C-c C-k") 'intero-clear-buffer)
+(define-key intero-repl-mode-map (kbd "C-c C-z") 'intero-repl-switch-back)
 
 (defun intero-repl-delete-backward-char ()
   "Delete backwards, excluding the prompt."
@@ -938,6 +952,13 @@ changes in the BACKEND-BUFFER."
   (if (search-backward-regexp intero-prompt-regexp (line-beginning-position) t 1)
       (goto-char (+ 2 (line-beginning-position)))
     (call-interactively 'move-beginning-of-line)))
+
+(defun intero-repl-switch-back ()
+  "Switch back to the buffer from which this REPL buffer was reached."
+  (interactive)
+  (if intero-repl-previous-buffer
+      (switch-to-buffer-other-window intero-repl-previous-buffer)
+    (message "No previous buffer.")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer operations
