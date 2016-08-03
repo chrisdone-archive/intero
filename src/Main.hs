@@ -96,7 +96,7 @@ main = do
     -- 1. extract the -B flag from the args
     argv00 <- getArgs
     if elem "--version" argv00
-       then do putStrLn (Data.Version.showVersion Paths_intero.version)
+       then do putStrLn ("Intero " ++ Data.Version.showVersion Paths_intero.version)
                exitSuccess
        else return ()
     case lookup "STACK_EXE" env of
