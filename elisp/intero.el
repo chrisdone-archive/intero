@@ -1446,7 +1446,11 @@ This is a standard process sentinel function."
                            "--" "intero" "--version"))
         (progn
           (goto-char (point-min))
-          (if (string= (buffer-substring (point-min) (line-end-position))
+          ;; This skipping comes due to https://github.com/commercialhaskell/intero/pull/216/files
+          (when (looking-at "Intero ")
+            (goto-char (match-end 0)))
+          ;;
+          (if (string= (buffer-substring (point) (line-end-position))
                        intero-package-version)
               'installed
             'wrong-version))
