@@ -96,9 +96,8 @@ This causes it to skip building the target."
 (defvar intero-mode-map (make-sparse-keymap)
   "Intero minor mode's map.")
 
-(defvar intero-lighter " Intero"
+(defvar-local intero-lighter " Intero"
   "Lighter for the intero minor mode.")
-(make-variable-buffer-local 'intero-lighter)
 
 ;;;###autoload
 (define-minor-mode intero-mode
@@ -117,7 +116,7 @@ This causes it to skip building the target."
                (flycheck-mode)
                (add-to-list (make-local-variable 'company-backends) 'company-intero)
                (company-mode)
-               (set (make-local-variable 'eldoc-documentation-function) 'eldoc-intero))
+               (setq-local eldoc-documentation-function 'eldoc-intero))
       (message "Intero mode disabled."))))
 
 (define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
@@ -148,67 +147,53 @@ This causes it to skip building the target."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer-local variables/state
 
-(defvar intero-callbacks (list)
+(defvar-local intero-callbacks (list)
   "List of callbacks waiting for output.
 LIST is a FIFO.")
-(make-variable-buffer-local 'intero-callbacks)
 
-(defvar intero-arguments (list)
+(defvar-local intero-arguments (list)
   "Arguments used to call the stack process.")
-(make-variable-buffer-local 'intero-arguments)
 
-(defvar intero-targets (list)
+(defvar-local intero-targets (list)
   "Targets used for the stack process.")
-(make-variable-buffer-local 'intero-targets)
 
-(defvar intero-source-buffer (list)
+(defvar-local intero-source-buffer (list)
   "Buffer from which Intero was first requested to start.")
-(make-variable-buffer-local 'intero-source-buffer)
 
-(defvar intero-project-root nil
+(defvar-local intero-project-root nil
   "The project root of the current buffer.")
-(make-variable-buffer-local 'intero-project-root)
 
-(defvar intero-package-name nil
+(defvar-local intero-package-name nil
   "The package name associated with the current buffer.")
-(make-variable-buffer-local 'intero-package-name)
 
-(defvar intero-deleting nil
+(defvar-local intero-deleting nil
   "The process of the buffer is being deleted.")
-(make-variable-buffer-local 'intero-deleting)
 
-(defvar intero-give-up nil
+(defvar-local intero-give-up nil
   "When non-nil, give up trying to start the backend.
 A true value indicates that the backend could not start, or could
 not be installed.  The user will have to manually run
 `intero-restart' or `intero-targets' to destroy the buffer and
 create a fresh one without this variable enabled.")
-(make-variable-buffer-local 'intero-give-up)
 
-(defvar intero-try-with-build nil
+(defvar-local intero-try-with-build nil
   "Try starting intero without --no-build.
 This is slower, but will build required dependencies.")
-(make-variable-buffer-local 'intero-try-with-build)
 
-(defvar intero-starting nil
+(defvar-local intero-starting nil
   "When non-nil, indicates that the intero process starting up.")
-(make-variable-buffer-local 'intero-starting)
 
-(defvar intero-hoogle-port nil
+(defvar-local intero-hoogle-port nil
   "Port that hoogle server is listening on.")
-(make-variable-buffer-local 'intero-hoogle-port)
 
-(defvar intero-suggestions nil
+(defvar-local intero-suggestions nil
   "Auto actions for the buffer.")
-(make-variable-buffer-local 'intero-suggestions)
 
-(defvar intero-extensions nil
+(defvar-local intero-extensions nil
   "Extensions supported by the compiler.")
-(make-variable-buffer-local 'intero-extensions)
 
 (defvar intero-ghc-version nil
   "GHC version used by the project.")
-(make-variable-buffer-local 'intero-ghc-version)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
@@ -877,11 +862,11 @@ function is subsequently applied to each line, once."
   (when (and (not (eq major-mode 'fundamental-mode))
              (eq this-command 'intero-repl-mode))
     (error "You probably meant to run: M-x intero-repl"))
-  (set (make-local-variable 'comint-prompt-regexp) intero-prompt-regexp)
+  (setq-local comint-prompt-regexp intero-prompt-regexp)
   (add-hook 'comint-output-filter-functions
             'intero-linkify-process-output
             t)
-  (set (make-local-variable 'comint-prompt-read-only) t))
+  (setq-local comint-prompt-read-only t))
 
 (defun intero-repl-mode-start (backend-buffer targets prompt-options)
   "Start the process for the repl in the current buffer.
