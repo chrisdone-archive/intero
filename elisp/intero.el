@@ -49,6 +49,7 @@
 
 (require 'flycheck)
 (require 'json)
+(require 'warnings)
 (require 'cl-lib)
 (require 'company)
 (require 'comint)
@@ -863,6 +864,7 @@ function is subsequently applied to each line, once."
              (eq this-command 'intero-repl-mode))
     (error "You probably meant to run: M-x intero-repl"))
   (setq-local comint-prompt-regexp intero-prompt-regexp)
+  (setq-local warning-suppress-types (cons '(undo discard-info) warning-suppress-types))
   (add-hook 'comint-output-filter-functions
             'intero-linkify-process-output
             t)
