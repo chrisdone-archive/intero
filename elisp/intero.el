@@ -1567,7 +1567,13 @@ config exists."
                                      "path"
                                      "--project-root"
                                      "--verbosity" "silent"))
-              (0 (buffer-substring (line-beginning-position) (line-end-position))))))))
+              (0 (buffer-substring (line-beginning-position) (line-end-position)))
+              (t (warn "Couldn't get the Stack project root.
+
+This can be caused by a syntax error in your stack.yaml file. Check that out.
+
+Otherwise, please report this as a bug!")
+                 nil))))))
 
 (defun intero-ghc-version ()
   "Get the GHC version used by the project."
