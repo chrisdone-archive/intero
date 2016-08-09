@@ -824,27 +824,28 @@ from 'line text property."
 
 (defun intero-linkify-file-line-char (begin end)
   "Linkify all occurances of <file>:<line>:<char>: betwen begin and end"
-  (let ((end-marker (copy-marker end))
-        ;; match - /path/to/file.ext:<line>:<char>:
-        ;;       - /path/to/file.ext:<line>:<char>-
-        ;;       - /path/to/file.ext:(<line>:<char>)
-        (file:line:char-regexp "\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\)[:](?\\([0-9]+\\)[:,]\\([0-9]+\\)[:)-]"))
-    (save-excursion
-      (goto-char begin)
-      ;; Delete unrecognized escape sequences.
-      (while (re-search-forward file:line:char-regexp end-marker t)
-        (let ((file (match-string-no-properties 1))
-              (line (match-string-no-properties 2))
-              (char (match-string-no-properties 3))
-              (link-start (1+ (match-beginning 1)))
-              (link-end   (1+ (match-end 2))))
-          (add-text-properties
-           link-start link-end
-           (list 'keymap intero-hyperlink-map
-                 'file   file
-                 'line   (string-to-number line)
-                 'char   (string-to-number char)
-                 'help-echo "mouse-2: visit this file")))))))
+  (when (> end begin)
+    (let ((end-marker (copy-marker end))
+          ;; match - /path/to/file.ext:<line>:<char>:
+          ;;       - /path/to/file.ext:<line>:<char>-
+          ;;       - /path/to/file.ext:(<line>:<char>)
+          (file:line:char-regexp "\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\)[:](?\\([0-9]+\\)[:,]\\([0-9]+\\)[:)-]"))
+      (save-excursion
+        (goto-char begin)
+        ;; Delete unrecognized escape sequences.
+        (while (re-search-forward file:line:char-regexp end-marker t)
+          (let ((file (match-string-no-properties 1))
+                (line (match-string-no-properties 2))
+                (char (match-string-no-properties 3))
+                (link-start (1+ (match-beginning 1)))
+                (link-end   (1+ (match-end 2))))
+            (add-text-properties
+             link-start link-end
+             (list 'keymap intero-hyperlink-map
+                   'file   file
+                   'line   (string-to-number line)
+                   'char   (string-to-number char)
+                   'help-echo "mouse-2: visit this file"))))))))
 
 (defvar intero-last-output-newline-marker nil)
 
