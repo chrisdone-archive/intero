@@ -65,7 +65,7 @@
   :group 'haskell)
 
 (defcustom intero-package-version
-  "0.1.15"
+  "0.1.16"
   "Package version to auto-install."
   :group 'intero
   :type 'string)
