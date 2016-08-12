@@ -2005,7 +2005,7 @@ suggestions are available."
   "Prompt and apply the suggestions."
   (interactive)
   (when (null intero-suggestions)
-    (error "No suggestions to apply"))
+    (message "No suggestions to apply"))
   (let ((to-apply
          (intero-multiswitch
           (format "There are %d suggestions to apply:" (length intero-suggestions))
