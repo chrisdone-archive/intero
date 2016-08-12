@@ -66,7 +66,14 @@
 
 (defcustom intero-package-version
   "0.1.15"
-  "Package version to auto-install."
+  "Package version to auto-install.
+
+This version does not necessarily have to be the latest version
+of intero published on Hackage. Sometimes there are changes to
+Intero which have no use for the Emacs mode. It is only bumped
+when the Emacs mode actually requires newer features from the
+intero executable, otherwise we force our users to upgrade
+pointlessly."
   :group 'intero
   :type 'string)
 
