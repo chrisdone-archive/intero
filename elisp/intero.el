@@ -2004,146 +2004,146 @@ suggestions are available."
 (defun intero-apply-suggestions ()
   "Prompt and apply the suggestions."
   (interactive)
-  (when (null intero-suggestions)
-    (error "No suggestions to apply"))
-  (let ((to-apply
-         (intero-multiswitch
-          (format "There are %d suggestions to apply:" (length intero-suggestions))
-          (cl-remove-if-not
-           #'identity
-           (mapcar
-            (lambda (suggestion)
-              (cl-case (plist-get suggestion :type)
-                (add-extension
-                 (list :key suggestion
-                       :title (concat "Add {-# LANGUAGE "
-                                      (plist-get suggestion :extension)
-                                      " #-}")
-                       :default t))
-                (add-ghc-option
-                 (list :key suggestion
-                       :title (concat "Add {-# OPTIONS_GHC "
-                                      (plist-get suggestion :option)
-                                      " #-}")
-                       :default t))
-                (remove-import
-                 (list :key suggestion
-                       :title (concat "Remove: import "
-                                      (plist-get suggestion :module))
-                       :default t))
+  (if (null intero-suggestions)
+      (message "No suggestions to apply")
+    (let ((to-apply
+           (intero-multiswitch
+            (format "There are %d suggestions to apply:" (length intero-suggestions))
+            (cl-remove-if-not
+             #'identity
+             (mapcar
+              (lambda (suggestion)
+                (cl-case (plist-get suggestion :type)
+                  (add-extension
+                   (list :key suggestion
+                         :title (concat "Add {-# LANGUAGE "
+                                        (plist-get suggestion :extension)
+                                        " #-}")
+                         :default t))
+                  (add-ghc-option
+                   (list :key suggestion
+                         :title (concat "Add {-# OPTIONS_GHC "
+                                        (plist-get suggestion :option)
+                                        " #-}")
+                         :default t))
+                  (remove-import
+                   (list :key suggestion
+                         :title (concat "Remove: import "
+                                        (plist-get suggestion :module))
+                         :default t))
+                  (fix-typo
+                   (list :key suggestion
+                         :title (concat "Replace ‘"
+                                        (plist-get suggestion :typo)
+                                        "’ with ‘"
+                                        (plist-get suggestion :replacement)
+                                        "’")
+                         :default (null (cdr intero-suggestions))))
+                  (add-signature
+                   (list :key suggestion
+                         :title (concat "Add signature: "
+                                        (plist-get suggestion :signature))
+                         :default t))
+                  (redundant-constraint
+                   (list :key suggestion
+                         :title (concat
+                                 "Remove redundant constraints: "
+                                 (string-join (plist-get suggestion :redundancies)
+                                              ", ")
+                                 "\n    from the "
+                                 (plist-get suggestion :signature))
+                         :default nil))))
+              intero-suggestions)))))
+      (if (null to-apply)
+          (message "No changes selected to apply.")
+        (let ((sorted (sort to-apply
+                            (lambda (lt gt)
+                              (let ((lt-line   (or (plist-get lt :line)   0))
+                                    (lt-column (or (plist-get lt :column) 0))
+                                    (gt-line   (or (plist-get gt :line)   0))
+                                    (gt-column (or (plist-get gt :column) 0)))
+                                (or (> lt-line gt-line)
+                                    (and (= lt-line gt-line)
+                                         (> lt-column gt-column))))))))
+          ;; # Changes that do not increase/decrease line numbers
+          ;;
+          ;; Update in-place suggestions
+          (cl-loop
+           for suggestion in sorted
+           do (cl-case (plist-get suggestion :type)
                 (fix-typo
-                 (list :key suggestion
-                       :title (concat "Replace ‘"
-                                      (plist-get suggestion :typo)
-                                      "’ with ‘"
-                                      (plist-get suggestion :replacement)
-                                      "’")
-                       :default (null (cdr intero-suggestions))))
-                (add-signature
-                 (list :key suggestion
-                       :title (concat "Add signature: "
-                                      (plist-get suggestion :signature))
-                       :default t))
+                 (save-excursion
+                   (goto-char (point-min))
+                   (forward-line (1- (plist-get suggestion :line)))
+                   (move-to-column (- (plist-get suggestion :column) 1))
+                   (delete-char (length (plist-get suggestion :typo)))
+                   (insert (plist-get suggestion :replacement))))))
+          ;; # Changes that do increase/decrease line numbers
+          ;;
+          ;; Remove redundant constraints
+          (cl-loop
+           for suggestion in sorted
+           do (cl-case (plist-get suggestion :type)
                 (redundant-constraint
-                 (list :key suggestion
-                       :title (concat
-                               "Remove redundant constraints: "
-                               (string-join (plist-get suggestion :redundancies)
-                                            ", ")
-                               "\n    from the "
-                               (plist-get suggestion :signature))
-                       :default nil))))
-            intero-suggestions)))))
-    (if (null to-apply)
-        (message "No changes selected to apply.")
-      (let ((sorted (sort to-apply
-                          (lambda (lt gt)
-                            (let ((lt-line   (or (plist-get lt :line)   0))
-                                  (lt-column (or (plist-get lt :column) 0))
-                                  (gt-line   (or (plist-get gt :line)   0))
-                                  (gt-column (or (plist-get gt :column) 0)))
-                              (or (> lt-line gt-line)
-                                  (and (= lt-line gt-line)
-                                       (> lt-column gt-column))))))))
-        ;; # Changes that do not increase/decrease line numbers
-        ;;
-        ;; Update in-place suggestions
-        (cl-loop
-         for suggestion in sorted
-         do (cl-case (plist-get suggestion :type)
-              (fix-typo
-               (save-excursion
-                 (goto-char (point-min))
-                 (forward-line (1- (plist-get suggestion :line)))
-                 (move-to-column (- (plist-get suggestion :column) 1))
-                 (delete-char (length (plist-get suggestion :typo)))
-                 (insert (plist-get suggestion :replacement))))))
-        ;; # Changes that do increase/decrease line numbers
-        ;;
-        ;; Remove redundant constraints
-        (cl-loop
-         for suggestion in sorted
-         do (cl-case (plist-get suggestion :type)
-              (redundant-constraint
-               (save-excursion
-                 (goto-char (point-min))
-                 (forward-line (1- (plist-get suggestion :line)))
-                 (search-forward-regexp "[[:alnum:][:space:]\n]*=>")
-                 (backward-sexp 2)
-                 (let ((start (1+ (point))))
-                   (forward-sexp)
-                   (let* ((end (1- (point)))
-                          (constraints (intero-parse-comma-list
-                                        (buffer-substring start end)))
-                          (nonredundant
-                           (cl-loop for r in (plist-get suggestion :redundancies)
-                                    with nonredundant = constraints
-                                    do (setq nonredundant (delete r nonredundant))
-                                    finally return nonredundant)))
-                     (goto-char start)
-                     (delete-char (- end start))
-                     (insert (string-join nonredundant ", "))))))))
+                 (save-excursion
+                   (goto-char (point-min))
+                   (forward-line (1- (plist-get suggestion :line)))
+                   (search-forward-regexp "[[:alnum:][:space:]\n]*=>")
+                   (backward-sexp 2)
+                   (let ((start (1+ (point))))
+                     (forward-sexp)
+                     (let* ((end (1- (point)))
+                            (constraints (intero-parse-comma-list
+                                          (buffer-substring start end)))
+                            (nonredundant
+                             (cl-loop for r in (plist-get suggestion :redundancies)
+                                      with nonredundant = constraints
+                                      do (setq nonredundant (delete r nonredundant))
+                                      finally return nonredundant)))
+                       (goto-char start)
+                       (delete-char (- end start))
+                       (insert (string-join nonredundant ", "))))))))
 
-        ;; Add a type signature to a top-level binding.
-        (cl-loop
-         for suggestion in sorted
-         do (cl-case (plist-get suggestion :type)
-              (add-signature
-               (save-excursion
-                 (goto-char (point-min))
-                 (forward-line (1- (plist-get suggestion :line)))
-                 (insert (plist-get suggestion :signature))
-                 (insert "\n")))))
+          ;; Add a type signature to a top-level binding.
+          (cl-loop
+           for suggestion in sorted
+           do (cl-case (plist-get suggestion :type)
+                (add-signature
+                 (save-excursion
+                   (goto-char (point-min))
+                   (forward-line (1- (plist-get suggestion :line)))
+                   (insert (plist-get suggestion :signature))
+                   (insert "\n")))))
 
-        ;; Remove import lines from the file. May remove more than one
-        ;; line per import.
-        (cl-loop
-         for suggestion in sorted
-         do (cl-case (plist-get suggestion :type)
-              (remove-import
-               (save-excursion
-                 (goto-char (point-min))
-                 (forward-line (1- (plist-get suggestion :line)))
-                 (delete-region (line-beginning-position)
-                                (or (when (search-forward-regexp "\n[^ \t]" nil t 1)
-                                      (1- (point)))
-                                    (line-end-position)))))))
-        ;; Add extensions to the top of the file
-        (cl-loop
-         for suggestion in sorted
-         do (cl-case (plist-get suggestion :type)
-              (add-extension
-               (save-excursion
-                 (goto-char (point-min))
-                 (insert "{-# LANGUAGE "
-                         (plist-get suggestion :extension)
-                         " #-}\n")))
-              (add-ghc-option
-               (save-excursion
-                 (goto-char (point-min))
-                 (insert "{-# OPTIONS_GHC "
-                         (plist-get suggestion :option)
-                         " #-}\n")))))))))
+          ;; Remove import lines from the file. May remove more than one
+          ;; line per import.
+          (cl-loop
+           for suggestion in sorted
+           do (cl-case (plist-get suggestion :type)
+                (remove-import
+                 (save-excursion
+                   (goto-char (point-min))
+                   (forward-line (1- (plist-get suggestion :line)))
+                   (delete-region (line-beginning-position)
+                                  (or (when (search-forward-regexp "\n[^ \t]" nil t 1)
+                                        (1- (point)))
+                                      (line-end-position)))))))
+          ;; Add extensions to the top of the file
+          (cl-loop
+           for suggestion in sorted
+           do (cl-case (plist-get suggestion :type)
+                (add-extension
+                 (save-excursion
+                   (goto-char (point-min))
+                   (insert "{-# LANGUAGE "
+                           (plist-get suggestion :extension)
+                           " #-}\n")))
+                (add-ghc-option
+                 (save-excursion
+                   (goto-char (point-min))
+                   (insert "{-# OPTIONS_GHC "
+                           (plist-get suggestion :option)
+                           " #-}\n"))))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
