@@ -200,6 +200,12 @@ This is slower, but will build required dependencies.")
 (defvar-local intero-extensions nil
   "Extensions supported by the compiler.")
 
+(defvar-local intero-repl-filter-buffer ""
+  "A buffer for the REPL when making a blocking call to it.")
+
+(defvar-local intero-repl-filter-result nil
+  "Result for making a blocking call in the REPL.")
+
 (defvar intero-ghc-version nil
   "GHC version used by the project.")
 
@@ -757,10 +763,57 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (let ((file (intero-buffer-file-name))
         (repl-buffer (intero-repl-buffer prompt-options t)))
     (with-current-buffer repl-buffer
-      (comint-simple-send
-       (get-buffer-process (current-buffer))
-       (concat ":l " file)))
+      (let* ((loaded-modules (intero-repl-loaded-modules repl-buffer))
+             (to-reload (cl-remove-if-not
+                         (lambda (entry)
+                           (string= (plist-get entry :file) file))
+                         loaded-modules)))
+        (comint-simple-send
+         (get-buffer-process (current-buffer))
+         (if to-reload
+             (concat ":r " (plist-get :module to-reload))
+           (concat ":l " file)))))
     (pop-to-buffer repl-buffer)))
+
+(defun intero-repl-loaded-modules (repl-buffer)
+  "Get loaded modules in the REPL."
+  (let ((modules
+         (cl-remove-if-not
+          #'identity
+          (mapcar
+           (lambda (line)
+             (when (string-match "^\\([^ ]+\\)[ ]+( \\(.+?\\), interpreted )$" line)
+               (list :module (match-string 1 line)
+                     :file (match-string 2 line))))
+           (split-string
+            (intero-repl-blocking-call repl-buffer ":show modules")
+            "\n" t)))))
+    modules))
+
+(defun intero-repl-blocking-call (repl-buffer line)
+  "Send LINE to the process in REPL-BUFFER."
+  (with-current-buffer repl-buffer
+    (setq intero-repl-filter-result nil)
+    (setq intero-repl-filter-buffer "")
+    (set-process-filter
+     (get-buffer-process repl-buffer)
+     (lambda (process string)
+       (with-current-buffer (process-buffer process)
+         (setq intero-repl-filter-buffer
+               (concat intero-repl-filter-buffer string))
+         (when (string-match intero-prompt-regexp string)
+           (set-process-filter process 'comint-output-filter)
+           (setq intero-repl-filter-result
+                 (replace-regexp-in-string
+                  intero-prompt-regexp
+                  ""
+                  intero-repl-filter-buffer))))))
+    (comint-simple-send (get-buffer-process (current-buffer)) line)
+    (while (not intero-repl-filter-result)
+      (sleep-for 0.0001))
+    (let ((result intero-repl-filter-result))
+      (setq intero-repl-filter-result nil)
+      result)))
 
 (defun intero-repl (&optional prompt-options)
   "Start up the REPL for this stack project.
@@ -898,7 +951,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
              'face 'font-lock-comment-face))
     (let ((script (with-current-buffer (find-file-noselect (make-temp-file "intero-script"))
                     (insert ":set prompt \"\"
-:set -fobject-code
+:set -fbyte-code
 :set prompt \"\\4 \"
 ")
                     (basic-save-buffer)
