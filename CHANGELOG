@@ -1,5 +1,6 @@
 0.1.17:
 	* :unset -XFoo now works
+	* Completion in the REPL gets updated properly when imports added/removed
 
 0.1.16:
 	* Re-add back collecting type info after any load

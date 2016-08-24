@@ -575,27 +575,28 @@ Other arguments are IGNORED."
   "Generate completions for SOURCE-BUFFER based on PREFIX-INFO and call CONT on the results."
   (cl-destructuring-bind
       (beg end prefix type) prefix-info
-    (or (cl-case type
-          (haskell-completions-module-name-prefix
-           (intero-get-repl-completions source-buffer (concat "import " prefix) cont))
-          (haskell-completions-identifier-prefix
-           (intero-get-completions source-buffer beg end cont))
-          (haskell-completions-language-extension-prefix
-           (intero-get-repl-completions
-            source-buffer
-            (concat ":set -X" prefix)
-            (-partial (lambda (cont results)
-                        (funcall cont
-                                 (mapcar (lambda (x)
-                                           (replace-regexp-in-string "^-X" "" x))
-                                         results)))
-                      cont)))
-          (haskell-completions-pragma-name-prefix
-           (funcall cont
-                    (cl-remove-if-not
-                     (lambda (candidate)
-                       (string-match (concat "^" prefix) candidate))
-                     intero-pragmas))))
+    (or (and (bound-and-true-p intero-mode)
+             (cl-case type
+               (haskell-completions-module-name-prefix
+                (intero-get-repl-completions source-buffer (concat "import " prefix) cont))
+               (haskell-completions-identifier-prefix
+                (intero-get-completions source-buffer beg end cont))
+               (haskell-completions-language-extension-prefix
+                (intero-get-repl-completions
+                 source-buffer
+                 (concat ":set -X" prefix)
+                 (-partial (lambda (cont results)
+                             (funcall cont
+                                      (mapcar (lambda (x)
+                                                (replace-regexp-in-string "^-X" "" x))
+                                              results)))
+                           cont)))
+               (haskell-completions-pragma-name-prefix
+                (funcall cont
+                         (cl-remove-if-not
+                          (lambda (candidate)
+                            (string-match (concat "^" prefix) candidate))
+                          intero-pragmas)))))
         (intero-get-repl-completions source-buffer prefix cont))))
 
 (defun intero-completions-grab-prefix (&optional minlen)
@@ -875,7 +876,9 @@ function is subsequently applied to each line, once."
   (add-hook 'comint-output-filter-functions
             'intero-linkify-process-output
             t)
-  (setq-local comint-prompt-read-only t))
+  (setq-local comint-prompt-read-only t)
+  (add-to-list (make-local-variable 'company-backends) 'company-intero)
+  (company-mode))
 
 (defun intero-repl-mode-start (backend-buffer targets prompt-options)
   "Start the process for the repl in the current buffer.

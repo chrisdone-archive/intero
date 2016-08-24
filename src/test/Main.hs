@@ -327,7 +327,24 @@ completion = do
           "https://github.com/commercialhaskell/intero/issues/34"
           (eval
              ":complete repl \"put\""
-             (unlines ["3 3 \"\"", "\"putChar\"", "\"putStr\"", "\"putStrLn\""])))
+             (unlines ["3 3 \"\"", "\"putChar\"", "\"putStr\"", "\"putStrLn\""]))
+        issue
+          ":complete repl \"sor\""
+          "https://github.com/commercialhaskell/intero/issues/34"
+          (do reply <-
+                withIntero
+                  []
+                  (\_ repl -> do
+                     let req = ":complete repl \"sor\""
+                     reply <- repl req
+                     if reply == "0 0 \"\"\n"
+                       then do
+                         _ <- repl "import Data.List"
+                         repl req
+                       else return ("First step failed: " ++ reply))
+              shouldBe
+                reply
+                (unlines ["3 3 \"\"", "\"sort\"", "\"sortBy\"", "\"sortOn\""])))
   describe
     "Completion in module context"
     (do it

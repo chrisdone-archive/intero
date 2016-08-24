@@ -2271,7 +2271,9 @@ setGHCContextFromGHCiState = do
         then iidecls ++ [implicitPreludeImport]
         else iidecls
     -- XXX put prel at the end, so that guessCurrentModule doesn't pick it up.
-
+  -- Get the names in scope
+  names <- GHC.getRdrNamesInScope
+  modifyGHCiState (\s -> s { rdrNamesInScope = names })
 
 -- -----------------------------------------------------------------------------
 -- Utils on InteractiveImport
