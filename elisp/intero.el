@@ -1171,10 +1171,12 @@ passed to CONT in SOURCE-BUFFER."
          (plist-get state :source-buffer)
        (funcall
         (plist-get state :cont)
-        (mapcar
-         (lambda (x)
-           (replace-regexp-in-string "\\\"" "" x))
-         (split-string reply "\n" t)))))))
+        (if (string-match "^*** Exception" reply)
+            (list)
+          (mapcar
+           (lambda (x)
+             (replace-regexp-in-string "\\\"" "" x))
+           (split-string reply "\n" t))))))))
 
 (defun intero-get-repl-completions (source-buffer prefix cont)
   "Get REPL completions and send to SOURCE-BUFFER.
