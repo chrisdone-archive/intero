@@ -343,8 +343,8 @@ completion = do
                          repl req
                        else return ("First step failed: " ++ reply))
               shouldBe
-                (unlines (filter (/= "\"sortOn\"") (lines reply)))
-                (unlines ["3 3 \"\"", "\"sort\"", "\"sortBy\"", "\"sortOn\""])))
+                (filter (/= "\"sortOn\"") (drop 1 (lines reply)))
+                (["\"sort\"", "\"sortBy\""])))
   describe
     "Completion in module context"
     (do it
