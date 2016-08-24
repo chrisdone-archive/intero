@@ -1171,7 +1171,7 @@ passed to CONT in SOURCE-BUFFER."
         (mapcar
          (lambda (x)
            (replace-regexp-in-string "\\\"" "" x))
-         (cdr (split-string reply "\n" t))))))))
+         (split-string reply "\n" t)))))))
 
 (defun intero-get-repl-completions (source-buffer prefix cont)
   "Get REPL completions and send to SOURCE-BUFFER.
