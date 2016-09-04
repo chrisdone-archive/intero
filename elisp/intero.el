@@ -434,7 +434,8 @@ CHECKER and BUFFER are added to each item parsed from STRING."
     (insert string)
     (goto-char (point-min))
     (let ((messages (list))
-          (temp-file (intero-temp-file-name buffer)))
+          (temp-file (intero-temp-file-name buffer))
+          (real-file-name (intero-buffer-file-name buffer)))
       (while (search-forward-regexp
               (concat "[\r\n]\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\):\\([0-9()-:]+\\):"
                       "[ \n\r]+\\([[:unibyte:][:nonascii:]]+?\\)\n[^ ]")
@@ -456,11 +457,11 @@ CHECKER and BUFFER are added to each item parsed from STRING."
           (setq messages
                 (cons (flycheck-error-new-at
                        line column type
-                       msg
+                       (replace-in-string msg temp-file real-file-name)
                        :checker checker
                        :buffer (when (string= temp-file file)
                                  buffer)
-                       :filename (intero-buffer-file-name buffer))
+                       :filename real-file-name)
                       messages)))
         (forward-line -1))
       (delete-dups messages))))
