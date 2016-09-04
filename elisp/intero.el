@@ -118,14 +118,13 @@ This causes it to skip building the target."
     (when (fboundp 'interactive-haskell-mode)
       (message "Disabling interactive-haskell-mode ...")
       (interactive-haskell-mode -1)))
-  (when (intero-buffer-file-name)
-    (if intero-mode
-        (progn (flycheck-select-checker 'intero)
-               (flycheck-mode)
-               (add-to-list (make-local-variable 'company-backends) 'company-intero)
-               (company-mode)
-               (setq-local eldoc-documentation-function 'eldoc-intero))
-      (message "Intero mode disabled."))))
+  (if intero-mode
+      (progn (flycheck-select-checker 'intero)
+             (flycheck-mode)
+             (add-to-list (make-local-variable 'company-backends) 'company-intero)
+             (company-mode)
+             (setq-local eldoc-documentation-function 'eldoc-intero))
+    (message "Intero mode disabled.")))
 
 (define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
 (define-key intero-mode-map (kbd "C-c C-i") 'intero-info)
@@ -392,10 +391,9 @@ running context across :load/:reloads in Intero."
                       cont
                       'interrupted)
     (let ((file-buffer (current-buffer)))
-      (intero-save-silently)
       (intero-async-call
        'backend
-       (concat ":l " (intero-buffer-file-name))
+       (concat ":l " (intero-temp-file-name))
        (list :cont cont
              :file-buffer file-buffer
              :checker checker)
@@ -420,37 +418,6 @@ running context across :load/:reloads in Intero."
                                     nil
                                     (lambda (_st _))))))))))))
 
-(defun intero-original-write-region (&rest _)
-  "Place to store the original write-region function, to use later.")
-(fset 'intero-original-write-region (symbol-function 'write-region))
-
-(defun intero-silent-write-region (start end filename &optional append visit lockname mustbenew)
-  "Same as `write-region', but with messages supressed."
-  (let ((result (intero-original-write-region start end filename append 'no-message lockname mustbenew)))
-    ;; This is what visit normally does:
-    (when visit
-      (set-visited-file-modtime)
-      (set-buffer-modified-p nil))
-    result))
-
-(defun intero-save-silently ()
-  "Silently save the current buffer, if it is modified:
-
-* Does not print messages.
-* Does not trigger any hooks."
-  (interactive)
-  (let (;; Canonical list of hooks taken from:
-        ;; https://www.gnu.org/software/emacs/manual/html_node/elisp/Saving-Buffers.html
-        auto-save-hook
-        require-final-newline
-        before-save-hook
-        after-save-hook
-        write-contents-functions
-        write-file-functions)
-    (when (buffer-modified-p)
-      ;; Supress message output.
-      (cl-letf (((symbol-function 'write-region) #'intero-silent-write-region))
-        (basic-save-buffer)))))
 
 (flycheck-define-generic-checker 'intero
   "A syntax and type checker for Haskell using an Intero worker
@@ -466,7 +433,8 @@ CHECKER and BUFFER are added to each item parsed from STRING."
   (with-temp-buffer
     (insert string)
     (goto-char (point-min))
-    (let ((messages (list)))
+    (let ((messages (list))
+          (temp-file (intero-temp-file-name buffer)))
       (while (search-forward-regexp
               (concat "[\r\n]\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\):\\([0-9()-:]+\\):"
                       "[ \n\r]+\\([[:unibyte:][:nonascii:]]+?\\)\n[^ ]")
@@ -490,10 +458,9 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                        line column type
                        msg
                        :checker checker
-                       :buffer (when (string= (intero-buffer-file-name buffer)
-                                              file)
+                       :buffer (when (string= temp-file file)
                                  buffer)
-                       :filename file)
+                       :filename (intero-buffer-file-name buffer))
                       messages)))
         (forward-line -1))
       (delete-dups messages))))
@@ -755,7 +722,7 @@ This is set by `intero-repl-buffer', and should otherwise be nil.")
 If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (interactive "P")
   (save-buffer)
-  (let ((file (intero-buffer-file-name))
+  (let ((file (intero-temp-file-name))
         (repl-buffer (intero-repl-buffer prompt-options t)))
     (with-current-buffer repl-buffer
       (comint-simple-send
@@ -1041,6 +1008,20 @@ The path returned is canonicalized and stripped of any text properties."
     (when name
       (intero-canonicalize-path (substring-no-properties name)))))
 
+(defvar-local intero-temp-file-name nil
+  "The name of a temporary file to which the current buffer's content is copied.")
+
+(defun intero-temp-file-name (&optional buffer)
+  "Return the name of a temp file containing an up-to-date copy of BUFFER's contents."
+  (with-current-buffer (or buffer (current-buffer))
+    (prog1
+        (or intero-temp-file-name
+            (setq intero-temp-file-name
+                  (intero-canonicalize-path (make-temp-file "intero" nil ".hs"))))
+      (let ((contents (buffer-string)))
+        (with-temp-file intero-temp-file-name
+          (insert contents))))))
+
 (defun intero-canonicalize-path (path)
   "Return a standardized version of PATH.
 Path names are standardised and drive names are
@@ -1071,7 +1052,7 @@ x:\\foo\\bar (i.e., Windows)."
    (intero-blocking-call
     'backend
     (format ":type-at %S %d %d %d %d %S"
-            (intero-buffer-file-name)
+            (intero-temp-file-name)
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
@@ -1101,7 +1082,7 @@ x:\\foo\\bar (i.e., Windows)."
                (unless (member 'save flycheck-check-syntax-automatically)
                  (intero-async-call
                   'backend
-                  (concat ":l " (intero-buffer-file-name))))
+                  (concat ":l " (intero-temp-file-name))))
                (intero-async-call
                 'backend
                 ":set -fobject-code")
@@ -1119,7 +1100,7 @@ x:\\foo\\bar (i.e., Windows)."
    (intero-blocking-call
     'backend
     (format ":loc-at %S %d %d %d %d %S"
-            (intero-buffer-file-name)
+            (intero-temp-file-name)
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
@@ -1137,7 +1118,7 @@ x:\\foo\\bar (i.e., Windows)."
    (intero-blocking-call
     'backend
     (format ":uses %S %d %d %d %d %S"
-            (intero-buffer-file-name)
+            (intero-temp-file-name)
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
@@ -1155,7 +1136,7 @@ passed to CONT in SOURCE-BUFFER."
   (intero-async-call
    'backend
    (format ":complete-at %S %d %d %d %d %S"
-           (intero-buffer-file-name)
+           (intero-temp-file-name)
            (save-excursion (goto-char beg)
                            (line-number-at-pos))
            (save-excursion (goto-char beg)
