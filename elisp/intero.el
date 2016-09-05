@@ -69,8 +69,8 @@
   "Package version to auto-install.
 
 This version does not necessarily have to be the latest version
-of intero published on Hackage. Sometimes there are changes to
-Intero which have no use for the Emacs mode. It is only bumped
+of intero published on Hackage.  Sometimes there are changes to
+Intero which have no use for the Emacs mode.  It is only bumped
 when the Emacs mode actually requires newer features from the
 intero executable, otherwise we force our users to upgrade
 pointlessly."
@@ -712,7 +712,8 @@ pragma is supported also."
   "Records the buffer to which `intero-repl-switch-back' should jump.
 This is set by `intero-repl-buffer', and should otherwise be nil.")
 
-(defun intero-clear-buffer ()
+(defun intero-repl-clear-buffer ()
+  "Clear the current REPL buffer."
   (interactive)
   (let ((comint-buffer-maximum-size 0))
     (comint-truncate-buffer)))
@@ -772,8 +773,7 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
   "Keymap for clicking on links in REPL.")
 
 (defun intero-find-file-with-line:char ()
-  "Opens the file from 'file text property and moves to line:char
-from 'line text property."
+  "Jump to the file and location indicated by text properties at point."
   (interactive)
   (let ((file (get-text-property (point) 'file))
         (line (get-text-property (point) 'line))
@@ -784,7 +784,7 @@ from 'line text property."
     (forward-char (1- char))))
 
 (defun intero-linkify-file-line-char (begin end)
-  "Linkify all occurances of <file>:<line>:<char>: betwen begin and end"
+  "Linkify all occurences of <file>:<line>:<char>: betwen BEGIN and END."
   (when (> end begin)
     (let ((end-marker (copy-marker end))
           ;; match - /path/to/file.ext:<line>:<char>:
@@ -810,12 +810,11 @@ from 'line text property."
 
 (defvar intero-last-output-newline-marker nil)
 
-(defun intero-linkify-process-output (ignored)
-  "comint-output-filter-function to turn <file>:<line>:<char>: into
-links that can be clicked on.
+(defun intero-linkify-process-output (_)
+  "Comint filter function to make <file>:<line>:<char>: into clickable links.
 
 Note that this function uses the `intero-last-output-newline-marker',
-to keep track of line breaks. The `intero-linkify-file-line-char'
+to keep track of line breaks.  The `intero-linkify-file-line-char'
 function is subsequently applied to each line, once."
   (unless intero-last-output-newline-marker
     (setq-local intero-last-output-newline-marker (make-marker))
@@ -919,7 +918,7 @@ changes in the BACKEND-BUFFER."
 
 (define-key intero-repl-mode-map [remap move-beginning-of-line] 'intero-repl-beginning-of-line)
 (define-key intero-repl-mode-map [remap delete-backward-char] 'intero-repl-delete-backward-char)
-(define-key intero-repl-mode-map (kbd "C-c C-k") 'intero-clear-buffer)
+(define-key intero-repl-mode-map (kbd "C-c C-k") 'intero-repl-clear-buffer)
 (define-key intero-repl-mode-map (kbd "C-c C-z") 'intero-repl-switch-back)
 
 (defun intero-repl-delete-backward-char ()
@@ -1972,7 +1971,7 @@ suggestions are available."
 ;; Auto actions
 
 (defun intero-parse-comma-list (text)
-  "Parse a list of comma-separated expressions."
+  "Parse a list of comma-separated expressions in TEXT."
   (cl-loop for tok in (split-string text "[[:space:]\n]*,[[:space:]\n]*")
            with acc = nil
            append (let* ((clist (string-to-list tok))
