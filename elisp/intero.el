@@ -712,7 +712,8 @@ pragma is supported also."
   "Records the buffer to which `intero-repl-switch-back' should jump.
 This is set by `intero-repl-buffer', and should otherwise be nil.")
 
-(defun intero-clear-buffer ()
+(defun intero-repl-clear-buffer ()
+  "Clear the current REPL buffer."
   (interactive)
   (let ((comint-buffer-maximum-size 0))
     (comint-truncate-buffer)))
@@ -919,7 +920,7 @@ changes in the BACKEND-BUFFER."
 
 (define-key intero-repl-mode-map [remap move-beginning-of-line] 'intero-repl-beginning-of-line)
 (define-key intero-repl-mode-map [remap delete-backward-char] 'intero-repl-delete-backward-char)
-(define-key intero-repl-mode-map (kbd "C-c C-k") 'intero-clear-buffer)
+(define-key intero-repl-mode-map (kbd "C-c C-k") 'intero-repl-clear-buffer)
 (define-key intero-repl-mode-map (kbd "C-c C-z") 'intero-repl-switch-back)
 
 (defun intero-repl-delete-backward-char ()
