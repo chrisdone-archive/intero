@@ -13,6 +13,9 @@ module GhciFind
 import Module
 #endif
 import           Control.Exception
+#if __GLASGOW_HASKELL__ < 710
+import           Data.Foldable (foldMap)
+#endif
 import           Data.List
 import           Data.Map (Map)
 import qualified Data.Map as M
@@ -27,6 +30,27 @@ import           Name
 import           SrcLoc
 import           System.Directory
 import           Var
+
+-- | Check if there is are imported modules that should be searched
+-- for the completion sample string. If so, returns the name qualifier
+-- (i.e. module name or alias), the identifier prefix to search for,
+-- and the `ModuleName`s of the modules in which to search.
+findQualifiedSource :: [ImportDecl n] -> String
+                    -> Maybe (String, String, [ModuleName])
+findQualifiedSource importDecls sample =
+  do (ident,qual) <- breakQual sample
+     mnames <- (\nms -> if null nms then Nothing else Just nms)
+                 (foldMap (maybeToList . knownAs qual) importDecls)
+     return (qual++".", ident, mnames)
+  where breakQual xs = case break (== '.') (reverse xs) of
+                         (h,_:t) -> Just (reverse h, reverse t)
+                         _ -> Nothing
+        knownAs qual m
+          | qual == moduleNameString name || maybe False (qual ==) (asName m) =
+            Just name
+          | otherwise = Nothing
+          where name = unLoc (ideclName m)
+                asName = fmap moduleNameString . ideclAs
 
 -- | Find completions for the sample, context given by the location.
 findCompletions :: (GhcMonad m)
@@ -49,12 +73,29 @@ findCompletions infos fp sample sl sc el ec =
              return (Left ("No module info for the current file! Try loading it?"))
            Just moduleInf ->
              do df <- getDynFlags
-                let toplevelNames =
-                      fromMaybe [] (modInfoTopLevelScope (modinfoInfo moduleInf))
+                (qual, ident, minfs) <-
+                   let noQual = ("", sample, [modinfoInfo moduleInf])
+                       getModInfo qmname =
+                         findModule qmname Nothing >>= getModuleInfo
+                   in if '.' `elem` sample
+                      then case findQualifiedSource
+                                   (map unLoc (modinfoImports moduleInf))
+                                   sample of
+                              Just (qual, ident, qualModNames) -> do
+                                minfos <- fmap catMaybes
+                                               (mapM getModInfo qualModNames)
+                                if null minfos
+                                   then return noQual
+                                   else return (qual, ident, minfos)
+                              Nothing -> return noQual
+                      else return noQual
+                let toplevelNames = concat (mapMaybe modInfoTopLevelScope minfs)
                     filteredToplevels =
-                      filter (isPrefixOf sample)
-                             (map (showppr df) toplevelNames)
-                localNames <- findLocalizedCompletions (modinfoSpans moduleInf) sample sl sc el ec
+                      map (qual ++)
+                          (filter (isPrefixOf ident)
+                                  (map (showppr df) toplevelNames))
+                localNames <- findLocalizedCompletions (modinfoSpans moduleInf)
+                                                       sample sl sc el ec
                 return (Right (take 30 (nub (localNames ++ filteredToplevels))))
 
 -- | Find completions within the local scope of a definition of a
