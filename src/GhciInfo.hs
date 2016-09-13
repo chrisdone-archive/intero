@@ -76,10 +76,11 @@ getModInfo name =
   do m <- getModSummary name
      p <- parseModule m
      typechecked <- typecheckModule p
+     let Just (_, imports, _, _) = renamedSource typechecked
      allTypes <- processAllTypeCheckedModule typechecked
      let i = tm_checked_module_info typechecked
      now <- liftIO getCurrentTime
-     return (ModInfo m allTypes i now)
+     return (ModInfo m allTypes i now imports)
 
 -- | Get ALL source spans in the module.
 processAllTypeCheckedModule :: GhcMonad m
