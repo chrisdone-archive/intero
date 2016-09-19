@@ -697,10 +697,24 @@ pragma is supported also."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ELDoc integration
 
+(defvar-local eldoc-intero-cache (make-hash-table :test 'equal)
+  "Cache for types of regions, used by `eldoc-intero'.
+This is not for saving on requests (we make a request even if
+something is in cache, overwriting the old entry), but rather for
+making types show immediately when we do have them cached.")
+
 (defun eldoc-intero ()
   "ELDoc backend for intero."
-  (let* ((ty (apply #'intero-get-type-at (intero-thing-at-point)))
-         (is-error (string-match "^<.+>:.+:" ty)))
+  (apply #'intero-get-type-at-async
+         (lambda (beg end ty)
+           (puthash (list beg end)
+                    ty
+                    eldoc-intero-cache)
+           (eldoc-print-current-symbol-info))
+         (intero-thing-at-point))
+  (let* ((ty (gethash (intero-thing-at-point) eldoc-intero-cache))
+         (is-error (or (not ty)
+                       (string-match "^<.+>:.+:" ty))))
     (unless is-error
       (intero-fontify-expression (replace-regexp-in-string "[ \n]+" " " ty)))))
 
@@ -1051,17 +1065,39 @@ x:\\foo\\bar (i.e., Windows)."
    "\n$" ""
    (intero-blocking-call
     'backend
-    (format ":type-at %S %d %d %d %d %S"
-            (intero-temp-file-name)
-            (save-excursion (goto-char beg)
-                            (line-number-at-pos))
-            (save-excursion (goto-char beg)
-                            (1+ (current-column)))
-            (save-excursion (goto-char end)
-                            (line-number-at-pos))
-            (save-excursion (goto-char end)
-                            (1+ (current-column)))
-            (buffer-substring-no-properties beg end)))))
+    (intero-format-get-type-at beg end))))
+
+(defun intero-get-type-at-async (cont beg end)
+  "Call CONT with type of the region denoted by BEG and END.
+CONT is called within the current buffer, with BEG, END and the
+type as arguments."
+  (intero-async-call
+   'backend
+   (intero-format-get-type-at beg end)
+   (list :cont cont
+         :source-buffer (current-buffer)
+         :beg beg
+         :end end)
+   (lambda (state reply)
+     (with-current-buffer (plist-get state :source-buffer)
+       (funcall (plist-get state :cont)
+                (plist-get state :beg)
+                (plist-get state :end)
+                (replace-regexp-in-string "\n$" "" reply))))))
+
+(defun intero-format-get-type-at (beg end)
+  "Compose a request for getting types in region from BEG to END."
+  (format ":type-at %S %d %d %d %d %S"
+          (intero-temp-file-name)
+          (save-excursion (goto-char beg)
+                          (line-number-at-pos))
+          (save-excursion (goto-char beg)
+                          (1+ (current-column)))
+          (save-excursion (goto-char end)
+                          (line-number-at-pos))
+          (save-excursion (goto-char end)
+                          (1+ (current-column)))
+          (buffer-substring-no-properties beg end)))
 
 (defun intero-get-info-of (thing)
   "Get info for THING."
