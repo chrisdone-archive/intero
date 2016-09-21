@@ -703,20 +703,33 @@ This is not for saving on requests (we make a request even if
 something is in cache, overwriting the old entry), but rather for
 making types show immediately when we do have them cached.")
 
+(defun eldoc-intero-maybe-print (msg)
+  "Print MSG with eldoc if eldoc would display a message now.
+Like `eldoc-print-current-symbol-info', but just printing MSG
+instead of using `eldoc-documentation-function'."
+  (with-demoted-errors "eldoc error: %s"
+    (and (or (eldoc-display-message-p)
+             ;; Erase the last message if we won't display a new one.
+             (when eldoc-last-message
+               (eldoc-message nil)
+               nil))
+         (eldoc-message msg))))
+
 (defun eldoc-intero ()
   "ELDoc backend for intero."
   (apply #'intero-get-type-at-async
          (lambda (beg end ty)
-           (puthash (list beg end)
-                    ty
-                    eldoc-intero-cache)
-           (eldoc-print-current-symbol-info))
+           (unless (string-match "^<.+>:.+:" ty)
+             (let ((msg (intero-fontify-expression
+                         (replace-regexp-in-string "[ \n]+" " " ty))))
+               ;; Got an updated type-at-point, cache and print now:
+               (puthash (list beg end)
+                        msg
+                        eldoc-intero-cache)
+               (eldoc-intero-maybe-print msg))))
          (intero-thing-at-point))
-  (let* ((ty (gethash (intero-thing-at-point) eldoc-intero-cache))
-         (is-error (or (not ty)
-                       (string-match "^<.+>:.+:" ty))))
-    (unless is-error
-      (intero-fontify-expression (replace-regexp-in-string "[ \n]+" " " ty)))))
+  ;; If we have something cached at point, print that first:
+  (gethash (intero-thing-at-point) eldoc-intero-cache))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; REPL
