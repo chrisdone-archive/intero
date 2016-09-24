@@ -719,14 +719,17 @@ instead of using `eldoc-documentation-function'."
   "ELDoc backend for intero."
   (apply #'intero-get-type-at-async
          (lambda (beg end ty)
-           (unless (string-match "^<.+>:.+:" ty)
-             (let ((msg (intero-fontify-expression
-                         (replace-regexp-in-string "[ \n]+" " " ty))))
-               ;; Got an updated type-at-point, cache and print now:
-               (puthash (list beg end)
-                        msg
-                        eldoc-intero-cache)
-               (eldoc-intero-maybe-print msg))))
+           (let ((response-status (haskell-utils-repl-response-error-status ty)))
+             (if (eq 'no-error response-status)
+               (let ((msg (intero-fontify-expression
+                           (replace-regexp-in-string "[ \n]+" " " ty))))
+                 ;; Got an updated type-at-point, cache and print now:
+                 (puthash (list beg end)
+                          msg
+                          eldoc-intero-cache)
+                 (eldoc-intero-maybe-print msg))
+               ;; But if we're seeing errors, invalidate cache-at-point:
+               (remhash (list beg end) eldoc-intero-cache))))
          (intero-thing-at-point))
   ;; If we have something cached at point, print that first:
   (gethash (intero-thing-at-point) eldoc-intero-cache))
