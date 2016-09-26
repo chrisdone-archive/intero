@@ -1497,7 +1497,7 @@ You can always run M-x intero-restart to make it try again.
                          (funcall func state string))
                        (setq repeat t))
               (when intero-debug
-                (warn "Received output but no callback in `intero-callbacks': %S"
+                (intero--warn "Received output but no callback in `intero-callbacks': %S"
                       string)))))
         (delete-region (point-min) (point))))))
 
@@ -1561,7 +1561,7 @@ config exists."
                                      "--project-root"
                                      "--verbosity" "silent"))
               (0 (buffer-substring (line-beginning-position) (line-end-position)))
-              (t (warn "Couldn't get the Stack project root.
+              (t (intero--warn "Couldn't get the Stack project root.
 
 This can be caused by a syntax error in your stack.yaml file. Check that out.
 
@@ -2130,6 +2130,11 @@ suggestions are available."
                    (insert "{-# OPTIONS_GHC "
                            (plist-get suggestion :option)
                            " #-}\n"))))))))))
+
+(defun intero--warn (message &rest args)
+  "Display a warning message made from (format-message MESSAGE ARGS...).
+Equivalent to 'warn', but label the warning as coming from intero."
+  (display-warning 'intero (apply 'format-message message args) :warning))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
