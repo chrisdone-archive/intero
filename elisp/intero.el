@@ -697,12 +697,42 @@ pragma is supported also."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ELDoc integration
 
+(defvar-local eldoc-intero-cache (make-hash-table :test 'equal)
+  "Cache for types of regions, used by `eldoc-intero'.
+This is not for saving on requests (we make a request even if
+something is in cache, overwriting the old entry), but rather for
+making types show immediately when we do have them cached.")
+
+(defun eldoc-intero-maybe-print (msg)
+  "Print MSG with eldoc if eldoc would display a message now.
+Like `eldoc-print-current-symbol-info', but just printing MSG
+instead of using `eldoc-documentation-function'."
+  (with-demoted-errors "eldoc error: %s"
+    (and (or (eldoc-display-message-p)
+             ;; Erase the last message if we won't display a new one.
+             (when eldoc-last-message
+               (eldoc-message nil)
+               nil))
+         (eldoc-message msg))))
+
 (defun eldoc-intero ()
   "ELDoc backend for intero."
-  (let* ((ty (apply #'intero-get-type-at (intero-thing-at-point)))
-         (is-error (string-match "^<.+>:.+:" ty)))
-    (unless is-error
-      (intero-fontify-expression (replace-regexp-in-string "[ \n]+" " " ty)))))
+  (apply #'intero-get-type-at-async
+         (lambda (beg end ty)
+           (let ((response-status (haskell-utils-repl-response-error-status ty)))
+             (if (eq 'no-error response-status)
+               (let ((msg (intero-fontify-expression
+                           (replace-regexp-in-string "[ \n]+" " " ty))))
+                 ;; Got an updated type-at-point, cache and print now:
+                 (puthash (list beg end)
+                          msg
+                          eldoc-intero-cache)
+                 (eldoc-intero-maybe-print msg))
+               ;; But if we're seeing errors, invalidate cache-at-point:
+               (remhash (list beg end) eldoc-intero-cache))))
+         (intero-thing-at-point))
+  ;; If we have something cached at point, print that first:
+  (gethash (intero-thing-at-point) eldoc-intero-cache))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; REPL
@@ -1051,17 +1081,39 @@ x:\\foo\\bar (i.e., Windows)."
    "\n$" ""
    (intero-blocking-call
     'backend
-    (format ":type-at %S %d %d %d %d %S"
-            (intero-temp-file-name)
-            (save-excursion (goto-char beg)
-                            (line-number-at-pos))
-            (save-excursion (goto-char beg)
-                            (1+ (current-column)))
-            (save-excursion (goto-char end)
-                            (line-number-at-pos))
-            (save-excursion (goto-char end)
-                            (1+ (current-column)))
-            (buffer-substring-no-properties beg end)))))
+    (intero-format-get-type-at beg end))))
+
+(defun intero-get-type-at-async (cont beg end)
+  "Call CONT with type of the region denoted by BEG and END.
+CONT is called within the current buffer, with BEG, END and the
+type as arguments."
+  (intero-async-call
+   'backend
+   (intero-format-get-type-at beg end)
+   (list :cont cont
+         :source-buffer (current-buffer)
+         :beg beg
+         :end end)
+   (lambda (state reply)
+     (with-current-buffer (plist-get state :source-buffer)
+       (funcall (plist-get state :cont)
+                (plist-get state :beg)
+                (plist-get state :end)
+                (replace-regexp-in-string "\n$" "" reply))))))
+
+(defun intero-format-get-type-at (beg end)
+  "Compose a request for getting types in region from BEG to END."
+  (format ":type-at %S %d %d %d %d %S"
+          (intero-temp-file-name)
+          (save-excursion (goto-char beg)
+                          (line-number-at-pos))
+          (save-excursion (goto-char beg)
+                          (1+ (current-column)))
+          (save-excursion (goto-char end)
+                          (line-number-at-pos))
+          (save-excursion (goto-char end)
+                          (1+ (current-column)))
+          (buffer-substring-no-properties beg end)))
 
 (defun intero-get-info-of (thing)
   "Get info for THING."
