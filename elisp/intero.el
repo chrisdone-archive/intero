@@ -546,9 +546,11 @@ Other arguments are IGNORED."
     (or (and (bound-and-true-p intero-mode)
              (cl-case type
                (haskell-completions-module-name-prefix
-                (intero-get-repl-completions source-buffer (concat "import " prefix) cont))
+                (intero-get-repl-completions source-buffer (concat "import " prefix) cont)
+                t)
                (haskell-completions-identifier-prefix
-                (intero-get-completions source-buffer beg end cont))
+                (intero-get-completions source-buffer beg end cont)
+                t)
                (haskell-completions-language-extension-prefix
                 (intero-get-repl-completions
                  source-buffer
@@ -558,13 +560,15 @@ Other arguments are IGNORED."
                                       (mapcar (lambda (x)
                                                 (replace-regexp-in-string "^-X" "" x))
                                               results)))
-                           cont)))
+                           cont))
+                t)
                (haskell-completions-pragma-name-prefix
                 (funcall cont
                          (cl-remove-if-not
                           (lambda (candidate)
                             (string-match (concat "^" prefix) candidate))
-                          intero-pragmas)))))
+                          intero-pragmas))
+                t)))
         (intero-get-repl-completions source-buffer prefix cont))))
 
 (defun intero-completions-grab-prefix (&optional minlen)
