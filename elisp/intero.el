@@ -2188,9 +2188,9 @@ suggestions are available."
                            " #-}\n"))))))))))
 
 (defun intero--warn (message &rest args)
-  "Display a warning message made from (format-message MESSAGE ARGS...).
+  "Display a warning message made from (format MESSAGE ARGS...).
 Equivalent to 'warn', but label the warning as coming from intero."
-  (display-warning 'intero (apply 'format-message message args) :warning))
+  (display-warning 'intero (apply 'format message args) :warning))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
