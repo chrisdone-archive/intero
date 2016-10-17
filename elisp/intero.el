@@ -967,22 +967,13 @@ changes in the BACKEND-BUFFER."
       (setq intero-repl-no-load (not (member "load-all" new-options)))
       (setq intero-repl-no-build (not (member "build-first" new-options))))))
 
-;; For live migration, remove later
-(font-lock-remove-keywords
- 'intero-repl-mode
- '(("\\(\4\\)"
-    (0 (prog1 ()
-         (compose-region (match-beginning 1)
-                         (match-end 1)
-                         ?λ))))))
-
 (font-lock-add-keywords
  'intero-repl-mode
  '(("\\(\4\\)"
     (0 (prog1 ()
          (compose-region (match-beginning 1)
                          (match-end 1)
-                         ?‽))))))
+                         ?λ))))))
 
 (define-key intero-repl-mode-map [remap move-beginning-of-line] 'intero-repl-beginning-of-line)
 (define-key intero-repl-mode-map [remap delete-backward-char] 'intero-repl-delete-backward-char)
