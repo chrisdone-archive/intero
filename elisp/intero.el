@@ -54,6 +54,7 @@
 (require 'company)
 (require 'comint)
 (require 'widget)
+(require 'eldoc)
 (eval-when-compile
   (require 'wid-edit))
 
@@ -723,7 +724,7 @@ instead of using `eldoc-documentation-function'."
   "ELDoc backend for intero."
   (apply #'intero-get-type-at-async
          (lambda (beg end ty)
-           (let ((response-status (haskell-utils-repl-response-error-status ty)))
+           (let ((response-status (intero-haskell-utils-repl-response-error-status ty)))
              (if (eq 'no-error response-status)
                (let ((msg (intero-fontify-expression
                            (replace-regexp-in-string "[ \n]+" " " ty))))
@@ -737,6 +738,38 @@ instead of using `eldoc-documentation-function'."
          (intero-thing-at-point))
   ;; If we have something cached at point, print that first:
   (gethash (intero-thing-at-point) eldoc-intero-cache))
+
+(defun intero-haskell-utils-repl-response-error-status (response)
+  "Parse response REPL's RESPONSE for errors.
+Returns one of the following symbols:
+
++ unknown-command
++ option-missing
++ interactive-error
++ no-error
+
+*Warning*: this funciton covers only three kind of responses:
+
+* \"unknown command …\"
+  REPL missing requested command
+* \"<interactive>:3:5: …\"
+  interactive REPL error
+* \"Couldn't guess that module name. Does it exist?\"
+  (:type-at and maybe some other commands error)
+* *all other reposnses* are treated as success reposneses and
+  'no-error is returned."
+  (let ((first-line (car (split-string response "\n" t))))
+    (cond
+     ((null first-line) 'no-error)
+     ((string-match-p "^unknown command" first-line)
+      'unknown-command)
+     ((string-match-p
+       "^Couldn't guess that module name. Does it exist?"
+       first-line)
+      'option-missing)
+     ((string-match-p "^<interactive>:" first-line)
+      'interactive-error)
+     (t 'no-error))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; REPL
