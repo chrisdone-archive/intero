@@ -1075,7 +1075,12 @@ The path returned is canonicalized and stripped of any text properties."
     (prog1
         (or intero-temp-file-name
             (setq intero-temp-file-name
-                  (intero-canonicalize-path (make-temp-file "intero" nil ".hs"))))
+                  (intero-canonicalize-path
+                   (let ((temporary-file-directory
+                          (expand-file-name ".stack-work/intero/"
+                                            (intero-project-root))))
+                     (make-directory temporary-file-directory t)
+                     (make-temp-file "intero" nil ".hs")))))
       (let ((contents (buffer-string)))
         (with-temp-file intero-temp-file-name
           (insert contents))))))
