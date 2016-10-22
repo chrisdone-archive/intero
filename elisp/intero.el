@@ -286,7 +286,8 @@ line as a type signature."
             (goto-char (point-min))))))))
 
 (defun intero-goto-definition ()
-  "Jump to the definition of the thing at point."
+  "Jump to the definition of the thing at point.
+Returns nil when unable to find definition."
   (interactive)
   (let ((result (apply #'intero-get-loc-at (intero-thing-at-point))))
     (when (string-match "\\(.*?\\):(\\([0-9]+\\),\\([0-9]+\\))-(\\([0-9]+\\),\\([0-9]+\\))$"
@@ -303,7 +304,8 @@ line as a type signature."
         (pop-mark)
         (goto-char (point-min))
         (forward-line (1- line))
-        (forward-char (1- col))))))
+        (forward-char (1- col))
+        t))))
 
 (defun intero-restart ()
   "Simply restart the process with the same configuration as before."
