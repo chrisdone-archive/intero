@@ -1739,7 +1739,10 @@ stack path --project-root")
   (with-temp-buffer
     (cl-case (call-process "stack" nil (current-buffer) t "ide" "targets")
       (0
-       (split-string (buffer-string) nil t))
+       (cl-remove-if-not
+        (lambda (line)
+          (string-match "^[A-Za-z0-9-:]+$" line))
+        (split-string (buffer-string) "[\r\n]" t)))
       (1 nil))))
 
 (defun intero-package-name (&optional cabal-file)
