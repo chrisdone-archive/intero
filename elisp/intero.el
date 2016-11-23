@@ -813,6 +813,8 @@ Returns one of the following symbols:
       'option-missing)
      ((string-match-p "^<interactive>:" first-line)
       'interactive-error)
+     ((string-match-p "^<no location info>:" first-line)
+      'inspection-error)
      (t 'no-error))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
