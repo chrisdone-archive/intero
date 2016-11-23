@@ -1091,7 +1091,11 @@ path."
         (or intero-temp-file-name
             (setq intero-temp-file-name
                   (intero-canonicalize-path
-                   (intero-make-temp-file "intero" nil ".hs"))))
+                   (intero-make-temp-file
+                    "intero" nil
+                    (concat "." (if (buffer-file-name)
+                                    (file-name-extension (buffer-file-name))
+                                  "hs"))))))
       (let ((contents (buffer-string)))
         (with-temp-file intero-temp-file-name
           (insert contents))))))
