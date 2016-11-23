@@ -979,21 +979,28 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
     (insert (propertize
              (format "Starting:\n  stack ghci %s\n" (combine-and-quote-strings arguments))
              'face 'font-lock-comment-face))
-    (let ((script (with-current-buffer (find-file-noselect (intero-make-temp-file "intero-script"))
-                    (insert ":set prompt \"\"
+    (let* ((script-buffer
+            (with-current-buffer (find-file-noselect (intero-make-temp-file "intero-script"))
+              (insert ":set prompt \"\"
 :set -fobject-code
 :set prompt \"\\4 \"
 ")
-                    (basic-save-buffer)
-                    (intero-buffer-file-name))))
-      (let ((process (get-buffer-process (apply #'make-comint-in-buffer "intero" (current-buffer) "stack" nil "ghci"
-                                                (append arguments
-                                                        (list "--verbosity" "silent")
-                                                        (list "--ghci-options"
-                                                              (concat "-ghci-script=" script)))))))
+              (basic-save-buffer)
+              (current-buffer)))
+           (script
+            (with-current-buffer script-buffer
+              (intero-buffer-file-name))))
+      (let ((process
+             (get-buffer-process
+              (apply #'make-comint-in-buffer "intero" (current-buffer) "stack" nil "ghci"
+                     (append arguments
+                             (list "--verbosity" "silent")
+                             (list "--ghci-options"
+                                   (concat "-ghci-script=" script)))))))
         (when (process-live-p process)
           (set-process-query-on-exit-flag process nil)
-          (message "Started Intero process for REPL."))))))
+          (message "Started Intero process for REPL.")
+          (kill-buffer script-buffer))))))
 
 (defun intero-repl-options (backend-buffer)
   "Open an option menu to set options used when starting the REPL.
