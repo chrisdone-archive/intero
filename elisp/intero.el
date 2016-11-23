@@ -984,7 +984,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
     (let* ((script-buffer
             (with-current-buffer (find-file-noselect (intero-make-temp-file "intero-script"))
               (insert ":set prompt \"\"
-:set -fobject-code
+:set -fbyte-code
 :set prompt \"\\4 \"
 ")
               (basic-save-buffer)
