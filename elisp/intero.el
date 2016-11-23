@@ -252,6 +252,12 @@ This is slower, but will build required dependencies.")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
+(defun intero-add-package (package)
+  "Add a package dependency to the currently running project backend."
+  (interactive "sPackage: ")
+  (intero-blocking-call 'backend (concat ":set -package " package))
+  (flycheck-buffer))
+
 (defun intero-toggle-debug ()
   "Toggle debugging mode on/off."
   (interactive)
