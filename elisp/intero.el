@@ -99,6 +99,28 @@ This causes it to skip building the target."
   :group 'intero
   :type 'boolean)
 
+(defcustom intero-whitelist
+  nil
+  "Projects to whitelist.
+
+It should be a list of directories.
+
+To use this, use the following mode hook:
+  (add-hook 'haskell-mode-hook 'intero-mode-whitelist)"
+  :group 'intero
+  :type 'string)
+
+(defcustom intero-blacklist
+  nil
+  "Projects to blacklist.
+
+It should be a list of directories.
+
+To use this, use the following mode hook:
+  (add-hook 'haskell-mode-hook 'intero-mode-blacklist)"
+  :group 'intero
+  :type 'string)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
 
@@ -126,6 +148,24 @@ This causes it to skip building the target."
              (company-mode)
              (setq-local eldoc-documentation-function 'eldoc-intero))
     (message "Intero mode disabled.")))
+
+(defun intero-mode-whitelist ()
+  "Run intero-mode when the current project is in `intero-whitelist'."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (when (cl-remove-if-not (lambda (directory)
+                              (file-in-directory-p file directory))
+                            intero-whitelist)
+      (intero-mode))))
+
+(defun intero-mode-blacklist ()
+  "Run intero-mode unless the current project is in `intero-blacklist'."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (unless (cl-remove-if-not (lambda (directory)
+                                (file-in-directory-p file directory))
+                              intero-blacklist)
+      (intero-mode))))
 
 (define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
 (define-key intero-mode-map (kbd "C-c C-i") 'intero-info)
@@ -1596,7 +1636,7 @@ You can always run M-x intero-restart to make it try again.
                        (setq repeat t))
               (when intero-debug
                 (intero--warn "Received output but no callback in `intero-callbacks': %S"
-                      string)))))
+                              string)))))
         (delete-region (point-min) (point))))))
 
 (defun strip-carriage-returns (string)

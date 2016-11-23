@@ -20,6 +20,32 @@ Key binding | Description
 `C-c C-k` | Clear REPL
 `C-c C-z` | Switch to and from the REPL
 
+## Whitelisting/blacklisting projects
+
+Typically Intero will enable for all projects, and for files
+without a stack.yaml, it will assume the "global" project. Some users
+prefer to enable Intero selectively. See below how to do that.
+
+Find this line in your Emacs configuration:
+
+``` lisp
+(add-hook 'haskell-mode-hook 'intero-mode)
+```
+
+To whitelist specific projects (and ignore everything else), use:
+
+``` lisp
+(setq intero-whitelist '("/work/projects/" "/my/projects/"))
+(add-hook 'haskell-mode-hook 'intero-mode-whitelist)
+```
+
+To blacklist specific projects (and allow everything else), use:
+
+``` lisp
+(setq intero-blacklist '("/path/to/bad/project" "/path/to/ignore/me"))
+(add-hook 'haskell-mode-hook 'intero-mode-blacklist)
+```
+
 ## Intero for IDE writers
 
 Please see
