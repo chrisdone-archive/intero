@@ -32,14 +32,14 @@ Find this line in your Emacs configuration and remove it:
 (add-hook 'haskell-mode-hook 'intero-mode)
 ```
 
-To whitelist specific projects (and ignore everything else), use:
+To whitelist specific directories (and ignore everything else), use:
 
 ``` lisp
-(setq intero-whitelist '("/work/projects/" "/my/projects/"))
+(setq intero-whitelist '("/work/directories/" "/my/directories/"))
 (add-hook 'haskell-mode-hook 'intero-mode-whitelist)
 ```
 
-To blacklist specific projects (and allow everything else), use:
+To blacklist specific directories (and allow everything else), use:
 
 ``` lisp
 (setq intero-blacklist '("/path/to/bad/project" "/path/to/ignore/me"))
