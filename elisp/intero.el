@@ -1663,7 +1663,11 @@ config exists."
 
 This can be caused by a syntax error in your stack.yaml file. Check that out.
 
-Otherwise, please report this as a bug!")
+Otherwise, please report this as a bug!
+
+For debugging purposes, try running the following in your terminal:
+
+stack path --project-root")
                  nil))))))
 
 (defun intero-ghc-version ()
