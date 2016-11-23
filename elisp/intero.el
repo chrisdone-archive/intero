@@ -1592,6 +1592,9 @@ TROUBLESHOOTING
 It may be obvious if there is some text above this message
 indicating a problem.
 
+If you do not wish to use Intero for some projects, see
+https://github.com/commercialhaskell/intero#whitelistingblacklisting-projects
+
 The process ended. Here is the reason that Emacs gives us:
 
 "
@@ -1702,6 +1705,9 @@ config exists."
               (t (intero--warn "Couldn't get the Stack project root.
 
 This can be caused by a syntax error in your stack.yaml file. Check that out.
+
+If you do not wish to use Intero for some projects, see
+https://github.com/commercialhaskell/intero#whitelistingblacklisting-projects
 
 Otherwise, please report this as a bug!
 
