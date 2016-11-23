@@ -286,7 +286,9 @@ You can use this to kill them or look inside."
   "Return a haskell-fontified version of EXPRESSION."
   (with-temp-buffer
     (when (fboundp 'haskell-mode)
-      (haskell-mode))
+      (let ((flycheck-checkers nil)
+            (haskell-mode-hook nil))
+        (haskell-mode)))
     (insert expression)
     (if (fboundp 'font-lock-ensure)
         (font-lock-ensure)
