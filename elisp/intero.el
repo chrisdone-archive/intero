@@ -245,6 +245,10 @@ This is slower, but will build required dependencies.")
 (defvar intero-ghc-version nil
   "GHC version used by the project.")
 
+(defvar-local intero-repl-last-loaded
+  nil
+  "The last loaded thing with `intero-repl-load`.")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
@@ -844,7 +848,10 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
     (with-current-buffer repl-buffer
       (comint-simple-send
        (get-buffer-process (current-buffer))
-       (concat ":l " file)))
+       (if (string= intero-repl-last-loaded file)
+           ":r"
+         (concat ":l " file)))
+      (setq intero-repl-last-loaded file))
     (pop-to-buffer repl-buffer)))
 
 (defun intero-repl (&optional prompt-options)
