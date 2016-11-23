@@ -2106,6 +2106,18 @@ suggestions are available."
               (setq start (min (length text) (1+ (match-end 0))))))
           ;; Messages of this format:
           ;;
+          ;; Could not find module ‘Language.Haskell.TH’
+          ;;     It is a member of the hidden package ‘template-haskell’.
+          ;;     Use -v to see a list of the files searched for....
+          (let ((start 0))
+            (while (string-match "It is a member of the hidden package [‘`‛]\\([^ ]+\\)['’]" text start)
+              (setq note t)
+              (add-to-list 'intero-suggestions
+                           (list :type 'add-package
+                                 :package (match-string 1 text)))
+              (setq start (min (length text) (1+ (match-end 0))))))
+          ;; Messages of this format:
+          ;;
           ;; Defaulting the following constraint(s) to type ‘Integer’
           ;;   (Num a0) arising from the literal ‘1’
           ;; In the expression: 2
@@ -2282,6 +2294,10 @@ suggestions are available."
                                         (plist-get suggestion :option)
                                         " #-}")
                          :default t))
+                  (add-package
+                   (list :key suggestion
+                         :title (concat "Enable package: " (plist-get suggestion :package))
+                         :default t))
                   (remove-import
                    (list :key suggestion
                          :title (concat "Remove: import "
@@ -2321,6 +2337,12 @@ suggestions are available."
                                 (or (> lt-line gt-line)
                                     (and (= lt-line gt-line)
                                          (> lt-column gt-column))))))))
+          ;; # Changes unrelated to the buffer
+          (cl-loop
+           for suggestion in sorted
+           do (cl-case (plist-get suggestion :type)
+                (add-package
+                 (intero-add-package (plist-get suggestion :package)))))
           ;; # Changes that do not increase/decrease line numbers
           ;;
           ;; Update in-place suggestions
