@@ -1,7 +1,9 @@
 ;;; intero.el --- Complete development mode for Haskell
 
 ;; Copyright (c) 2016 Chris Done
+;; Copyright (C) 2016 Артур Файзрахманов
 ;; Copyright (c) 2015 Athur Fayzrakhmanov
+;; Copyright (C) 2015 Gracjan Polak
 ;; Copyright (c) 2013 Herbert Valerio Riedel
 ;; Copyright (c) 2007 Stefan Monnier
 
@@ -66,7 +68,7 @@
   :group 'haskell)
 
 (defcustom intero-package-version
-  "0.1.18"
+  "0.1.19"
   "Package version to auto-install.
 
 This version does not necessarily have to be the latest version
@@ -99,6 +101,28 @@ This causes it to skip building the target."
   :group 'intero
   :type 'boolean)
 
+(defcustom intero-whitelist
+  nil
+  "Projects to whitelist.
+
+It should be a list of directories.
+
+To use this, use the following mode hook:
+  (add-hook 'haskell-mode-hook 'intero-mode-whitelist)"
+  :group 'intero
+  :type 'string)
+
+(defcustom intero-blacklist
+  nil
+  "Projects to blacklist.
+
+It should be a list of directories.
+
+To use this, use the following mode hook:
+  (add-hook 'haskell-mode-hook 'intero-mode-blacklist)"
+  :group 'intero
+  :type 'string)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
 
@@ -126,6 +150,24 @@ This causes it to skip building the target."
              (company-mode)
              (setq-local eldoc-documentation-function 'eldoc-intero))
     (message "Intero mode disabled.")))
+
+(defun intero-mode-whitelist ()
+  "Run intero-mode when the current project is in `intero-whitelist'."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (when (cl-remove-if-not (lambda (directory)
+                              (file-in-directory-p file directory))
+                            intero-whitelist)
+      (intero-mode))))
+
+(defun intero-mode-blacklist ()
+  "Run intero-mode unless the current project is in `intero-blacklist'."
+  (interactive)
+  (let ((file (buffer-file-name)))
+    (unless (cl-remove-if-not (lambda (directory)
+                                (file-in-directory-p file directory))
+                              intero-blacklist)
+      (intero-mode))))
 
 (define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
 (define-key intero-mode-map (kbd "C-c C-i") 'intero-info)
@@ -203,8 +245,18 @@ This is slower, but will build required dependencies.")
 (defvar intero-ghc-version nil
   "GHC version used by the project.")
 
+(defvar-local intero-repl-last-loaded
+  nil
+  "The last loaded thing with `intero-repl-load`.")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
+
+(defun intero-add-package (package)
+  "Add a package dependency to the currently running project backend."
+  (interactive "sPackage: ")
+  (intero-blocking-call 'backend (concat ":set -package " package))
+  (flycheck-buffer))
 
 (defun intero-toggle-debug ()
   "Toggle debugging mode on/off."
@@ -240,7 +292,9 @@ You can use this to kill them or look inside."
   "Return a haskell-fontified version of EXPRESSION."
   (with-temp-buffer
     (when (fboundp 'haskell-mode)
-      (haskell-mode))
+      (let ((flycheck-checkers nil)
+            (haskell-mode-hook nil))
+        (haskell-mode)))
     (insert expression)
     (if (fboundp 'font-lock-ensure)
         (font-lock-ensure)
@@ -724,20 +778,22 @@ instead of using `eldoc-documentation-function'."
 
 (defun eldoc-intero ()
   "ELDoc backend for intero."
-  (apply #'intero-get-type-at-async
-         (lambda (beg end ty)
-           (let ((response-status (intero-haskell-utils-repl-response-error-status ty)))
-             (if (eq 'no-error response-status)
-               (let ((msg (intero-fontify-expression
-                           (replace-regexp-in-string "[ \n]+" " " ty))))
-                 ;; Got an updated type-at-point, cache and print now:
-                 (puthash (list beg end)
-                          msg
-                          eldoc-intero-cache)
-                 (eldoc-intero-maybe-print msg))
-               ;; But if we're seeing errors, invalidate cache-at-point:
-               (remhash (list beg end) eldoc-intero-cache))))
-         (intero-thing-at-point))
+  (let ((buffer (intero-buffer 'backend)))
+    (when (and buffer (process-live-p (get-buffer-process buffer)))
+      (apply #'intero-get-type-at-async
+             (lambda (beg end ty)
+               (let ((response-status (intero-haskell-utils-repl-response-error-status ty)))
+                 (if (eq 'no-error response-status)
+                     (let ((msg (intero-fontify-expression
+                                 (replace-regexp-in-string "[ \n]+" " " ty))))
+                       ;; Got an updated type-at-point, cache and print now:
+                       (puthash (list beg end)
+                                msg
+                                eldoc-intero-cache)
+                       (eldoc-intero-maybe-print msg))
+                   ;; But if we're seeing errors, invalidate cache-at-point:
+                   (remhash (list beg end) eldoc-intero-cache))))
+             (intero-thing-at-point))))
   ;; If we have something cached at point, print that first:
   (gethash (intero-thing-at-point) eldoc-intero-cache))
 
@@ -771,6 +827,8 @@ Returns one of the following symbols:
       'option-missing)
      ((string-match-p "^<interactive>:" first-line)
       'interactive-error)
+     ((string-match-p "^<no location info>:" first-line)
+      'inspection-error)
      (t 'no-error))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -798,7 +856,10 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
     (with-current-buffer repl-buffer
       (comint-simple-send
        (get-buffer-process (current-buffer))
-       (concat ":l " file)))
+       (if (string= intero-repl-last-loaded file)
+           ":r"
+         (concat ":l " file)))
+      (setq intero-repl-last-loaded file))
     (pop-to-buffer repl-buffer)))
 
 (defun intero-repl (&optional prompt-options)
@@ -935,21 +996,28 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
     (insert (propertize
              (format "Starting:\n  stack ghci %s\n" (combine-and-quote-strings arguments))
              'face 'font-lock-comment-face))
-    (let ((script (with-current-buffer (find-file-noselect (intero-make-temp-file "intero-script"))
-                    (insert ":set prompt \"\"
-:set -fobject-code
+    (let* ((script-buffer
+            (with-current-buffer (find-file-noselect (intero-make-temp-file "intero-script"))
+              (insert ":set prompt \"\"
+:set -fbyte-code
 :set prompt \"\\4 \"
 ")
-                    (basic-save-buffer)
-                    (intero-buffer-file-name))))
-      (let ((process (get-buffer-process (apply #'make-comint-in-buffer "intero" (current-buffer) "stack" nil "ghci"
-                                                (append arguments
-                                                        (list "--verbosity" "silent")
-                                                        (list "--ghci-options"
-                                                              (concat "-ghci-script=" script)))))))
+              (basic-save-buffer)
+              (current-buffer)))
+           (script
+            (with-current-buffer script-buffer
+              (intero-buffer-file-name))))
+      (let ((process
+             (get-buffer-process
+              (apply #'make-comint-in-buffer "intero" (current-buffer) "stack" nil "ghci"
+                     (append arguments
+                             (list "--verbosity" "silent")
+                             (list "--ghci-options"
+                                   (concat "-ghci-script=" script)))))))
         (when (process-live-p process)
           (set-process-query-on-exit-flag process nil)
-          (message "Started Intero process for REPL."))))))
+          (message "Started Intero process for REPL.")
+          (kill-buffer script-buffer))))))
 
 (defun intero-repl-options (backend-buffer)
   "Open an option menu to set options used when starting the REPL.
@@ -1023,43 +1091,133 @@ May return a qualified name."
       (buffer-substring-no-properties (car reg) (cdr reg)))))
 
 (defun intero-ident-pos-at-point ()
-  "Return the span of the identifier under point, or nil if none found.
-May return a qualified name."
-  (save-excursion
-    ;; Skip whitespace if we're on it.  That way, if we're at "map ", we'll
-    ;; see the word "map".
-    (if (and (not (eobp))
-             (eq ?  (char-syntax (char-after))))
-        (skip-chars-backward " \t"))
-
-    (let ((case-fold-search nil))
-      (cl-multiple-value-bind (start end)
-          (list
-           (progn (skip-syntax-backward "w_") (point))
-           (progn (skip-syntax-forward "w_") (point)))
-        ;; If we're looking at a module ID that qualifies further IDs, add
-        ;; those IDs.
-        (goto-char start)
-        (while (and (looking-at "[[:upper:]]") (eq (char-after end) ?.)
-                    ;; It's a module ID that qualifies further IDs.
-                    (goto-char (1+ end))
-                    (save-excursion
-                      (when (not (zerop (skip-syntax-forward
-                                         (if (looking-at "\\s_") "_" "w'"))))
-                        (setq end (point))))))
-        ;; If we're looking at an ID that's itself qualified by previous
-        ;; module IDs, add those too.
-        (goto-char start)
-        (if (eq (char-after) ?.) (forward-char 1)) ;Special case for "."
-        (while (and (eq (char-before) ?.)
-                    (progn (forward-char -1)
-                           (not (zerop (skip-syntax-backward "w'"))))
-                    (skip-syntax-forward "'")
-                    (looking-at "[[:upper:]]"))
-          (setq start (point)))
-        ;; This is it.
-        (unless (= start end)
+  "Return the span of the identifier near point going backward.
+Returns nil if no identifier found or point is inside string or
+comment.  May return a qualified name."
+  (when (not (nth 8 (syntax-ppss)))
+    ;; Do not handle comments and strings
+    (let (start end)
+      ;; Initial point position is non-deterministic, it may occur anywhere
+      ;; inside identifier span, so the approach is:
+      ;; - first try go left and find left boundary
+      ;; - then try go right and find right boundary
+      ;;
+      ;; In both cases assume the longest path, e.g. when going left take into
+      ;; account than point may occur at the end of identifier, when going right
+      ;; take into account that point may occur at the beginning of identifier.
+      ;;
+      ;; We should handle `.` character very careful because it is heavily
+      ;; overloaded.  Examples of possible cases:
+      ;; Control.Monad.>>=  -- delimiter
+      ;; Control.Monad.when -- delimiter
+      ;; Data.Aeson..:      -- delimiter and operator symbol
+      ;; concat.map         -- composition function
+      ;; .?                 -- operator symbol
+      (save-excursion
+        ;; First, skip whitespace if we're on it, moving point to last
+        ;; identifier char.  That way, if we're at "map ", we'll see the word
+        ;; "map".
+        (when (and (looking-at (rx eol))
+                   (not (bolp)))
+          (backward-char))
+        (when (and (not (eobp))
+                   (eq (char-syntax (char-after)) ? ))
+          (skip-chars-backward " \t")
+          (backward-char))
+        ;; Now let's try to go left.
+        (save-excursion
+          (if (not (intero-mode--looking-at-varsym))
+              ;; Looking at non-operator char, this is quite simple
+              (progn
+                (skip-syntax-backward "w_")
+                ;; Remember position
+                (setq start (point)))
+            ;; Looking at operator char.
+            (while (and (not (bobp))
+                        (intero-mode--looking-at-varsym))
+              ;; skip all operator chars backward
+              (setq start (point))
+              (backward-char))
+            ;; Extra check for case when reached beginning of the buffer.
+            (when (intero-mode--looking-at-varsym)
+              (setq start (point))))
+          ;; Slurp qualification part if present.  If identifier is qualified in
+          ;; case of non-operator point will stop before `.` dot, but in case of
+          ;; operator it will stand at `.` delimiting dot.  So if we're looking
+          ;; at `.` let's step one char forward and try to get qualification
+          ;; part.
+          (goto-char start)
+          (when (looking-at-p (rx "."))
+            (forward-char))
+          (let ((pos (intero-mode--skip-qualification-backward)))
+            (when pos
+              (setq start pos))))
+        ;; Finally, let's try to go right.
+        (save-excursion
+          ;; Try to slurp qualification part first.
+          (skip-syntax-forward "w_")
+          (setq end (point))
+          (while (and (looking-at (rx "." upper))
+                      (not (zerop (progn (forward-char)
+                                         (skip-syntax-forward "w_")))))
+            (setq end (point)))
+          ;; If point was at non-operator we already done, otherwise we need an
+          ;; extra check.
+          (while (intero-mode--looking-at-varsym)
+            (forward-char)
+            (setq end (point))))
+        (when (not (= start end))
           (cons start end))))))
+
+(defun intero-mode--looking-at-varsym ()
+  "Return t when point stands at operator symbol."
+  (when (not (eobp))
+    (let ((lex (intero-lexeme-classify-by-first-char (char-after))))
+      (or (eq lex 'varsym)
+          (eq lex 'consym)))))
+
+(defun intero-mode--skip-qualification-backward ()
+  "Skip qualified part of identifier backward.
+Expects point stands *after* delimiting dot.
+Returns beginning position of qualified part or nil if no qualified part found."
+  (when (not (and (bobp)
+                  (looking-at (rx bol))))
+    (let ((case-fold-search nil)
+          pos)
+      (while (and (eq (char-before) ?.)
+                  (progn (backward-char)
+                         (not (zerop (skip-syntax-backward "w'"))))
+                  (skip-syntax-forward "'")
+                  (looking-at "[[:upper:]]"))
+        (setq pos (point)))
+      pos)))
+
+(defun intero-lexeme-classify-by-first-char (char)
+  "Classify token by CHAR.
+CHAR is a chararacter that is assumed to be the first character
+of a token."
+  (let ((category (get-char-code-property char 'general-category)))
+
+    (cond
+     ((or (member char '(?! ?# ?$ ?% ?& ?* ?+ ?. ?/ ?< ?= ?> ?? ?@ ?^ ?| ?~ ?\\ ?-))
+          (and (> char 127)
+               (member category '(Pc Pd Po Sm Sc Sk So))))
+      'varsym)
+     ((equal char ?:)
+      'consym)
+     ((equal char ?\')
+      'char)
+     ((equal char ?\")
+      'string)
+     ((member category '(Lu Lt))
+      'conid)
+     ((or (equal char ?_)
+          (member category '(Ll Lo)))
+      'varid)
+     ((and (>= char ?0) (<= char ?9))
+      'number)
+     ((member char '(?\] ?\[ ?\( ?\) ?\{ ?\} ?\` ?\, ?\;))
+      'special))))
 
 (defun intero-buffer-file-name (&optional buffer)
   "Call function `buffer-file-name' for BUFFER and clean its result.
@@ -1083,7 +1241,6 @@ path."
     (make-directory temporary-file-directory t)
     (make-temp-file prefix dir-flag suffix)))
 
-
 (defun intero-temp-file-name (&optional buffer)
   "Return the name of a temp file containing an up-to-date copy of BUFFER's contents."
   (with-current-buffer (or buffer (current-buffer))
@@ -1091,7 +1248,11 @@ path."
         (or intero-temp-file-name
             (setq intero-temp-file-name
                   (intero-canonicalize-path
-                   (intero-make-temp-file "intero" nil ".hs"))))
+                   (intero-make-temp-file
+                    "intero" nil
+                    (concat "." (if (buffer-file-name)
+                                    (file-name-extension (buffer-file-name))
+                                  "hs"))))))
       (let ((contents (buffer-string)))
         (with-temp-file intero-temp-file-name
           (insert contents))))))
@@ -1550,6 +1711,9 @@ TROUBLESHOOTING
 It may be obvious if there is some text above this message
 indicating a problem.
 
+If you do not wish to use Intero for some projects, see
+https://github.com/commercialhaskell/intero#whitelistingblacklisting-projects
+
 The process ended. Here is the reason that Emacs gives us:
 
 "
@@ -1594,7 +1758,7 @@ You can always run M-x intero-restart to make it try again.
                        (setq repeat t))
               (when intero-debug
                 (intero--warn "Received output but no callback in `intero-callbacks': %S"
-                      string)))))
+                              string)))))
         (delete-region (point-min) (point))))))
 
 (defun strip-carriage-returns (string)
@@ -1661,7 +1825,14 @@ config exists."
 
 This can be caused by a syntax error in your stack.yaml file. Check that out.
 
-Otherwise, please report this as a bug!")
+If you do not wish to use Intero for some projects, see
+https://github.com/commercialhaskell/intero#whitelistingblacklisting-projects
+
+Otherwise, please report this as a bug!
+
+For debugging purposes, try running the following in your terminal:
+
+stack path --project-root")
                  nil))))))
 
 (defun intero-ghc-version ()
@@ -1681,7 +1852,10 @@ Otherwise, please report this as a bug!")
   (with-temp-buffer
     (cl-case (call-process "stack" nil (current-buffer) t "ide" "targets")
       (0
-       (split-string (buffer-string) nil t))
+       (cl-remove-if-not
+        (lambda (line)
+          (string-match "^[A-Za-z0-9-:]+$" line))
+        (split-string (buffer-string) "[\r\n]" t)))
       (1 nil))))
 
 (defun intero-package-name (&optional cabal-file)
@@ -1932,6 +2106,18 @@ suggestions are available."
               (setq start (min (length text) (1+ (match-end 0))))))
           ;; Messages of this format:
           ;;
+          ;; Could not find module ‘Language.Haskell.TH’
+          ;;     It is a member of the hidden package ‘template-haskell’.
+          ;;     Use -v to see a list of the files searched for....
+          (let ((start 0))
+            (while (string-match "It is a member of the hidden package [‘`‛]\\([^ ]+\\)['’]" text start)
+              (setq note t)
+              (add-to-list 'intero-suggestions
+                           (list :type 'add-package
+                                 :package (match-string 1 text)))
+              (setq start (min (length text) (1+ (match-end 0))))))
+          ;; Messages of this format:
+          ;;
           ;; Defaulting the following constraint(s) to type ‘Integer’
           ;;   (Num a0) arising from the literal ‘1’
           ;; In the expression: 2
@@ -2108,6 +2294,10 @@ suggestions are available."
                                         (plist-get suggestion :option)
                                         " #-}")
                          :default t))
+                  (add-package
+                   (list :key suggestion
+                         :title (concat "Enable package: " (plist-get suggestion :package))
+                         :default t))
                   (remove-import
                    (list :key suggestion
                          :title (concat "Remove: import "
@@ -2147,6 +2337,12 @@ suggestions are available."
                                 (or (> lt-line gt-line)
                                     (and (= lt-line gt-line)
                                          (> lt-column gt-column))))))))
+          ;; # Changes unrelated to the buffer
+          (cl-loop
+           for suggestion in sorted
+           do (cl-case (plist-get suggestion :type)
+                (add-package
+                 (intero-add-package (plist-get suggestion :package)))))
           ;; # Changes that do not increase/decrease line numbers
           ;;
           ;; Update in-place suggestions
