@@ -25,6 +25,7 @@ import           Outputable
 import           Prelude hiding (mod)
 import           System.Directory
 import           TcHsSyn
+import qualified TyCoRep
 import           Var
 
 #if MIN_VERSION_ghc(7,8,3)
@@ -149,8 +150,16 @@ getTypeLHsExpr _ e =
 getTypeLPat :: (GhcMonad m)
             => TypecheckedModule -> LPat Id -> m (Maybe (Maybe Id,SrcSpan,Type))
 getTypeLPat _ (L spn pat) =
-  return (Just (getMaybeId pat,spn,hsPatType pat))
+  return (Just (getMaybeId pat,spn,getPatType pat))
   where
+    getPatType pat'@(ConPatOut _ _ _ _ _ args _) =
+      let argPats = hsConPatArgs args
+          getArgTy ty [] = ty
+          getArgTy ty ((L _ _h):_t) =
+            TyCoRep.ForAllTy (TyCoRep.Anon (getPatType _h)) $ getArgTy ty _t
+      in
+        getArgTy (hsPatType pat') argPats
+    getPatType pat' = hsPatType pat'
 #if __GLASGOW_HASKELL__ >= 800
     getMaybeId (VarPat (L _ vid)) = Just vid
 #else
