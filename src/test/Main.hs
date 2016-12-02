@@ -296,22 +296,22 @@ definition =
   describe
     "Definition location"
     (do it
-          ":loc-at X.hs 1 1 1 1 x -- from definition site"
+          "From definition site"
           (locAt "x = 'a' : x" (1, 1, 1, 1, "x") (unlines ["X.hs:(1,1)-(1,2)"]))
         it
-          ":loc-at X.hs 1 11 1 12 x -- from use site"
+          "From use site"
           (locAt
              "x = 'a' : x"
              (1, 11, 1, 12, "x")
              (unlines ["X.hs:(1,1)-(1,12)"]))
         it
-          ":loc-at X.hs 1 11 1 12 x -- to function argument"
+          "To function argument"
           (locAt
              "f x = 'a' : x"
              (1, 13, 1, 14, "x")
              (unlines ["X.hs:(1,3)-(1,4)"]))
         it
-          ":loc-at X.hs 1 11 1 12 x -- to pattern match"
+          "To pattern match"
           (locAt
              "f (Just x) = 'a' : x"
              (1, 20, 1, 21, "x")
