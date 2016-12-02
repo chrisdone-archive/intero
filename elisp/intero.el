@@ -1002,6 +1002,7 @@ function is subsequently applied to each line, once."
 BACKEND-BUFFER is used for options.
 TARGETS is the targets to load.
 If PROMPT-OPTIONS is non-nil, prompt with an options list."
+  (setq intero-repl-last-loaded nil)
   (setq intero-targets targets)
   (when prompt-options
     (intero-repl-options backend-buffer))
