@@ -368,7 +368,8 @@ Returns nil when unable to find definition."
     (let ((targets (with-current-buffer (intero-buffer 'backend)
                      intero-targets)))
       (intero-destroy 'backend)
-      (intero-get-worker-create 'backend targets (current-buffer)))))
+      (intero-get-worker-create 'backend targets (current-buffer))
+      (intero-repl-restart))))
 
 (defun intero-targets ()
   "Set the targets to use for stack ghci."
@@ -389,7 +390,8 @@ Returns nil when unable to find definition."
                                   " "
                                   t))))
     (intero-destroy)
-    (intero-get-worker-create 'backend targets (current-buffer))))
+    (intero-get-worker-create 'backend targets (current-buffer))
+    (intero-repl-restart)))
 
 (defun intero-destroy (&optional worker)
   "Stop WORKER and kill its associated process buffer.
@@ -877,8 +879,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
          (name (format "*intero:%s:%s:repl*"
                        (file-name-nondirectory root)
                        package-name)))
-    (if (not (get-buffer name))
-        (error "No REPL is started for this project.")
+    (when (get-buffer name)
       (with-current-buffer (get-buffer name)
         (goto-char (point-max))
         (let ((process (get-buffer-process (current-buffer))))
