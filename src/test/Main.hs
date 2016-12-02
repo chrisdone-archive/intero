@@ -315,7 +315,19 @@ definition =
           (locAt
              "f (Just x) = 'a' : x"
              (1, 20, 1, 21, "x")
-             (unlines ["X.hs:(1,9)-(1,10)"])))
+             (unlines ["X.hs:(1,9)-(1,10)"]))
+        issue
+          "To unexported thing"
+          "https://github.com/commercialhaskell/intero/issues/98"
+          (locAt
+             (unlines
+                [ "module X () where"
+                , "data MyType = MyCons"
+                , "t :: MyType"
+                , "t = MyCons :: MyType"
+                ])
+             (3, 6, 3, 12, "MyType")
+             (unlines ["X.hs:(2,1)-(2,21)"])))
 
 -- | Test interactive completions.
 completion :: Spec

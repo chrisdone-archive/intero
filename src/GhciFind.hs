@@ -289,16 +289,22 @@ resolveNameFromModule infos name =
 #endif
                                   showppr d modL)))
               Just info ->
-                case find (matchName name)
+                case find (reliableNameEquality name)
                           (modInfoExports (modinfoInfo info)) of
                   Just name' ->
                     return (Right name')
                   Nothing ->
-                    return (Left "No matching export in any local modules.")
-  where matchName :: Name -> Name -> Bool
-        matchName x y =
-          occNameString (getOccName x) ==
-          occNameString (getOccName y)
+                    case find (reliableNameEquality name)
+                              (fromMaybe [] (modInfoTopLevelScope (modinfoInfo info))) of
+                      Just name' ->
+                        return (Right name')
+                      Nothing -> do
+                        result <- lookupGlobalName name
+                        case result of
+                          Nothing ->
+                            return (Left ("No matching export in any local modules: " ++ showppr d name))
+                          Just tyThing ->
+                            return (Right (getName tyThing))
 
 -- | Try to resolve the type display from the given span.
 resolveName :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe Var
