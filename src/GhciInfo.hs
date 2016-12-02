@@ -6,9 +6,11 @@
 
 module GhciInfo (collectInfo,getModInfo,showppr) where
 
+import           ConLike
 import           Control.Exception
 import           Control.Monad
 import qualified CoreUtils
+import           DataCon
 import           Data.Data
 import           Data.Generics (GenericQ, mkQ, extQ)
 import           Data.List
@@ -152,13 +154,8 @@ getTypeLPat :: (GhcMonad m)
 getTypeLPat _ (L spn pat) =
   return (Just (getMaybeId pat,spn,getPatType pat))
   where
-    getPatType pat'@(ConPatOut _ _ _ _ _ args _) =
-      let argPats = hsConPatArgs args
-          getArgTy ty [] = ty
-          getArgTy ty ((L _ _h):_t) =
-            TyCoRep.ForAllTy (TyCoRep.Anon (getPatType _h)) $ getArgTy ty _t
-      in
-        getArgTy (hsPatType pat') argPats
+    getPatType pat'@(ConPatOut (L _ (RealDataCon dc)) _ _ _ _ _ _) =
+      dataConRepType dc
     getPatType pat' = hsPatType pat'
 #if __GLASGOW_HASKELL__ >= 800
     getMaybeId (VarPat (L _ vid)) = Just vid
