@@ -868,6 +868,25 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (interactive "P")
   (switch-to-buffer-other-window (intero-repl-buffer prompt-options t)))
 
+(defun intero-repl-restart ()
+  "Restart the REPL."
+  (interactive)
+  (let* ((root (intero-project-root))
+         (package-name (intero-package-name))
+         (backend-buffer (intero-buffer 'backend))
+         (name (format "*intero:%s:%s:repl*"
+                       (file-name-nondirectory root)
+                       package-name)))
+    (if (not (get-buffer name))
+        (error "No REPL is started for this project.")
+      (with-current-buffer (get-buffer name)
+        (goto-char (point-max))
+        (let ((process (get-buffer-process (current-buffer))))
+          (when process (kill-process process)))
+        (intero-repl-mode-start backend-buffer
+                                (buffer-local-value 'intero-targets backend-buffer)
+                                nil)))))
+
 (defun intero-repl-buffer (prompt-options &optional store-previous)
   "Start the REPL buffer.
 If PROMPT-OPTIONS is non-nil, prompt with an options list.  When
