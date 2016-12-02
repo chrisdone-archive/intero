@@ -68,7 +68,7 @@
   :group 'haskell)
 
 (defcustom intero-package-version
-  "0.1.19"
+  "0.1.20"
   "Package version to auto-install.
 
 This version does not necessarily have to be the latest version
