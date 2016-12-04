@@ -858,9 +858,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
     (with-current-buffer repl-buffer
       (comint-simple-send
        (get-buffer-process (current-buffer))
-       (if (string= intero-repl-last-loaded file)
-           ":r"
-         (concat ":l " file)))
+       (concat ":l " file))
       (setq intero-repl-last-loaded file))
     (pop-to-buffer repl-buffer)))
 
