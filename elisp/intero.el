@@ -1584,12 +1584,12 @@ Automatically performs initial actions in SOURCE-BUFFER, if specified."
              (not (buffer-local-value 'intero-try-with-build buffer))
              t ;; pass --no-load
              ))
-           (arguments options)
+           (arguments (cons "ghci" options))
            (process (with-current-buffer buffer
                       (when intero-debug
                         (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
                       (message "Booting up intero ...")
-                      (apply #'start-process "stack" buffer "stack" "ghci"
+                      (apply #'start-process "stack" buffer "stack"
                              arguments))))
       (set-process-query-on-exit-flag process nil)
       (process-send-string process ":set -fobject-code\n")
