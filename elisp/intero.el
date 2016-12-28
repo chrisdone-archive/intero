@@ -249,6 +249,9 @@ This is slower, but will build required dependencies.")
   nil
   "The last loaded thing with `intero-repl-load`.")
 
+(defvar-local intero-buffer-host nil
+  "The hostname of the box hosting the intero process for the current buffer.")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
 
@@ -1252,9 +1255,6 @@ The path returned is canonicalized and stripped of any text properties."
     (when name
       (intero-canonicalize-path (substring-no-properties name)))))
 
-(defvar-local intero-buffer-host nil
-  "The hostname of the box hosting the intero process for the current buffer.")
-
 (defun intero-buffer-host (&optional buffer)
   "Get the hostname of the box hosting the file behind the buffer."
   (with-current-buffer (or buffer (current-buffer))
@@ -1266,7 +1266,7 @@ The path returned is canonicalized and stripped of any text properties."
 	      (if (eq 0 (string-match tramp-file-name-regexp file))
 		  (tramp-file-name-host (tramp-dissect-file-name file))
 		"")))))))
-	
+
 (defun intero-extend-path-by-buffer-host (path &optional buffer)
   "Take a path, and extend it by the host of the provided buffer (default to current buffer). Return path unchanged if the file is local, or the buffer has no host."
   (with-current-buffer (or buffer (current-buffer))
