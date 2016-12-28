@@ -350,9 +350,10 @@ Returns nil when unable to find definition."
           (xref-push-marker-stack)
         (with-no-warnings
           (ring-insert find-tag-marker-ring (point-marker))))
-      (let ((file (match-string 1 result))
-            (line (string-to-number (match-string 2 result)))
-            (col (string-to-number (match-string 3 result))))
+      (let* ((returned-file (match-string 1 result))
+	     (line (string-to-number (match-string 2 result)))
+	     (col (string-to-number (match-string 3 result)))
+	     (file (intero-extend-path-by-buffer-host returned-file)))
         (unless (string= file (intero-temp-file-name))
           (find-file file))
         (pop-mark)
@@ -453,7 +454,7 @@ running context across :load/:reloads in Intero."
     (let ((file-buffer (current-buffer)))
       (intero-async-call
        'backend
-       (concat ":l " (intero-temp-file-name))
+       (concat ":l " (intero-localize-path (intero-temp-file-name)))
        (list :cont cont
              :file-buffer file-buffer
              :checker checker)
@@ -853,7 +854,7 @@ This is set by `intero-repl-buffer', and should otherwise be nil.")
 If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (interactive "P")
   (save-buffer)
-  (let ((file (intero-temp-file-name))
+  (let ((file (intero-localize-path (intero-temp-file-name)))
         (repl-buffer (intero-repl-buffer prompt-options t)))
     (with-current-buffer repl-buffer
       (comint-simple-send
@@ -903,8 +904,14 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
             (get-buffer name)
           (with-current-buffer
               (get-buffer-create name)
-            (cd root)
-            (intero-repl-mode)
+	    ;; The new buffer doesn't know if the initial buffer was hosted
+	    ;; remotely or not, so we need to extend by the host of the
+	    ;; initial buffer to cd. We could also achieve this by setting the
+	    ;; buffer's intero-buffer-host, but intero-repl-mode wipes this, so
+	    ;; we defer setting that until after.
+            (cd (intero-extend-path-by-buffer-host root initial-buffer))
+            (intero-repl-mode) ; wipes buffer-local variables
+	    (setq intero-buffer-host (intero-buffer-host initial-buffer))
             (intero-repl-mode-start backend-buffer
                                     (buffer-local-value 'intero-targets backend-buffer)
                                     prompt-options)
@@ -1025,7 +1032,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
               (current-buffer)))
            (script
             (with-current-buffer script-buffer
-              (intero-buffer-file-name))))
+              (intero-localize-path (intero-buffer-file-name)))))
       (let ((process
              (get-buffer-process
               (apply #'make-comint-in-buffer "intero" (current-buffer) "stack" nil "ghci"
@@ -1245,6 +1252,31 @@ The path returned is canonicalized and stripped of any text properties."
     (when name
       (intero-canonicalize-path (substring-no-properties name)))))
 
+(defvar-local intero-buffer-host nil
+  "The hostname of the box hosting the intero process for the current buffer.")
+
+(defun intero-buffer-host (&optional buffer)
+  "Get the hostname of the box hosting the file behind the buffer."
+  (with-current-buffer (or buffer (current-buffer))
+    (let ((file (intero-buffer-file-name)))
+    (if intero-buffer-host
+	intero-buffer-host
+      (setq intero-buffer-host
+	    (when file
+	      (if (eq 0 (string-match tramp-file-name-regexp file))
+		  (tramp-file-name-host (tramp-dissect-file-name file))
+		"")))))))
+	
+(defun intero-extend-path-by-buffer-host (path &optional buffer)
+  "Take a path, and extend it by the host of the provided buffer (default to current buffer). Return path unchanged if the file is local, or the buffer has no host."
+  (with-current-buffer (or buffer (current-buffer))
+    (if (or (eq nil (intero-buffer-host)) (eq "" (intero-buffer-host)))
+	path
+      (concat "/"
+	      (intero-buffer-host)
+	      ":"
+	      path))))
+
 (defvar-local intero-temp-file-name nil
   "The name of a temporary file to which the current buffer's content is copied.")
 
@@ -1254,9 +1286,11 @@ PREFIX, DIR-FLAG and SUFFIX are all passed to `make-temp-file'
 unmodified.  A different directory is applied so that if docker
 is used with stack, the commands run inside docker can find the
 path."
-  (let ((temporary-file-directory
-         (expand-file-name ".stack-work/intero/"
-                           (intero-project-root))))
+  (let* ((intero-absolute-project-root
+	  (intero-extend-path-by-buffer-host (intero-project-root)))
+	 (temporary-file-directory
+	  (expand-file-name ".stack-work/intero/"
+                          intero-absolute-project-root)))
     (make-directory temporary-file-directory t)
     (make-temp-file prefix dir-flag suffix)))
 
@@ -1275,6 +1309,12 @@ path."
       (let ((contents (buffer-string)))
         (with-temp-file intero-temp-file-name
           (insert contents))))))
+
+(defun intero-localize-path (path)
+  "Turn a possibly remote path to a purely local one. This is used to create paths which a remote intero process can load."
+  (if (eq 0 (string-match tramp-file-name-regexp path))
+      (tramp-file-name-localname (tramp-dissect-file-name path))
+    path))
 
 (defun intero-canonicalize-path (path)
   "Return a standardized version of PATH.
@@ -1328,7 +1368,7 @@ type as arguments."
 (defun intero-format-get-type-at (beg end)
   "Compose a request for getting types in region from BEG to END."
   (format ":type-at %S %d %d %d %d %S"
-          (intero-temp-file-name)
+          (intero-localize-path (intero-temp-file-name))
           (save-excursion (goto-char beg)
                           (line-number-at-pos))
           (save-excursion (goto-char beg)
@@ -1358,7 +1398,7 @@ type as arguments."
                (unless (member 'save flycheck-check-syntax-automatically)
                  (intero-async-call
                   'backend
-                  (concat ":l " (intero-temp-file-name))))
+                  (concat ":l " (intero-localize-path (intero-temp-file-name)))))
                (intero-async-call
                 'backend
                 ":set -fobject-code")
@@ -1376,7 +1416,7 @@ type as arguments."
    (intero-blocking-call
     'backend
     (format ":loc-at %S %d %d %d %d %S"
-            (intero-temp-file-name)
+            (intero-localize-path (intero-temp-file-name))
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
@@ -1394,7 +1434,7 @@ type as arguments."
    (intero-blocking-call
     'backend
     (format ":uses %S %d %d %d %d %S"
-            (intero-temp-file-name)
+            (intero-localize-path (intero-temp-file-name))
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
@@ -1412,7 +1452,7 @@ passed to CONT in SOURCE-BUFFER."
   (intero-async-call
    'backend
    (format ":complete-at %S %d %d %d %d %S"
-           (intero-temp-file-name)
+           (intero-localize-path (intero-temp-file-name))
            (save-excursion (goto-char beg)
                            (line-number-at-pos))
            (save-excursion (goto-char beg)
@@ -1454,6 +1494,11 @@ Completions for PREFIX are passed to CONT in SOURCE-BUFFER."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Process communication
+
+(defun intero-call-process (program &optional infile destination display &rest args)
+  "Synchronously call a process. Same interface as call-process/process-file."
+  (let ((process-args (append (list program infile destination display) args)))
+    (apply 'process-file process-args)))
 
 (defun intero-delete-worker (worker)
   "Delete the given WORKER."
@@ -1536,16 +1581,17 @@ Installing intero-%s automatically ...
 
 " intero-package-version))
       (redisplay)
-      (cl-case (call-process "stack" nil (current-buffer) t "build"
-                             (with-current-buffer buffer
-                               (let* ((cabal-file (intero-cabal-find-file))
-                                      (package-name (intero-package-name cabal-file)))
-                                 ;; For local development. Most users'll
-                                 ;; never hit this behaviour.
-                                 (if (string= package-name "intero")
-                                     "intero"
-                                   (concat "intero-" intero-package-version))))
-                             "ghc-paths" "syb")
+      (cl-case (intero-call-process
+		"stack" nil (current-buffer) t "build"
+		(with-current-buffer buffer
+		  (let* ((cabal-file (intero-cabal-find-file))
+			 (package-name (intero-package-name cabal-file)))
+		    ;; For local development. Most users'll
+		    ;; never hit this behaviour.
+		    (if (string= package-name "intero")
+			"intero"
+		      (concat "intero-" intero-package-version))))
+		"ghc-paths" "syb")
         (0
          (message "Installed successfully! Starting Intero in a moment ...")
          (bury-buffer buffer)
@@ -1593,7 +1639,7 @@ Automatically performs initial actions in SOURCE-BUFFER, if specified."
                       (when intero-debug
                         (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
                       (message "Booting up intero ...")
-                      (apply #'start-process "stack" buffer "stack"
+                      (apply #'start-file-process "stack" buffer "stack"
                              arguments))))
       (set-process-query-on-exit-flag process nil)
       (process-send-string process ":set -fobject-code\n")
@@ -1666,7 +1712,7 @@ NO-LOAD enable the correspondingly-named stack options."
             (list "--no-build"))
           (when no-load
             (list "--no-load"))
-          (let ((dir (intero-make-temp-file "intero" t)))
+          (let ((dir (intero-localize-path (intero-make-temp-file "intero" t))))
             (list "--ghci-options"
                   (concat "-odir=" dir)
                   "--ghci-options"
@@ -1702,9 +1748,9 @@ This is a standard process sentinel function."
   "Return non-nil if intero (of the right version) is installed in the stack environment."
   (redisplay)
   (with-temp-buffer
-    (if (= 0 (call-process "stack" nil t nil "exec"
-                           "--verbosity" "silent"
-                           "--" "intero" "--version"))
+    (if (= 0 (intero-call-process "stack" nil t nil "exec"
+				  "--verbosity" "silent"
+				  "--" "intero" "--version"))
         (progn
           (goto-char (point-min))
           ;; This skipping comes due to https://github.com/commercialhaskell/intero/pull/216/files
@@ -1791,7 +1837,7 @@ You can always run M-x intero-restart to make it try again.
 (defun intero-get-buffer-create (worker)
   "Get or create the stack buffer for WORKER.
 Uses the directory of the current buffer for context."
-  (let* ((root (intero-project-root))
+  (let* ((root (intero-extend-path-by-buffer-host (intero-project-root)))
          (cabal-file (intero-cabal-find-file))
          (package-name (if cabal-file
                            (intero-package-name cabal-file)
@@ -1837,12 +1883,12 @@ config exists."
     (setq intero-project-root
           (with-temp-buffer
             (cl-case (save-excursion
-                       (call-process "stack" nil
-                                     (current-buffer)
-                                     nil
-                                     "path"
-                                     "--project-root"
-                                     "--verbosity" "silent"))
+                       (intero-call-process "stack" nil
+					    (current-buffer)
+					    nil
+					    "path"
+					    "--project-root"
+					    "--verbosity" "silent"))
               (0 (buffer-substring (line-beginning-position) (line-end-position)))
               (t (intero--warn "Couldn't get the Stack project root.
 
@@ -1865,7 +1911,7 @@ stack path --project-root")
         (setq intero-ghc-version
               (with-temp-buffer
                 (cl-case (save-excursion
-                           (call-process "stack" nil (current-buffer) t "ghc" "--" "--numeric-version"))
+                           (intero-call-process "stack" nil (current-buffer) t "ghc" "--" "--numeric-version"))
                   (0
                    (buffer-substring (line-beginning-position) (line-end-position)))
                   (1 nil)))))))
@@ -1873,7 +1919,7 @@ stack path --project-root")
 (defun intero-get-targets ()
   "Get all available targets."
   (with-temp-buffer
-    (cl-case (call-process "stack" nil (current-buffer) t "ide" "targets")
+    (cl-case (intero-call-process "stack" nil (current-buffer) t "ide" "targets")
       (0
        (cl-remove-if-not
         (lambda (line)
@@ -2114,15 +2160,15 @@ automatically."
 (defun intero-hoogle-ready-p ()
   "Is hoogle ready to be started?"
   (with-temp-buffer
-    (cl-case (call-process "stack" nil (current-buffer) t
-                           "hoogle" "--no-setup" "--verbosity" "silent")
+    (cl-case (intero-call-process "stack" nil (current-buffer) t
+				  "hoogle" "--no-setup" "--verbosity" "silent")
       (0 t))))
 
 (defun intero-hoogle-supported-p ()
   "Is the stack hoogle command supported?"
   (with-temp-buffer
-    (cl-case (call-process "stack" nil (current-buffer) t
-                           "hoogle" "--help")
+    (cl-case (intero-call-process "stack" nil (current-buffer) t
+				  "hoogle" "--help")
       (0 t))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
