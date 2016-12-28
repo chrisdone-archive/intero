@@ -59,6 +59,7 @@
 (require 'eldoc)
 (eval-when-compile
   (require 'wid-edit))
+(require 'tramp)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Configuration
