@@ -1260,13 +1260,13 @@ The path returned is canonicalized and stripped of any text properties."
   "Get the hostname of the box hosting the file behind the buffer."
   (with-current-buffer (or buffer (current-buffer))
     (let ((file (intero-buffer-file-name)))
-    (if intero-buffer-host
-	intero-buffer-host
-      (setq intero-buffer-host
-	    (when file
-	      (if (eq 0 (string-match tramp-file-name-regexp file))
-		  (tramp-file-name-host (tramp-dissect-file-name file))
-		"")))))))
+      (if intero-buffer-host
+          intero-buffer-host
+        (setq intero-buffer-host
+              (when file
+                (if (eq 0 (string-match tramp-file-name-regexp file))
+                    (tramp-file-name-host (tramp-dissect-file-name file))
+                  "")))))))
 
 (defun intero-extend-path-by-buffer-host (path &optional buffer)
   "Take a path, and extend it by the host of the provided buffer (default to current buffer). Return path unchanged if the file is local, or the buffer has no host."
@@ -1291,7 +1291,7 @@ path."
 	  (intero-extend-path-by-buffer-host (intero-project-root)))
 	 (temporary-file-directory
 	  (expand-file-name ".stack-work/intero/"
-                          intero-absolute-project-root)))
+                            intero-absolute-project-root)))
     (make-directory temporary-file-directory t)
     (make-temp-file prefix dir-flag suffix)))
 
