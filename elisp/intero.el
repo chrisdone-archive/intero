@@ -504,7 +504,8 @@ CHECKER and BUFFER are added to each item parsed from STRING."
               (concat "[\r\n]\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\):\\([0-9()-:]+\\):"
                       "[ \n\r]+\\([[:unibyte:][:nonascii:]]+?\\)\n[^ ]")
               nil t 1)
-        (let* ((file (intero-canonicalize-path (match-string 1)))
+        (let* ((local-file (intero-canonicalize-path (match-string 1)))
+               (file (intero-extend-path-by-buffer-host local-file buffer))
                (location-raw (match-string 2))
                (msg (match-string 3)) ;; Replace gross bullet points.
                (type (cond ((string-match "^Warning:" msg)
@@ -515,7 +516,7 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                            ((string-match "^Splicing " msg) 'splice)
                            (t                               'error)))
                (location (intero-parse-error
-                          (concat file ":" location-raw ": x")))
+                          (concat local-file ":" location-raw ": x")))
                (line (plist-get location :line))
                (column (plist-get location :col)))
           (setq messages
@@ -523,7 +524,7 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                        line column type
                        msg
                        :checker checker
-                       :buffer (when (string= temp-file file)
+                       :buffer (when (intero-paths-for-same-file temp-file file)
                                  buffer)
                        :filename (intero-buffer-file-name buffer))
                       messages)))
@@ -1256,20 +1257,35 @@ The path returned is canonicalized and stripped of any text properties."
     (when name
       (intero-canonicalize-path (substring-no-properties name)))))
 
+(defun intero-tramp-path-p (path)
+  "Return t if PATH is a path to be handled by TRAMP, and nil otherwise."
+  (eq 0 (string-match tramp-file-name-regexp path)))
+
+(defun intero-paths-for-same-file (path-1 path-2)
+  "Compare PATH-1 and PATH-2 to see if they represent the same file."
+  (let ((simplify-path #'(lambda (path)
+                           (if (intero-tramp-path-p path)
+                               (let* ((dissection (tramp-dissect-file-name path))
+                                      (host (tramp-file-name-host dissection))
+                                      (localname (tramp-file-name-localname dissection)))
+                                 (concat host ":" localname))
+                             path))))
+    (string= (funcall simplify-path path-1) (funcall simplify-path path-2))))
+
 (defun intero-buffer-host (&optional buffer)
-  "Get the hostname of the box hosting the file behind the buffer."
+  "Get the hostname of the box hosting the file behind the BUFFER."
   (with-current-buffer (or buffer (current-buffer))
     (let ((file (intero-buffer-file-name)))
       (if intero-buffer-host
           intero-buffer-host
         (setq intero-buffer-host
               (when file
-                (if (eq 0 (string-match tramp-file-name-regexp file))
+                (if (intero-tramp-path-p file)
                     (tramp-file-name-host (tramp-dissect-file-name file))
                   "")))))))
 
 (defun intero-extend-path-by-buffer-host (path &optional buffer)
-  "Take a path, and extend it by the host of the provided buffer (default to current buffer). Return path unchanged if the file is local, or the buffer has no host."
+  "Take a PATH, and extend it by the host of the provided BUFFER (default to current buffer).  Return PATH unchanged if the file is local, or the BUFFER has no host."
   (with-current-buffer (or buffer (current-buffer))
     (if (or (eq nil (intero-buffer-host)) (eq "" (intero-buffer-host)))
 	path
@@ -1313,7 +1329,7 @@ path."
 
 (defun intero-localize-path (path)
   "Turn a possibly remote path to a purely local one. This is used to create paths which a remote intero process can load."
-  (if (eq 0 (string-match tramp-file-name-regexp path))
+  (if (intero-tramp-path-p path)
       (tramp-file-name-localname (tramp-dissect-file-name path))
     path))
 
@@ -1497,7 +1513,7 @@ Completions for PREFIX are passed to CONT in SOURCE-BUFFER."
 ;; Process communication
 
 (defun intero-call-process (program &optional infile destination display &rest args)
-  "Synchronously call a process. Same interface as call-process/process-file."
+  "Synchronously call PROGRAM.  Same interface as 'call-process'/'process-file'.  Provides TRAMP compatibility for 'call-process'; when the 'default-directory' is on a remote machine, PROGRAM is launched on that machine."
   (let ((process-args (append (list program infile destination display) args)))
     (apply 'process-file process-args)))
 
