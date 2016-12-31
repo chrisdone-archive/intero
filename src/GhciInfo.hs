@@ -27,7 +27,6 @@ import           Outputable
 import           Prelude hiding (mod)
 import           System.Directory
 import           TcHsSyn
-import qualified TyCoRep
 import           Var
 
 #if MIN_VERSION_ghc(7,8,3)
