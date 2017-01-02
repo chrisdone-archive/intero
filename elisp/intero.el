@@ -381,6 +381,14 @@ Returns nil when unable to find definition."
     (when (string-match regex string)
       (match-string 3 string))))
 
+(defmacro intero-with-dump-splices (exp)
+  "Run EXP but with dump-splices enabled in the intero backend process."
+  (list 'when (list 'intero-blocking-call ''backend ":set -ddump-splices")
+	(list 'let (list (list 'result exp))
+	      (list 'progn
+		    'nil ; Disable dump-splices here in future
+		    'result))))
+
 (defun intero-expand-splice-at-point ()
   "Show the expansion of the template haskell splice at point."
   (interactive)
@@ -390,19 +398,20 @@ Returns nil when unable to find definition."
 	   (beg (car pos))
 	   (start-column (save-excursion (goto-char beg)
 					 (current-column))))
-      (intero-async-call
-       'backend
-       (concat ":l " (intero-localize-path (intero-temp-file-name)))
-       (list :file-buffer (current-buffer)
-	     :line line
-	     :start start-column)
-       (lambda (state string)
-	 (let* ((buffer (plist-get state :file-buffer))
-		(line (plist-get state :line))
-		(start (plist-get state :start))
-		(expansion (intero-get-expansion-at-pos string buffer line start)))
-	   (when expansion
-	     (message "%s" (intero-fontify-expression expansion)))))))))
+      (intero-with-dump-splices
+       (intero-async-call
+	'backend
+	(concat ":l " (intero-localize-path (intero-temp-file-name)))
+	(list :file-buffer (current-buffer)
+	      :line line
+	      :start start-column)
+	(lambda (state string)
+	  (let* ((buffer (plist-get state :file-buffer))
+		 (line (plist-get state :line))
+		 (start (plist-get state :start))
+		 (expansion (intero-get-expansion-at-pos string buffer line start)))
+	    (when expansion
+	      (message "%s" (intero-fontify-expression expansion))))))))))
 
 (defun intero-restart ()
   "Simply restart the process with the same configuration as before."
@@ -1699,9 +1708,6 @@ Automatically performs initial actions in SOURCE-BUFFER, if specified."
       (set-process-query-on-exit-flag process nil)
       (process-send-string process ":set -fobject-code\n")
       (process-send-string process ":set prompt \"\\4\"\n")
-      ;; The following settings give us expanded splices on load
-      (process-send-string process ":set -XTemplateHaskell\n")
-      (process-send-string process ":set -ddump-splices\n")
       (with-current-buffer buffer
         (erase-buffer)
         (setq intero-targets targets)
