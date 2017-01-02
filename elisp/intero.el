@@ -384,24 +384,25 @@ Returns nil when unable to find definition."
 (defun intero-expand-splice-at-point ()
   "Show the expansion of the template haskell splice at point."
   (interactive)
-  (let* ((line (line-number-at-pos (point)))
-	 (pos (intero-thing-at-point))
-	 (beg (car pos))
-	 (start-column (save-excursion (goto-char beg)
-				       (current-column))))
-    (intero-async-call
-     'backend
-     (concat ":l " (intero-localize-path (intero-temp-file-name)))
-     (list :file-buffer (current-buffer)
-	   :line line
-	   :start start-column)
-     (lambda (state string)
-       (let* ((buffer (plist-get state :file-buffer))
-	      (line (plist-get state :line))
-	      (start (plist-get state :start))
-	      (expansion (intero-get-expansion-at-pos string buffer line start)))
-	 (when expansion
-	   (message (intero-fontify-expression expansion))))))))
+  (unless (intero-gave-up 'backend)
+    (let* ((line (line-number-at-pos (point)))
+	   (pos (intero-thing-at-point))
+	   (beg (car pos))
+	   (start-column (save-excursion (goto-char beg)
+					 (current-column))))
+      (intero-async-call
+       'backend
+       (concat ":l " (intero-localize-path (intero-temp-file-name)))
+       (list :file-buffer (current-buffer)
+	     :line line
+	     :start start-column)
+       (lambda (state string)
+	 (let* ((buffer (plist-get state :file-buffer))
+		(line (plist-get state :line))
+		(start (plist-get state :start))
+		(expansion (intero-get-expansion-at-pos string buffer line start)))
+	   (when expansion
+	     (message (intero-fontify-expression expansion))))))))
 
 (defun intero-restart ()
   "Simply restart the process with the same configuration as before."
