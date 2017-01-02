@@ -402,7 +402,7 @@ Returns nil when unable to find definition."
 		(start (plist-get state :start))
 		(expansion (intero-get-expansion-at-pos string buffer line start)))
 	   (when expansion
-	     (message (intero-fontify-expression expansion))))))))
+	     (message "%s" (intero-fontify-expression expansion)))))))))
 
 (defun intero-restart ()
   "Simply restart the process with the same configuration as before."
