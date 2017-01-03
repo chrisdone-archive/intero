@@ -392,11 +392,11 @@ If the problem persists, please report this as a bug!")))
 
 (defmacro intero-with-dump-splices (exp)
   "Run EXP but with dump-splices enabled in the intero backend process."
-  (list 'when (list 'intero-blocking-call ''backend ":set -ddump-splices")
-	(list 'let (list (list 'result exp))
-	      (list 'progn
-		    'nil ; Disable dump-splices here in future
-		    'result))))
+  `(when (intero-blocking-call 'backend ":set -ddump-splices")
+    (let ((result ,exp))
+      (progn
+        nil ; Disable dump-splices here in future
+        result))))
 
 (defun intero-expand-splice-at-point ()
   "Show the expansion of the template haskell splice at point."
