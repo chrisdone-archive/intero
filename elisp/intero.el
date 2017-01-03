@@ -1303,13 +1303,20 @@ PREFIX, DIR-FLAG and SUFFIX are all passed to `make-temp-file'
 unmodified.  A different directory is applied so that if docker
 is used with stack, the commands run inside docker can find the
 path."
-  (let* ((intero-absolute-project-root
-	  (intero-extend-path-by-buffer-host (intero-project-root)))
-	 (temporary-file-directory
-	  (expand-file-name ".stack-work/intero/"
-                            intero-absolute-project-root)))
+  (let* ((temporary-file-directory
+	  (intero-temp-file-dir)))
     (make-directory temporary-file-directory t)
     (make-temp-file prefix dir-flag suffix)))
+
+(defun intero-temp-file-dir ()
+  "Get the temporary file directory for the current intero
+project."
+  (let ((intero-absolute-project-root
+         (intero-extend-path-by-buffer-host (intero-project-root)))
+        (temporary-file-directory
+         (expand-file-name ".stack-work/intero/"
+                           intero-absolute-project-root)))
+    temporary-file-directory))
 
 (defun intero-temp-file-name (&optional buffer)
   "Return the name of a temp file containing an up-to-date copy of BUFFER's contents."
