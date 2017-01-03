@@ -361,9 +361,14 @@ Returns nil when unable to find definition."
       (let* ((returned-file (match-string 1 result))
 	     (line (string-to-number (match-string 2 result)))
 	     (col (string-to-number (match-string 3 result)))
-	     (file (intero-extend-path-by-buffer-host returned-file)))
-        (unless (string= file (intero-temp-file-name))
-          (find-file file))
+	     (loaded-file (intero-extend-path-by-buffer-host returned-file)))
+        (if (intero-temp-file-p loaded-file)
+            (let ((original-buffer (intero-temp-file-origin-buffer loaded-file)))
+              (if original-buffer
+                  (switch-to-buffer original-buffer)
+                (error "Attempted to load temp file. Try restarting Intero.
+If the problem persists, please report this as a bug!")))
+          (find-file loaded-file))
         (pop-mark)
         (goto-char (point-min))
         (forward-line (1- line))
