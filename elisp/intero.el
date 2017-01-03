@@ -183,6 +183,10 @@ To use this, use the following mode hook:
 (defvar intero-global-mode nil
   "Global mode is enabled?")
 
+(defvar intero-temp-file-buffer-mapping
+  (make-hash-table)
+  "A mapping from file names to buffers.")
+
 (defun global-intero-mode ()
   "Enable Intero on all Haskell mode buffers."
   (interactive)
@@ -1304,11 +1308,14 @@ The path returned is canonicalized and stripped of any text properties."
 
 (defun intero-temp-file-origin-buffer (temp-file)
   "Get the original buffer that TEMP-FILE was created for."
-  (cl-loop
-   for buffer in (buffer-list)
-   when (string= (intero-canonicalize-path temp-file)
-                 (buffer-local-value 'intero-temp-file-name buffer))
-   return buffer))
+  (or
+   (gethash (intero-canonicalize-path temp-file)
+            intero-temp-file-buffer-mapping)
+   (cl-loop
+    for buffer in (buffer-list)
+    when (string= (intero-canonicalize-path temp-file)
+                  (buffer-local-value 'intero-temp-file-name buffer))
+    return buffer)))
 
 (defun intero-make-temp-file (prefix &optional dir-flag suffix)
   "Like `make-temp-file', but using a different temp directory.
@@ -1336,13 +1343,17 @@ project."
   (with-current-buffer (or buffer (current-buffer))
     (prog1
         (or intero-temp-file-name
-            (setq intero-temp-file-name
-                  (intero-canonicalize-path
-                   (intero-make-temp-file
-                    "intero" nil
-                    (concat "." (if (buffer-file-name)
-                                    (file-name-extension (buffer-file-name))
-                                  "hs"))))))
+            (progn (setq intero-temp-file-name
+                         (intero-canonicalize-path
+                          (intero-make-temp-file
+                           "intero" nil
+                           (concat "." (if (buffer-file-name)
+                                           (file-name-extension (buffer-file-name))
+                                         "hs")))))
+                   (puthash intero-temp-file-name
+                            (current-buffer)
+                            intero-temp-file-buffer-mapping)
+                   intero-temp-file-name))
       (let ((contents (buffer-string)))
         (with-temp-file intero-temp-file-name
           (insert contents))))))
