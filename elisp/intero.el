@@ -176,6 +176,7 @@ To use this, use the following mode hook:
 (define-key intero-mode-map (kbd "C-c C-l") 'intero-repl-load)
 (define-key intero-mode-map (kbd "C-c C-z") 'intero-repl)
 (define-key intero-mode-map (kbd "C-c C-r") 'intero-apply-suggestions)
+(define-key intero-mode-map (kbd "C-c C-e") 'intero-expand-splice-at-point)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global variables/state
@@ -374,6 +375,52 @@ If the problem persists, please report this as a bug!")))
         (forward-line (1- line))
         (forward-char (1- col))
         t))))
+
+(defun intero-get-expansion-at-pos (string buffer line start)
+  "Take output from the background intero process as STRING, the current BUFFER, LINE and the the column of the START of the thing to expand.  Return the expansion of the the thing at START.  If there is no expansion at START, then return nil."
+  (let* ((column-regex (format "\\(%s\\|%s\\)" start (1+ start)))
+	 ;; ghci varies the column number of an expanded template haskell
+	 ;; expression according to whether it is parenthesised or not;
+	 ;; column-regex matches on either possibility.
+	 (regex (concat (intero-localize-path (intero-temp-file-name buffer))
+			(format ":%s:" line)
+			(format "%s" column-regex)
+			"\\(-[0-9]+\\)?: Splicing expression[ \t\n]*"
+			"\\(\\( .*\n\\)+\\)")))
+    (when (string-match regex string)
+      (match-string 3 string))))
+
+(defmacro intero-with-dump-splices (exp)
+  "Run EXP but with dump-splices enabled in the intero backend process."
+  (list 'when (list 'intero-blocking-call ''backend ":set -ddump-splices")
+	(list 'let (list (list 'result exp))
+	      (list 'progn
+		    'nil ; Disable dump-splices here in future
+		    'result))))
+
+(defun intero-expand-splice-at-point ()
+  "Show the expansion of the template haskell splice at point."
+  (interactive)
+  (unless (intero-gave-up 'backend)
+    (let* ((line (line-number-at-pos (point)))
+	   (pos (intero-thing-at-point))
+	   (beg (car pos))
+	   (start-column (save-excursion (goto-char beg)
+					 (current-column))))
+      (intero-with-dump-splices
+       (intero-async-call
+	'backend
+	(concat ":l " (intero-localize-path (intero-temp-file-name)))
+	(list :file-buffer (current-buffer)
+	      :line line
+	      :start start-column)
+	(lambda (state string)
+	  (let* ((buffer (plist-get state :file-buffer))
+		 (line (plist-get state :line))
+		 (start (plist-get state :start))
+		 (expansion (intero-get-expansion-at-pos string buffer line start)))
+	    (when expansion
+	      (message "%s" (intero-fontify-expression expansion))))))))))
 
 (defun intero-restart ()
   "Simply restart the process with the same configuration as before."
