@@ -1297,25 +1297,38 @@ The path returned is canonicalized and stripped of any text properties."
 (defvar-local intero-temp-file-name nil
   "The name of a temporary file to which the current buffer's content is copied.")
 
+(defun intero-temp-file-p (path)
+  "Is PATH a temp file?"
+  (string= (file-name-directory path)
+           (file-name-directory (intero-temp-file-dir))))
+
+(defun intero-temp-file-origin-buffer (temp-file)
+  "Get the original buffer that TEMP-FILE was created for."
+  (cl-loop
+   for buffer in (buffer-list)
+   when (string= (intero-canonicalize-path temp-file)
+                 (buffer-local-value 'intero-temp-file-name buffer))
+   return buffer))
+
 (defun intero-make-temp-file (prefix &optional dir-flag suffix)
   "Like `make-temp-file', but using a different temp directory.
 PREFIX, DIR-FLAG and SUFFIX are all passed to `make-temp-file'
 unmodified.  A different directory is applied so that if docker
 is used with stack, the commands run inside docker can find the
 path."
-  (let* ((temporary-file-directory
-	  (intero-temp-file-dir)))
+  (let ((temporary-file-directory
+         (intero-temp-file-dir)))
     (make-directory temporary-file-directory t)
     (make-temp-file prefix dir-flag suffix)))
 
 (defun intero-temp-file-dir ()
   "Get the temporary file directory for the current intero
 project."
-  (let ((intero-absolute-project-root
-         (intero-extend-path-by-buffer-host (intero-project-root)))
-        (temporary-file-directory
-         (expand-file-name ".stack-work/intero/"
-                           intero-absolute-project-root)))
+  (let* ((intero-absolute-project-root
+          (intero-extend-path-by-buffer-host (intero-project-root)))
+         (temporary-file-directory
+          (expand-file-name ".stack-work/intero/"
+                            intero-absolute-project-root)))
     temporary-file-directory))
 
 (defun intero-temp-file-name (&optional buffer)
