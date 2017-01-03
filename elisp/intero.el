@@ -376,51 +376,43 @@ If the problem persists, please report this as a bug!")))
         (forward-char (1- col))
         t))))
 
-(defun intero-get-expansion-at-pos (string buffer line start)
-  "Take output from the background intero process as STRING, the current BUFFER, LINE and the the column of the START of the thing to expand.  Return the expansion of the the thing at START.  If there is no expansion at START, then return nil."
-  (let* ((column-regex (format "\\(%s\\|%s\\)" start (1+ start)))
-	 ;; ghci varies the column number of an expanded template haskell
-	 ;; expression according to whether it is parenthesised or not;
-	 ;; column-regex matches on either possibility.
-	 (regex (concat (intero-localize-path (intero-temp-file-name buffer))
-			(format ":%s:" line)
-			(format "%s" column-regex)
-			"\\(-[0-9]+\\)?: Splicing expression[ \t\n]*"
-			"\\(\\( .*\n\\)+\\)")))
-    (when (string-match regex string)
-      (match-string 3 string))))
-
 (defmacro intero-with-dump-splices (exp)
   "Run EXP but with dump-splices enabled in the intero backend process."
   `(when (intero-blocking-call 'backend ":set -ddump-splices")
-    (let ((result ,exp))
-      (progn
-        nil ; Disable dump-splices here in future
-        result))))
+     (let ((result ,exp))
+       (progn
+         nil ; Disable dump-splices here in future
+         result))))
 
 (defun intero-expand-splice-at-point ()
   "Show the expansion of the template haskell splice at point."
   (interactive)
   (unless (intero-gave-up 'backend)
-    (let* ((line (line-number-at-pos (point)))
-	   (pos (intero-thing-at-point))
-	   (beg (car pos))
-	   (start-column (save-excursion (goto-char beg)
-					 (current-column))))
-      (intero-with-dump-splices
-       (intero-async-call
-	'backend
-	(concat ":l " (intero-localize-path (intero-temp-file-name)))
-	(list :file-buffer (current-buffer)
-	      :line line
-	      :start start-column)
-	(lambda (state string)
-	  (let* ((buffer (plist-get state :file-buffer))
-		 (line (plist-get state :line))
-		 (start (plist-get state :start))
-		 (expansion (intero-get-expansion-at-pos string buffer line start)))
-	    (when expansion
-	      (message "%s" (intero-fontify-expression expansion))))))))))
+    (intero-with-dump-splices
+     (let* ((output (intero-blocking-call
+                     'backend
+                     (concat ":l " (intero-localize-path (intero-temp-file-name)))))
+            (msgs (intero-parse-errors-warnings-splices nil (current-buffer) output))
+            (line (line-number-at-pos))
+            (column (if (save-excursion
+                          (forward-char 1)
+                          (looking-back "$(" 1))
+                        (+ 2 (current-column))
+                      (if (looking-at "$(")
+                          (+ 3 (current-column))
+                        (1+ (current-column)))))
+            (expansion-msg
+             (cl-loop for msg in msgs
+                      when (and (eq (flycheck-error-level msg) 'splice)
+                                (= (flycheck-error-line msg) line)
+                                (<= (flycheck-error-column msg) column))
+                      return (flycheck-error-message msg)))
+            (expansion
+             (when expansion-msg
+               (string-trim
+                (replace-regexp-in-string "^Splicing expression" "" expansion-msg)))))
+       (when expansion
+         (message "%s" (intero-fontify-expression expansion)))))))
 
 (defun intero-restart ()
   "Simply restart the process with the same configuration as before."
@@ -965,14 +957,14 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
             (get-buffer name)
           (with-current-buffer
               (get-buffer-create name)
-	    ;; The new buffer doesn't know if the initial buffer was hosted
-	    ;; remotely or not, so we need to extend by the host of the
-	    ;; initial buffer to cd. We could also achieve this by setting the
-	    ;; buffer's intero-buffer-host, but intero-repl-mode wipes this, so
-	    ;; we defer setting that until after.
+            ;; The new buffer doesn't know if the initial buffer was hosted
+            ;; remotely or not, so we need to extend by the host of the
+            ;; initial buffer to cd. We could also achieve this by setting the
+            ;; buffer's intero-buffer-host, but intero-repl-mode wipes this, so
+            ;; we defer setting that until after.
             (cd (intero-extend-path-by-buffer-host root initial-buffer))
             (intero-repl-mode) ; wipes buffer-local variables
-	    (setq intero-buffer-host (intero-buffer-host initial-buffer))
+            (setq intero-buffer-host (intero-buffer-host initial-buffer))
             (intero-repl-mode-start backend-buffer
                                     (buffer-local-value 'intero-targets backend-buffer)
                                     prompt-options)
@@ -1344,11 +1336,11 @@ The path returned is canonicalized and stripped of any text properties."
   "Take a PATH, and extend it by the host of the provided BUFFER (default to current buffer).  Return PATH unchanged if the file is local, or the BUFFER has no host."
   (with-current-buffer (or buffer (current-buffer))
     (if (or (eq nil (intero-buffer-host)) (eq "" (intero-buffer-host)))
-	path
+        path
       (concat "/"
-	      (intero-buffer-host)
-	      ":"
-	      path))))
+              (intero-buffer-host)
+              ":"
+              path))))
 
 (defvar-local intero-temp-file-name nil
   "The name of a temporary file to which the current buffer's content is copied.")
@@ -1682,16 +1674,16 @@ Installing intero-%s automatically ...
 " intero-package-version))
       (redisplay)
       (cl-case (intero-call-process
-		"stack" nil (current-buffer) t "build"
-		(with-current-buffer buffer
-		  (let* ((cabal-file (intero-cabal-find-file))
-			 (package-name (intero-package-name cabal-file)))
-		    ;; For local development. Most users'll
-		    ;; never hit this behaviour.
-		    (if (string= package-name "intero")
-			"intero"
-		      (concat "intero-" intero-package-version))))
-		"ghc-paths" "syb")
+                "stack" nil (current-buffer) t "build"
+                (with-current-buffer buffer
+                  (let* ((cabal-file (intero-cabal-find-file))
+                         (package-name (intero-package-name cabal-file)))
+                    ;; For local development. Most users'll
+                    ;; never hit this behaviour.
+                    (if (string= package-name "intero")
+                        "intero"
+                      (concat "intero-" intero-package-version))))
+                "ghc-paths" "syb")
         (0
          (message "Installed successfully! Starting Intero in a moment ...")
          (bury-buffer buffer)
@@ -1849,8 +1841,8 @@ This is a standard process sentinel function."
   (redisplay)
   (with-temp-buffer
     (if (= 0 (intero-call-process "stack" nil t nil "exec"
-				  "--verbosity" "silent"
-				  "--" "intero" "--version"))
+                                  "--verbosity" "silent"
+                                  "--" "intero" "--version"))
         (progn
           (goto-char (point-min))
           ;; This skipping comes due to https://github.com/commercialhaskell/intero/pull/216/files
@@ -1984,11 +1976,11 @@ config exists."
           (with-temp-buffer
             (cl-case (save-excursion
                        (intero-call-process "stack" nil
-					    (current-buffer)
-					    nil
-					    "path"
-					    "--project-root"
-					    "--verbosity" "silent"))
+                                            (current-buffer)
+                                            nil
+                                            "path"
+                                            "--project-root"
+                                            "--verbosity" "silent"))
               (0 (buffer-substring (line-beginning-position) (line-end-position)))
               (t (intero--warn "Couldn't get the Stack project root.
 
@@ -2261,14 +2253,14 @@ automatically."
   "Is hoogle ready to be started?"
   (with-temp-buffer
     (cl-case (intero-call-process "stack" nil (current-buffer) t
-				  "hoogle" "--no-setup" "--verbosity" "silent")
+                                  "hoogle" "--no-setup" "--verbosity" "silent")
       (0 t))))
 
 (defun intero-hoogle-supported-p ()
   "Is the stack hoogle command supported?"
   (with-temp-buffer
     (cl-case (intero-call-process "stack" nil (current-buffer) t
-				  "hoogle" "--help")
+                                  "hoogle" "--help")
       (0 t))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
