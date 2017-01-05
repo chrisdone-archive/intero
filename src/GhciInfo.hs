@@ -153,7 +153,7 @@ getTypeLPat :: (GhcMonad m)
 getTypeLPat _ (L spn pat) =
   return (Just (getMaybeId pat,spn,getPatType pat))
   where
-    getPatType pat'@(ConPatOut (L _ (RealDataCon dc)) _ _ _ _ _ _) =
+    getPatType (ConPatOut (L _ (RealDataCon dc)) _ _ _ _ _ _) =
       dataConRepType dc
     getPatType pat' = hsPatType pat'
 #if __GLASGOW_HASKELL__ >= 800
