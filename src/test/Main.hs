@@ -88,6 +88,18 @@ load =
                    , "Ok, modules loaded: Main."
                    , "Collecting type info for 1 module(s) ... "]))
         it
+          ":l X.hs; :extensions X"
+          (do result <-
+                withIntero
+                  []
+                  (\dir repl -> do
+                     writeFile (dir ++ "/X.hs") "{-# LANGUAGE ScopedTypeVariables #-}\nmodule X where\nx = 'a'"
+                     _ <- repl (":l X.hs")
+                     repl (":extensions X"))
+              shouldBe
+                (filter (== "ScopedTypeVariables") (words result))
+                ["ScopedTypeVariables"])
+        it
           ":l NonExistent.hs"
           (do result <- withIntero [] (\_ repl -> repl (":l NonExistent.hs"))
               shouldBe
