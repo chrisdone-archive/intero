@@ -433,7 +433,7 @@ If the problem persists, please report this as a bug!")))
          (available-targets (intero-get-targets))
          (targets (if available-targets
                       (intero-multiswitch
-                       "Targets:"
+                       "Set the targets to use for stack ghci:"
                        (mapcar (lambda (target)
                                  (list :key target
                                        :title target
