@@ -124,7 +124,7 @@ This causes it to skip building the target."
              (flycheck-mode)
              (add-to-list (make-local-variable 'company-backends) 'company-intero)
              (company-mode)
-             (setq-local eldoc-documentation-function 'eldoc-intero))
+             (setq-local eldoc-documentation-function 'intero-eldoc))
     (message "Intero mode disabled.")))
 
 (define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
@@ -704,13 +704,13 @@ pragma is supported also."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ELDoc integration
 
-(defvar-local eldoc-intero-cache (make-hash-table :test 'equal)
-  "Cache for types of regions, used by `eldoc-intero'.
+(defvar-local intero-eldoc-cache (make-hash-table :test 'equal)
+  "Cache for types of regions, used by `intero-eldoc'.
 This is not for saving on requests (we make a request even if
 something is in cache, overwriting the old entry), but rather for
 making types show immediately when we do have them cached.")
 
-(defun eldoc-intero-maybe-print (msg)
+(defun intero-eldoc-maybe-print (msg)
   "Print MSG with eldoc if eldoc would display a message now.
 Like `eldoc-print-current-symbol-info', but just printing MSG
 instead of using `eldoc-documentation-function'."
@@ -722,24 +722,24 @@ instead of using `eldoc-documentation-function'."
                nil))
          (eldoc-message msg))))
 
-(defun eldoc-intero ()
+(defun intero-eldoc ()
   "ELDoc backend for intero."
   (apply #'intero-get-type-at-async
          (lambda (beg end ty)
            (let ((response-status (intero-haskell-utils-repl-response-error-status ty)))
              (if (eq 'no-error response-status)
-               (let ((msg (intero-fontify-expression
-                           (replace-regexp-in-string "[ \n]+" " " ty))))
-                 ;; Got an updated type-at-point, cache and print now:
-                 (puthash (list beg end)
-                          msg
-                          eldoc-intero-cache)
-                 (eldoc-intero-maybe-print msg))
+                 (let ((msg (intero-fontify-expression
+                             (replace-regexp-in-string "[ \n]+" " " ty))))
+                   ;; Got an updated type-at-point, cache and print now:
+                   (puthash (list beg end)
+                            msg
+                            intero-eldoc-cache)
+                   (intero-eldoc-maybe-print msg))
                ;; But if we're seeing errors, invalidate cache-at-point:
-               (remhash (list beg end) eldoc-intero-cache))))
+               (remhash (list beg end) intero-eldoc-cache))))
          (intero-thing-at-point))
   ;; If we have something cached at point, print that first:
-  (gethash (intero-thing-at-point) eldoc-intero-cache))
+  (gethash (intero-thing-at-point) intero-eldoc-cache))
 
 (defun intero-haskell-utils-repl-response-error-status (response)
   "Parse response REPL's RESPONSE for errors.
