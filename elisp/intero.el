@@ -1587,17 +1587,17 @@ You can always run M-x intero-restart to make it try again.
         (let* ((next-callback (pop intero-callbacks))
                (state (nth 0 next-callback))
                (func (nth 1 next-callback)))
-          (let ((string (strip-carriage-returns (buffer-substring (point-min) (1- (point))))))
+          (let ((string (intero-strip-carriage-returns (buffer-substring (point-min) (1- (point))))))
             (if next-callback
                 (progn (with-temp-buffer
                          (funcall func state string))
                        (setq repeat t))
               (when intero-debug
                 (intero--warn "Received output but no callback in `intero-callbacks': %S"
-                      string)))))
+                              string)))))
         (delete-region (point-min) (point))))))
 
-(defun strip-carriage-returns (string)
+(defun intero-strip-carriage-returns (string)
   "Strip the \\r from Windows \\r\\n line endings in STRING."
   (replace-regexp-in-string "\r" "" string))
 
