@@ -69,8 +69,8 @@ executable intero
     bytestring,
     directory,
     filepath,
-    -- We permit any 8.0.1.*
-    ghc >= 7.8 && < 8.0.2,
+    -- We permit any 8.0.1.* or 8.0.2.*
+    ghc >= 7.8 && < 8.0.3,
     ghc-paths,
     haskeline,
     process,
