@@ -1050,7 +1050,7 @@ function is subsequently applied to each line, once."
   (setq-local warning-suppress-types (cons '(undo discard-info) warning-suppress-types))
   (add-hook 'comint-output-filter-functions
             'intero-linkify-process-output
-            t)
+            t t)
   (setq-local comint-prompt-read-only t)
   (add-to-list (make-local-variable 'company-backends) 'company-intero)
   (company-mode))
