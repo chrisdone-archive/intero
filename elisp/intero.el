@@ -1722,11 +1722,7 @@ Automatically performs initial actions in SOURCE-BUFFER, if specified."
              (not (buffer-local-value 'intero-try-with-build buffer))
              t ;; pass --no-load
              ))
-           (script-args
-            (with-current-buffer source-buffer
-              (intero-stack-script-args)))
-           (arguments (or script-args
-                          (cons "ghci" options)))
+           (arguments (cons "ghci" options))
            (process (with-current-buffer buffer
                       (when intero-debug
                         (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
@@ -2032,32 +2028,6 @@ CABAL-FILE rather than trying to locate one."
                    ".cabal$" ""
                    (file-name-nondirectory cabal-file))
                 "")))))
-
-(defun intero-stack-script-args ()
-  "Get the script line below the shebang."
-  (save-excursion
-    (goto-char (point-min))
-    (when (looking-at "^#!")
-      (or (when (search-forward-regexp "^{- stack " nil t 1)
-            (mapcar
-             (lambda (arg)
-               (if (string= arg "runghc")
-                   "ghci"
-                 arg))
-             (split-string
-              (buffer-substring-no-properties
-               (point)
-               (- (search-forward-regexp "-}" nil nil 1) 2)))))
-          (when (search-forward-regexp "^-- stack " nil t 1)
-            (mapcar
-             (lambda (arg)
-               (if (string= arg "runghc")
-                   "ghci"
-                 arg))
-             (split-string
-              (buffer-substring-no-properties
-               (point)
-               (line-end-position)))))))))
 
 (defun intero-cabal-find-file (&optional dir)
   "Search for package description file upwards starting from DIR.
