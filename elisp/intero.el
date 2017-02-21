@@ -1879,7 +1879,7 @@ The process ended. Here is the reason that Emacs gives us:
      "For troubleshooting purposes, here are the arguments used to launch intero:
 
 "
-     (format "  stack ghci %s"
+     (format "  stack %s"
              (combine-and-quote-strings intero-arguments))
      "
 
