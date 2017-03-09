@@ -1009,6 +1009,10 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
                 (char (match-string-no-properties 3))
                 (link-start (1+ (match-beginning 1)))
                 (link-end   (1+ (match-end 2))))
+            (let ((unmangled-file (intero-unmangle-file-path file)))
+              (when unmangled-file
+                (setq file unmangled-file)
+                (replace-match unmangled-file nil nil nil 1)))
             (add-text-properties
              link-start link-end
              (list 'keymap intero-hyperlink-map
@@ -1361,6 +1365,14 @@ The path returned is canonicalized and stripped of any text properties."
     when (string= (intero-canonicalize-path temp-file)
                   (buffer-local-value 'intero-temp-file-name buffer))
     return buffer)))
+
+(defun intero-unmangle-file-path (file)
+  "If FILE is an intero temp file, return the original source path, otherwise FILE."
+  (or (when (intero-temp-file-p file)
+        (let ((origin-buffer (intero-temp-file-origin-buffer file)))
+          (when origin-buffer
+            (buffer-file-name origin-buffer))))
+      file))
 
 (defun intero-make-temp-file (prefix &optional dir-flag suffix)
   "Like `make-temp-file', but using a different temp directory.
