@@ -152,6 +152,7 @@ To use this, use the following mode hook:
              (setq-local eldoc-documentation-function 'intero-eldoc))
     (message "Intero mode disabled.")))
 
+;;;###autoload
 (defun intero-mode-whitelist ()
   "Run intero-mode when the current project is in `intero-whitelist'."
   (interactive)
@@ -161,6 +162,7 @@ To use this, use the following mode hook:
                             intero-whitelist)
       (intero-mode))))
 
+;;;###autoload
 (defun intero-mode-blacklist ()
   "Run intero-mode unless the current project is in `intero-blacklist'."
   (interactive)
