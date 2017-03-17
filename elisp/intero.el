@@ -316,11 +316,32 @@ You can use this to kill them or look inside."
 With prefix argument INSERT, inserts the type above the current
 line as a type signature."
   (interactive "P")
-  (let ((ty (apply #'intero-get-type-at (intero-thing-at-point))))
+  (let* ((thing (intero-thing-at-point))
+         (origin-buffer (current-buffer))
+         (origin (buffer-name))
+         (package (intero-package-name))
+         (ty (apply #'intero-get-type-at thing))
+         (string (buffer-substring (nth 0 thing) (nth 1 thing))))
     (if insert
         (save-excursion
           (goto-char (line-beginning-position))
           (insert (intero-fontify-expression ty) "\n"))
+      (with-current-buffer (intero-help-buffer)
+        (let ((buffer-read-only nil)
+              (help-string
+               (concat
+                (intero-fontify-expression string)
+                " in `"
+                (propertize origin 'origin-buffer origin-buffer)
+                "'"
+                " (" package ")"
+                "\n\n"
+                (intero-fontify-expression ty))))
+          (erase-buffer)
+          (intero-help-push-history origin-buffer help-string)
+          (intero-help-pagination)
+          (insert help-string)
+          (goto-char (point-min))))
       (message
        "%s" (intero-fontify-expression ty)))))
 
