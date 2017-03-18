@@ -978,12 +978,12 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
 
 (defvar intero-hyperlink-map
   (let ((map (make-sparse-keymap)))
-    (define-key map [mouse-1]  'intero-find-file-with-line:char)
-    (define-key map [C-return] 'intero-find-file-with-line:char)
+    (define-key map [mouse-1]  'intero-find-file-with-line-and-char)
+    (define-key map [C-return] 'intero-find-file-with-line-and-char)
     map)
   "Keymap for clicking on links in REPL.")
 
-(defun intero-find-file-with-line:char ()
+(defun intero-find-file-with-line-and-char ()
   "Jump to the file and location indicated by text properties at point."
   (interactive)
   (let ((file (get-text-property (point) 'file))
