@@ -180,27 +180,26 @@ To use this, use the following mode hook:
 (define-key intero-mode-map (kbd "C-c C-r") 'intero-apply-suggestions)
 (define-key intero-mode-map (kbd "C-c C-e") 'intero-expand-splice-at-point)
 
+(define-minor-mode intero-global-mode
+  "Enable Intero on all Haskell mode buffers."
+  :global t
+  (if intero-global-mode
+      (add-hook 'haskell-mode-hook 'intero-mode)
+    (remove-hook 'haskell-mode-hook 'intero-mode))
+  (when (called-interactively-p 'interactive)
+    (message "Intero mode is now %s in all future Haskell buffers."
+             (if intero-global-mode
+                 "enabled" "disabled"))))
+
+(define-obsolete-function-alias 'global-intero-mode 'intero-global-mode)
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Global variables/state
-
-(defvar intero-global-mode nil
-  "Global mode is enabled?")
 
 (defvar intero-temp-file-buffer-mapping
   (make-hash-table)
   "A mapping from file names to buffers.")
-
-(defun global-intero-mode ()
-  "Enable Intero on all Haskell mode buffers."
-  (interactive)
-  (setq intero-global-mode (not intero-global-mode))
-  (if intero-global-mode
-      (add-hook 'haskell-mode-hook 'intero-mode)
-    (remove-hook 'haskell-mode-hook 'intero-mode))
-  (when (eq this-command 'global-intero-mode)
-    (message "Intero mode is now %s on all future Haskell buffers."
-             (if intero-global-mode
-                 "enabled" "disabled"))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer-local variables/state
