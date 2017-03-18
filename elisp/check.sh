@@ -1,10 +1,19 @@
-#!/bin/bash
+#!/bin/sh -e
 
-for i in `ls *.el | grep -v case-split | sed 's/.el$//'`
- do rm -f $i.elc
- echo Compiling $i.el ...
- emacs -Q -L ../../dash -L ../../company-mode/ -L ../../haskell-mode -L ../../flycheck/ -L . --batch --eval "(byte-compile-disable-warning 'cl-functions)" -f batch-byte-compile $i.el
+ELDIR=$(dirname "$0")
 
- done
+INIT_PACKAGE_EL="(progn
+  (require 'package)
+  (push '(\"melpa\" . \"https://melpa.org/packages/\") package-archives)
+  (package-initialize))"
 
- rm *.elc
+cd $ELDIR
+
+cask
+
+cask emacs -Q --eval "(setq byte-compile-error-on-warn t)" \
+     -batch -f batch-byte-compile *.el
+
+cask emacs -Q -eval "$INIT_PACKAGE_EL" \
+     -batch -f package-lint-batch-and-exit intero.el
+
