@@ -307,9 +307,7 @@ You can use this to kill them or look inside."
             (haskell-mode-hook nil))
         (haskell-mode)))
     (insert expression)
-    (if (fboundp 'font-lock-ensure)
-        (font-lock-ensure)
-      (font-lock-fontify-buffer))
+    (font-lock-ensure)
     (buffer-string)))
 
 (defun intero-type-at (insert)
