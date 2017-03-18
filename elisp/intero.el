@@ -147,7 +147,7 @@ To use this, use the following mode hook:
   (if intero-mode
       (progn (flycheck-select-checker 'intero)
              (flycheck-mode)
-             (add-to-list (make-local-variable 'company-backends) 'company-intero)
+             (add-to-list (make-local-variable 'company-backends) 'intero-company)
              (company-mode)
              (setq-local eldoc-documentation-function 'intero-eldoc))
     (message "Intero mode disabled.")))
@@ -630,12 +630,12 @@ CHECKER and BUFFER are added to each item parsed from STRING."
     "UNPACK" "WARNING")
   "Pragmas that GHC supports.")
 
-(defun company-intero (command &optional arg &rest ignored)
+(defun intero-company (command &optional arg &rest ignored)
   "Company source for intero, with the standard COMMAND and ARG args.
 Other arguments are IGNORED."
   (interactive (list 'interactive))
   (cl-case command
-    (interactive (company-begin-backend 'company-intero))
+    (interactive (company-begin-backend 'intero-company))
     (prefix
      (unless (intero-gave-up 'backend)
        (let ((prefix-info (intero-completions-grab-prefix)))
@@ -651,6 +651,8 @@ Other arguments are IGNORED."
                  (-partial 'intero-company-callback
                            (current-buffer)
                            prefix-info))))))))
+
+(define-obsolete-function-alias 'company-intero 'intero-company)
 
 (defun intero-company-callback (source-buffer prefix-info cont)
   "Generate completions for SOURCE-BUFFER based on PREFIX-INFO and call CONT on the results."
@@ -1056,7 +1058,7 @@ function is subsequently applied to each line, once."
             'intero-linkify-process-output
             t t)
   (setq-local comint-prompt-read-only t)
-  (add-to-list (make-local-variable 'company-backends) 'company-intero)
+  (add-to-list (make-local-variable 'company-backends) 'intero-company)
   (company-mode))
 
 (defun intero-repl-mode-start (backend-buffer targets prompt-options)
