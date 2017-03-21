@@ -2028,7 +2028,7 @@ stack path --project-root")
       (0
        (cl-remove-if-not
         (lambda (line)
-          (string-match "^[A-Za-z0-9-:]+$" line))
+          (string-match "^[A-Za-z0-9-:_]+$" line))
         (split-string (buffer-string) "[\r\n]" t)))
       (1 nil))))
 
