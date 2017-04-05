@@ -129,7 +129,6 @@ To use this, use the following mode hook:
   "Name or path to the Stack executable to use."
   :group 'intero
   :type 'string)
-(make-variable-buffer-local 'intero-stack-executable)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
