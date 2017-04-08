@@ -87,7 +87,6 @@ pointlessly."
 This causes it to skip loading the files from the selected target."
   :group 'intero
   :type 'boolean)
-(make-variable-buffer-local 'intero-repl-no-load)
 
 (defcustom intero-repl-no-build
   t
@@ -95,7 +94,6 @@ This causes it to skip loading the files from the selected target."
 This causes it to skip building the target."
   :group 'intero
   :type 'boolean)
-(make-variable-buffer-local 'intero-repl-no-build)
 
 (defcustom intero-debug nil
   "Show debug output."
