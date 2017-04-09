@@ -1083,7 +1083,8 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
                     (buffer-local-value 'intero-repl-no-load backend-buffer)
                     nil)))
     (insert (propertize
-             (format "Starting:\n  stack ghci %s\n" (combine-and-quote-strings arguments))
+             (format "Starting:\n  %s ghci %s\n" intero-stack-executable
+                     (combine-and-quote-strings arguments))
              'face 'font-lock-comment-face))
     (let* ((script-buffer
             (with-current-buffer (find-file-noselect (intero-make-temp-file "intero-script"))
@@ -1900,7 +1901,8 @@ The process ended. Here is the reason that Emacs gives us:
      "For troubleshooting purposes, here are the arguments used to launch intero:
 
 "
-     (format "  stack %s"
+     (format "  %s %s"
+             intero-stack-executable
              (combine-and-quote-strings intero-arguments))
      "
 
@@ -2010,7 +2012,7 @@ Otherwise, please report this as a bug!
 
 For debugging purposes, try running the following in your terminal:
 
-stack path --project-root")
+%s path --project-root" intero-stack-executable)
                  nil))))))
 
 (defun intero-ghc-version ()
