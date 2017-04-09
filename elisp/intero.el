@@ -1316,14 +1316,10 @@ The path returned is canonicalized and stripped of any text properties."
     (when name
       (intero-canonicalize-path (substring-no-properties name)))))
 
-(defun intero-tramp-path-p (path)
-  "Return t if PATH is a path to be handled by TRAMP, and nil otherwise."
-  (eq 0 (string-match tramp-file-name-regexp path)))
-
 (defun intero-paths-for-same-file (path-1 path-2)
   "Compare PATH-1 and PATH-2 to see if they represent the same file."
   (let ((simplify-path #'(lambda (path)
-                           (if (intero-tramp-path-p path)
+                           (if (tramp-tramp-file-p path)
                                (let* ((dissection (tramp-dissect-file-name path))
                                       (host (tramp-file-name-host dissection))
                                       (localname (tramp-file-name-localname dissection)))
@@ -1339,7 +1335,7 @@ The path returned is canonicalized and stripped of any text properties."
           intero-buffer-host
         (setq intero-buffer-host
               (when file
-                (if (intero-tramp-path-p file)
+                (if (tramp-tramp-file-p file)
                     (tramp-file-name-host (tramp-dissect-file-name file))
                   "")))))))
 
@@ -1423,7 +1419,7 @@ project."
 
 (defun intero-localize-path (path)
   "Turn a possibly remote path to a purely local one. This is used to create paths which a remote intero process can load."
-  (if (intero-tramp-path-p path)
+  (if (tramp-tramp-file-p path)
       (tramp-file-name-localname (tramp-dissect-file-name path))
     path))
 
