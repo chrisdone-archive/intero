@@ -263,18 +263,15 @@ This is slower, but will build required dependencies.")
 (defvar-local intero-buffer-host nil
   "The hostname of the box hosting the intero process for the current buffer.")
 
-(defmacro intero-inherit-local-variables (buffer)
+(defun intero-inherit-local-variables (buffer)
   "Make the current buffer inherit values of certain local variables from BUFFER."
-  (let ((varlist '(intero-stack-executable
-                   intero-repl-no-build
-                   intero-repl-no-load
-                   ;; TODO: shouldn’t more of the above be here?
-                   )))
-    `(progn
-       ,@(cl-mapcar
-          (lambda (symb)
-            `(setq-local ,symb (buffer-local-value (quote ,symb) ,buffer)))
-          varlist))))
+  (let ((variables '(intero-stack-executable
+                     intero-repl-no-build
+                     intero-repl-no-load
+                     ;; TODO: shouldn’t more of the above be here?
+                     )))
+    (cl-loop for v in variables do
+             (set (make-local-variable v) (buffer-local-value v buffer)))))
 
 (defmacro intero-with-temp-buffer (&rest body)
   "Run BODY in `with-temp-buffer', but inherit certain local variables from the current buffer first."
