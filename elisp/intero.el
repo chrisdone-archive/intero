@@ -253,7 +253,7 @@ This is slower, but will build required dependencies.")
 (defvar-local intero-extensions nil
   "Extensions supported by the compiler.")
 
-(defvar intero-ghc-version nil
+(defvar-local intero-ghc-version nil
   "GHC version used by the project.")
 
 (defvar-local intero-repl-last-loaded
@@ -262,6 +262,24 @@ This is slower, but will build required dependencies.")
 
 (defvar-local intero-buffer-host nil
   "The hostname of the box hosting the intero process for the current buffer.")
+
+(defun intero-inherit-local-variables (buffer)
+  "Make the current buffer inherit values of certain local variables from BUFFER."
+  (let ((variables '(intero-stack-executable
+                     intero-repl-no-build
+                     intero-repl-no-load
+                     ;; TODO: shouldn’t more of the above be here?
+                     )))
+    (cl-loop for v in variables do
+             (set (make-local-variable v) (buffer-local-value v buffer)))))
+
+(defmacro intero-with-temp-buffer (&rest body)
+  "Run BODY in `with-temp-buffer', but inherit certain local variables from the current buffer first."
+  (declare (indent 0) (debug t))
+  `(let ((initial-buffer (current-buffer)))
+     (with-temp-buffer
+       (intero-inherit-local-variables initial-buffer)
+       ,@body)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Interactive commands
@@ -304,7 +322,7 @@ You can use this to kill them or look inside."
 
 (defun intero-fontify-expression (expression)
   "Return a haskell-fontified version of EXPRESSION."
-  (with-temp-buffer
+  (intero-with-temp-buffer
     (when (fboundp 'haskell-mode)
       (let ((flycheck-checkers nil)
             (haskell-mode-hook nil))
@@ -546,7 +564,7 @@ process."
 (defun intero-parse-errors-warnings-splices (checker buffer string)
   "Parse flycheck errors and warnings.
 CHECKER and BUFFER are added to each item parsed from STRING."
-  (with-temp-buffer
+  (intero-with-temp-buffer
     (insert string)
     (goto-char (point-min))
     (let ((messages (list))
@@ -969,6 +987,7 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
             ;; we defer setting that until after.
             (cd (intero-extend-path-by-buffer-host root initial-buffer))
             (intero-repl-mode) ; wipes buffer-local variables
+            (intero-inherit-local-variables initial-buffer)
             (setq intero-buffer-host (intero-buffer-host initial-buffer))
             (intero-repl-mode-start backend-buffer
                                     (buffer-local-value 'intero-targets backend-buffer)
@@ -1124,8 +1143,8 @@ changes in the BACKEND-BUFFER."
                  :default (not (buffer-local-value 'intero-repl-no-build backend-buffer)))))
          (new-options (intero-multiswitch "Start REPL with options:" old-options)))
     (with-current-buffer backend-buffer
-      (setq intero-repl-no-load (not (member "load-all" new-options)))
-      (setq intero-repl-no-build (not (member "build-first" new-options))))))
+      (setq-local intero-repl-no-load (not (member "load-all" new-options)))
+      (setq-local intero-repl-no-build (not (member "build-first" new-options))))))
 
 (font-lock-add-keywords
  'intero-repl-mode
@@ -1853,7 +1872,7 @@ This is a standard process sentinel function."
 (defun intero-installed-p ()
   "Return non-nil if intero (of the right version) is installed in the stack environment."
   (redisplay)
-  (with-temp-buffer
+  (intero-with-temp-buffer
     (if (= 0 (intero-call-process intero-stack-executable nil t nil "exec"
                                   "--verbosity" "silent"
                                   "--" "intero" "--version"))
@@ -1929,7 +1948,7 @@ You can always run M-x intero-restart to make it try again.
                (func (nth 1 next-callback)))
           (let ((string (intero-strip-carriage-returns (buffer-substring (point-min) (1- (point))))))
             (if next-callback
-                (progn (with-temp-buffer
+                (progn (intero-with-temp-buffer
                          (funcall func state string))
                        (setq repeat t))
               (when intero-debug
@@ -1949,12 +1968,14 @@ Uses the directory of the current buffer for context."
          (package-name (if cabal-file
                            (intero-package-name cabal-file)
                          ""))
+         (initial-buffer (current-buffer))
          (buffer-name (intero-buffer-name worker))
          (default-directory (if cabal-file
                                 (file-name-directory cabal-file)
                               root)))
     (with-current-buffer
         (get-buffer-create buffer-name)
+      (intero-inherit-local-variables initial-buffer)
       (setq intero-package-name package-name)
       (cd default-directory)
       (current-buffer))))
@@ -1988,7 +2009,7 @@ config exists."
   (if intero-project-root
       intero-project-root
     (setq intero-project-root
-          (with-temp-buffer
+          (intero-with-temp-buffer
             (cl-case (save-excursion
                        (intero-call-process intero-stack-executable nil
                                             (current-buffer)
@@ -2016,7 +2037,7 @@ For debugging purposes, try running the following in your terminal:
   (with-current-buffer (intero-buffer 'backend)
     (or intero-ghc-version
         (setq intero-ghc-version
-              (with-temp-buffer
+              (intero-with-temp-buffer
                 (cl-case (save-excursion
                            (intero-call-process intero-stack-executable
                                                 nil (current-buffer) t "ghc" "--" "--numeric-version"))
@@ -2026,7 +2047,7 @@ For debugging purposes, try running the following in your terminal:
 
 (defun intero-get-targets ()
   "Get all available targets."
-  (with-temp-buffer
+  (intero-with-temp-buffer
     (cl-case (intero-call-process intero-stack-executable nil (current-buffer) t "ide" "targets")
       (0
        (cl-remove-if-not
@@ -2104,7 +2125,7 @@ Each option is a plist of (:key :default :title) wherein:
   :default (boolean) specifies the default checkedness"
   (let ((available-width (window-total-width)))
     (save-window-excursion
-      (with-temp-buffer
+      (intero-with-temp-buffer
         (rename-buffer (generate-new-buffer-name "multiswitch"))
         (widget-insert (concat title "\n\n"))
         (widget-insert (propertize "Hit " 'face 'font-lock-comment-face))
@@ -2222,10 +2243,12 @@ automatically."
   (let* ((root (intero-project-root))
          (buffer-name (intero-hoogle-buffer-name root))
          (buf (get-buffer buffer-name))
+         (initial-buffer (current-buffer))
          (default-directory root))
     (if buf
         buf
       (with-current-buffer (get-buffer-create buffer-name)
+        (intero-inherit-local-variables initial-buffer)
         (cd default-directory)
         (current-buffer)))))
 
@@ -2241,14 +2264,14 @@ automatically."
 
 (defun intero-hoogle-ready-p ()
   "Is hoogle ready to be started?"
-  (with-temp-buffer
+  (intero-with-temp-buffer
     (cl-case (intero-call-process intero-stack-executable nil (current-buffer) t
                                   "hoogle" "--no-setup" "--verbosity" "silent")
       (0 t))))
 
 (defun intero-hoogle-supported-p ()
   "Is the stack hoogle command supported?"
-  (with-temp-buffer
+  (intero-with-temp-buffer
     (cl-case (intero-call-process intero-stack-executable nil (current-buffer) t
                                   "hoogle" "--help")
       (0 t))))
@@ -2382,7 +2405,7 @@ suggestions are available."
           ;;                             Monad var)
           (when (string-match "Redundant constraints?: " text)
             (let* ((redundant-start (match-end 0))
-                   (parts (with-temp-buffer
+                   (parts (intero-with-temp-buffer
                             (insert (substring text redundant-start))
                             (goto-char (point-min))
                             ;; A lone unparenthesized constraint might
