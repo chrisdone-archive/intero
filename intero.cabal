@@ -56,6 +56,8 @@ executable intero
     cbits/hschooks.c
   cpp-options:
     -DGHCI
+  cc-options:
+    -fPIC
   other-modules:
     InteractiveUI
     GhciMonad
