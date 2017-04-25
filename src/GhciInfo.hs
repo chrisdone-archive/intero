@@ -19,6 +19,7 @@ import qualified Data.Map.Strict as M
 import           Data.Maybe
 import           Data.Time
 import           Desugar
+import           FastString
 import           GHC
 import           GhcMonad
 import           GhciTypes
@@ -77,12 +78,21 @@ getModInfo :: (GhcMonad m) => ModuleName -> m ModInfo
 getModInfo name =
   do m <- getModSummary name
      p <- parseModule m
+     let location = getModuleLocation (parsedSource p) m
      typechecked <- typecheckModule p
      let Just (_, imports, _, _) = renamedSource typechecked
      allTypes <- processAllTypeCheckedModule typechecked
      let i = tm_checked_module_info typechecked
      now <- liftIO getCurrentTime
-     return (ModInfo m allTypes i now imports)
+     return (ModInfo m allTypes i now imports location)
+
+getModuleLocation :: ParsedSource -> ModSummary -> SrcSpan
+getModuleLocation pSource modSummary = case hsmodName (unLoc pSource) of
+                              Just located -> getLoc located
+                              Nothing -> fallbackLocation
+  where fallbackLocation = fromMaybe noSrcSpan (makeFileSrcSpan <$> ml_hs_file (ms_location modSummary))
+        makeFileSrcSpan filePath = mkSrcSpan (makeFileSrcLoc filePath) (makeFileSrcLoc filePath)
+        makeFileSrcLoc filePath = mkSrcLoc (mkFastString filePath) 0 0
 
 -- | Get ALL source spans in the module.
 processAllTypeCheckedModule :: GhcMonad m

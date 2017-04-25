@@ -218,20 +218,39 @@ findLoc infos fp string sl sc el ec =
            Nothing ->
              return (Left ("No module info for the current file! Try loading it?"))
            Just info ->
-             do mname' <- findName infos info string sl sc el ec
-                d <- getSessionDynFlags
-                case mname' of
-                  Left reason ->
-                    return (Left reason)
-                  Right name' ->
-                    case getSrcSpan name' of
-                      UnhelpfulSpan{} ->
-                        return (Left ("Found a name, but no location information. The module is: " ++
-                                      maybe "<unknown>"
-                                            (showppr d . moduleName)
-                                            (nameModule_maybe name')))
-                      span' ->
-                        return (Right span')
+             case findImportLoc infos info sl sc el ec of
+               Just result -> return (Right result)
+               Nothing ->
+                 do mname' <- findName infos info string sl sc el ec
+                    d <- getSessionDynFlags
+                    case mname' of
+                      Left reason ->
+                        return (Left reason)
+                      Right name' ->
+                        case getSrcSpan name' of
+                          UnhelpfulSpan{} ->
+                            return (Left ("Found a name, but no location information. The module is: " ++
+                                          maybe "<unknown>"
+                                             (showppr d . moduleName)
+                                             (nameModule_maybe name')))
+                          span' ->
+                            return (Right span')
+
+findImportLoc :: (Map ModuleName ModInfo) -> ModInfo -> Int -> Int -> Int -> Int -> Maybe SrcSpan
+findImportLoc infos info sl sc el ec =
+  do importedModuleName <- getModuleImportedAt info sl sc el ec
+     importedModInfo <- M.lookup importedModuleName infos
+     return (modinfoLocation importedModInfo)
+
+getModuleImportedAt :: ModInfo -> Int -> Int -> Int -> Int -> Maybe ModuleName
+getModuleImportedAt info sl sc el ec = unLoc <$> ideclName <$> unLoc <$> importDeclarationMaybe
+  where importDeclarationMaybe = listToMaybe $ filter isWithinRange (modinfoImports info)
+        isWithinRange importDecl =
+          case getLoc $ ideclName (unLoc importDecl) of
+            RealSrcSpan spn ->
+              ((srcSpanStartLine spn == sl && sc >= srcSpanStartCol spn - 1) || (srcSpanStartLine spn < sl)) &&
+              ((srcSpanEndLine spn == el && ec <= srcSpanEndCol spn - 1) || (srcSpanEndLine spn > el))
+            _ -> False
 
 -- | Try to resolve the name located at the given position, or
 -- otherwise resolve based on the current module's scope.

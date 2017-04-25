@@ -5,6 +5,7 @@ module Main where
 
 import Control.Exception
 import Control.Monad.IO.Class
+import Control.Monad (forM_)
 import Data.Char
 import System.IO
 import System.IO.Temp
@@ -328,6 +329,12 @@ definition =
              "f (Just x) = 'a' : x"
              (1, 20, 1, 21, "x")
              (unlines ["X.hs:(1,9)-(1,10)"]))
+        it
+          "To other module"
+          (locAtMultiple
+             [("X.hs", "import Y"), ("Y.hs", "module Y where")]
+             (1, 8, 1, 9, "Y")
+             (unlines ["./Y.hs:(1,8)-(1,9)"]))
         issue
           "To unexported thing"
           "https://github.com/commercialhaskell/intero/issues/98"
@@ -412,20 +419,24 @@ completion = do
 -- Combinators for running and interacting with intero
 
 -- | Find the definition for the thing at point.
-locAt :: String -> (Int, Int, Int, Int, String) -> String -> Expectation
-locAt file (line,col,line',col',name) expected = do
+locAtMultiple :: [(String, String)] -> (Int, Int, Int, Int, String) -> String -> Expectation
+locAtMultiple files (line,col,line',col',name) expected = do
   result <-
     withIntero
       []
       (\dir repl -> do
-         writeFile (dir ++ "/X.hs") file
-         _ <- repl (":l X.hs")
+         forM_ files $ \(fileName, fileContents) ->
+           writeFile (dir ++ "/" ++ fileName) fileContents
+         _ <- repl (":l " ++ fst (head files))
          repl
-           (":loc-at X.hs " ++
+           (":loc-at " ++ fst (head files) ++ " " ++
             unwords (map show [line, col, line', col']) ++ " " ++ name))
   shouldBe result expected
   let x = return ()
   x
+
+locAt :: String -> (Int, Int, Int, Int, String) -> String -> Expectation
+locAt file = locAtMultiple [("X.hs", file)]
 
 -- | Find use-sites for the given place.
 uses
