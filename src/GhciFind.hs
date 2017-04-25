@@ -243,7 +243,7 @@ findImportLoc infos info sl sc el ec =
      return (modinfoLocation importedModInfo)
 
 getModuleImportedAt :: ModInfo -> Int -> Int -> Int -> Int -> Maybe ModuleName
-getModuleImportedAt info sl sc el ec = unLoc <$> ideclName <$> unLoc <$> importDeclarationMaybe
+getModuleImportedAt info sl sc el ec = fmap (unLoc . ideclName . unLoc) importDeclarationMaybe
   where importDeclarationMaybe = listToMaybe $ filter isWithinRange (modinfoImports info)
         isWithinRange importDecl = containsSrcSpan sl sc el ec (getLoc $ ideclName $ unLoc importDecl)
 
