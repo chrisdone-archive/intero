@@ -245,12 +245,7 @@ findImportLoc infos info sl sc el ec =
 getModuleImportedAt :: ModInfo -> Int -> Int -> Int -> Int -> Maybe ModuleName
 getModuleImportedAt info sl sc el ec = unLoc <$> ideclName <$> unLoc <$> importDeclarationMaybe
   where importDeclarationMaybe = listToMaybe $ filter isWithinRange (modinfoImports info)
-        isWithinRange importDecl =
-          case getLoc $ ideclName (unLoc importDecl) of
-            RealSrcSpan spn ->
-              ((srcSpanStartLine spn == sl && sc >= srcSpanStartCol spn - 1) || (srcSpanStartLine spn < sl)) &&
-              ((srcSpanEndLine spn == el && ec <= srcSpanEndCol spn - 1) || (srcSpanEndLine spn > el))
-            _ -> False
+        isWithinRange importDecl = containsSrcSpan sl sc el ec (getLoc $ ideclName $ unLoc importDecl)
 
 -- | Try to resolve the name located at the given position, or
 -- otherwise resolve based on the current module's scope.
@@ -390,7 +385,7 @@ resolveSpanInfo :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe SpanInfo
 resolveSpanInfo spanList spanSL spanSC spanEL spanEC =
   listToMaybe
     (sortBy (flip compareSpanInfoStart)
-            (filter (contains spanSL spanSC spanEL spanEC) spanList))
+            (filter (containsSpanInfo spanSL spanSC spanEL spanEC) spanList))
 
 -- | Compare the start of two span infos.
 compareSpanInfoStart :: SpanInfo -> SpanInfo -> Ordering
@@ -400,8 +395,17 @@ compareSpanInfoStart this that =
     c -> c
 
 -- | Does the 'SpanInfo' contain the location given by the Ints?
-contains :: Int -> Int -> Int -> Int -> SpanInfo -> Bool
-contains spanSL spanSC spanEL spanEC (SpanInfo ancestorSL ancestorSC ancestorEL ancestorEC _ _) =
+containsSpanInfo :: Int -> Int -> Int -> Int -> SpanInfo -> Bool
+containsSpanInfo spanSL spanSC spanEL spanEC (SpanInfo ancestorSL ancestorSC ancestorEL ancestorEC _ _) =
+  contains spanSL spanSC spanEL spanEC ancestorSL ancestorSC ancestorEL ancestorEC
+
+containsSrcSpan :: Int -> Int -> Int -> Int -> SrcSpan -> Bool
+containsSrcSpan spanSL spanSC spanEL spanEC (RealSrcSpan spn) =
+  contains spanSL spanSC spanEL spanEC (srcSpanStartLine spn) (srcSpanStartCol spn - 1) (srcSpanEndLine spn) (srcSpanEndCol spn - 1)
+containsSrcSpan _ _ _ _ _ = False
+
+contains :: Int -> Int -> Int -> Int -> Int -> Int -> Int -> Int -> Bool
+contains spanSL spanSC spanEL spanEC ancestorSL ancestorSC ancestorEL ancestorEC =
   ((ancestorSL == spanSL && spanSC >= ancestorSC) || (ancestorSL < spanSL)) &&
   ((ancestorEL == spanEL && spanEC <= ancestorEC) || (ancestorEL > spanEL))
 
