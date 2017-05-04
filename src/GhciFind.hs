@@ -50,7 +50,7 @@ findQualifiedSource importDecls sample =
             Just name
           | otherwise = Nothing
           where name = unLoc (ideclName m)
-                asName = fmap moduleNameString . ideclAs
+                asName = fmap (moduleNameString . unLoc) . ideclAs
 
 -- | Find completions for the sample, context given by the location.
 findCompletions :: (GhcMonad m)
@@ -364,7 +364,7 @@ findType infos fp string sl sc el ec =
                             Nothing -> return (FindType minfo ty)
                   _ ->
                     fmap (FindType minfo)
-                         (exprType string)
+                         (exprType TM_Inst string)
 
 -- | Try to resolve the type display from the given span.
 resolveSpanInfo :: [SpanInfo] -> Int -> Int -> Int -> Int -> Maybe SpanInfo

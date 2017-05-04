@@ -28,6 +28,7 @@ module InteractiveUI (
 -- Intero
 #if __GLASGOW_HASKELL__ >= 800
 import           GHCi
+import           GHCi.Signals
 import           GHCi.RemoteTypes
 #endif
 import qualified Paths_intero
@@ -66,6 +67,7 @@ import           Packages ( trusted, getPackageDetails, exposed, exposedModules,
 import           Packages ( trusted, getPackageDetails, listVisibleModuleNames )
 #endif
 import           PprTyThing
+import           IfaceSyn
 import           RdrName ( getGRE_NameQualifier_maybes )
 import           SrcLoc
 import qualified Lexer
@@ -104,6 +106,7 @@ import           Data.IORef ( IORef, readIORef, writeIORef )
 import Data.List ( find, group, intercalate, intersperse, isPrefixOf, nub,
                    partition, sort, sortBy )
 import           Data.Maybe
+import qualified Data.Set as Set
 
 import           Exception hiding (catch)
 
@@ -788,7 +791,7 @@ mkPrompt = do
 
          --  use the 'as' name if there is one
         myIdeclName d | Just m <- ideclAs d = m
-                      | otherwise           = unLoc (ideclName d)
+                      | otherwise           = ideclName d
 
         deflt_prompt = dots <> context_bit <> modules_bit
 
@@ -1018,7 +1021,7 @@ runStmt stmt step
  | any (flip isPrefixOf stmt) declPrefixes
  = do _ <- liftIO $ tryIO $ hFlushAll stdin
       result <- GhciMonad.runDecls stmt
-      afterRunStmt (const True) (GHC.RunOk result)
+      afterRunStmt (const True) (GHC.ExecComplete (Right result) 0)
 
  | otherwise
  = do -- In the new IO library, read handles buffer data even if the Handle
@@ -1033,15 +1036,15 @@ runStmt stmt step
         Just result -> afterRunStmt (const True) result
 
 -- | Clean up the GHCi environment after a statement has run
-afterRunStmt :: (SrcSpan -> Bool) -> GHC.RunResult -> GHCi Bool
-afterRunStmt _ (GHC.RunException e) = liftIO $ Exception.throwIO e
+afterRunStmt :: (SrcSpan -> Bool) -> GHC.ExecResult -> GHCi Bool
+afterRunStmt _ (GHC.ExecComplete (Left e) _) = liftIO $ Exception.throwIO e
 afterRunStmt step_here run_result = do
   resumes <- GHC.getResumeContext
   case run_result of
-     GHC.RunOk names -> do
+     GHC.ExecComplete (Right names) _ -> do
         show_types <- isOptionSet ShowType
         when show_types $ printTypeOfNames names
-     GHC.RunBreak _ names mb_info
+     GHC.ExecBreak names mb_info
          | isNothing  mb_info ||
            step_here (GHC.resumeSpan $ head resumes) -> do
                mb_id_loc <- toBreakIdAndLocation mb_info
@@ -1062,7 +1065,7 @@ afterRunStmt step_here run_result = do
   b <- isOptionSet RevertCAFs
   when b revertCAFs
 
-  return (case run_result of GHC.RunOk _ -> True; _ -> False)
+  return (case run_result of GHC.ExecComplete _ _ -> True; _ -> False)
 
 toBreakIdAndLocation ::
   Maybe GHC.BreakInfo -> GHCi (Maybe (Int, BreakLocation))
@@ -1689,7 +1692,7 @@ typeOfExpr :: String -> InputT GHCi ()
 typeOfExpr str
   = handleSourceError GHC.printException
   $ do
-       ty <- GHC.exprType str
+       ty <- GHC.exprType GHC.TM_Inst str
        printForUser $ sep [text str, nest 2 (dcolon <+> pprTypeForUser ty)]
 
 -----------------------------------------------------------------------------
@@ -1712,7 +1715,7 @@ typeAt str =
                   (sep [text sample,nest 2 (dcolon <+> ppr ty)])
               FindTyThing info' tything ->
                 printForUserModInfo (modinfoInfo info')
-                                    (pprTyThing tything))
+                                    (pprTyThingHdr tything))
 
 -----------------------------------------------------------------------------
 -- :uses
@@ -1946,7 +1949,7 @@ isSafeModule m = do
     (msafe, pkgs) <- GHC.moduleTrustReqs m
     let trust  = showPpr dflags $ getSafeMode $ GHC.mi_trust $ fromJust iface
         pkg    = if packageTrusted dflags m then "trusted" else "untrusted"
-        (good, bad) = tallyPkgs dflags pkgs
+        (good, bad) = tallyPkgs dflags [] -- TODO: InstalledUnitId -> UnitId? (Set.toList pkgs)
 
     -- print info to user...
     liftIO $ putStrLn $ "Trust type is (Module: " ++ trust ++ ", Package: " ++ pkg ++ ")"
@@ -2097,8 +2100,8 @@ browseModule bang modl exports_only = do
 
         let things | bang      = catMaybes mb_things
                    | otherwise = filtered_things
-            pretty | bang      = pprTyThing
-                   | otherwise = pprTyThingInContext
+            pretty | bang      = pprTyThingHdr
+                   | otherwise = pprTyThingInContext showToHeader
 
             labels  [] = text "-- not currently imported"
             labels  l  = text $ intercalate "\n" $ map qualifier l
@@ -2749,7 +2752,7 @@ showBindings = do
 
     pprTT :: (TyThing, Fixity, [GHC.ClsInst], [GHC.FamInst]) -> SDoc
     pprTT (thing, fixity, _cls_insts, _fam_insts)
-      = pprTyThing thing
+      = pprTyThingHdr thing
         $$ show_fixity
       where
         show_fixity
@@ -2758,7 +2761,7 @@ showBindings = do
 
 
 printTyThing :: TyThing -> GHCi ()
-printTyThing tyth = printForUser (pprTyThing tyth)
+printTyThing tyth = printForUser (pprTyThingHdr tyth)
 
 showBkptTable :: GHCi ()
 showBkptTable = do

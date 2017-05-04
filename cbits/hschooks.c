@@ -34,7 +34,7 @@ defaultsHook (void)
     // This helps particularly with large compiles, but didn't work
     // very well with earlier GHCs because it caused large amounts of
     // fragmentation.  See rts/sm/BlockAlloc.c:allocLargeChunk().
-    RtsFlags.GcFlags.heapSizeSuggestionAuto = rtsTrue;
+    // RtsFlags.GcFlags.heapSizeSuggestionAuto = rtsTrue;
 #else
     RtsFlags.GcFlags.heapSizeSuggestion = 6*1024*1024 / BLOCK_SIZE;
 #endif

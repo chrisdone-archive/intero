@@ -47,7 +47,7 @@ import           Packages ( pprPackages )
 #endif
 import           DriverPhases
 import           BasicTypes ( failed )
-import           StaticFlags
+-- import           StaticFlags
 import           DynFlags
 import           ErrUtils
 import           FastString
@@ -60,9 +60,10 @@ import           MonadUtils ( liftIO )
 -- Imports for --abi-hash
 import           LoadIface ( loadUserInterface )
 import           Module ( mkModuleName )
-import           Finder ( findImportedModule, cannotFindInterface )
+import           Finder ( findImportedModule, cannotFindModule )
 import           TcRnMonad ( initIfaceCheck )
-import           Binary ( openBinMem, put_, fingerprintBinMem )
+import           Binary ( openBinMem, put_ )
+import           BinFingerprint ( fingerprintBinMem )
 
 -- Standard Haskell libraries
 import           System.IO
@@ -119,12 +120,11 @@ main = do
                  | otherwise = Just (drop 2 (last minusB_args))
 
     let argv1' = map (mkGeneralLocated "on the commandline") argv1
-    (argv2, staticFlagWarnings) <- parseStaticFlags argv1'
 
     -- 2. Parse the "mode" flags (--make, --interactive etc.)
-    (mode, argv3, modeFlagWarnings) <- parseModeFlags argv2
+    (mode, argv2, modeFlagWarnings) <- parseModeFlags argv1'
 
-    let flagWarnings = staticFlagWarnings ++ modeFlagWarnings
+    let flagWarnings = modeFlagWarnings
 
     -- If all we want to do is something like showing the version number
     -- then do it now, before we start a GHC session etc. This makes
@@ -156,7 +156,7 @@ main = do
                             ShowGhciUsage          -> showGhciUsage dflags
                             PrintWithDynFlags f    -> putStrLn (f dflags)
                 Right postLoadMode ->
-                    main' postLoadMode dflags argv3 flagWarnings
+                    main' postLoadMode dflags argv2 flagWarnings
 
 main' :: PostLoadMode -> DynFlags -> [Located String] -> [Located String]
       -> Ghc ()
@@ -242,13 +242,10 @@ main' postLoadMode dflags0 args flagWarnings = do
   when (verbosity dflags6 >= 4) $
 #if __GLASGOW_HASKELL__ >= 709
         let dumpPackages flags = putStrLn $ show $ runSDoc (pprPackages flags) ctx
-                where ctx = initSDocContext flags defaultDumpStyle
+                where ctx = initSDocContext flags (defaultDumpStyle dflags6)
         in
 #endif
         liftIO $ dumpPackages dflags6
-
-  when (verbosity dflags6 >= 3) $ do
-        liftIO $ hPutStrLn stderr ("Hsc static flags: " ++ unwords staticFlags)
 
         ---------------- Final sanity checking -----------
   liftIO $ checkOptions postLoadMode dflags6 srcs objs
@@ -752,19 +749,13 @@ showOptions = putStr (unlines availableOptions)
     where
       availableOptions     = map ((:) '-') $
                              getFlagNames mode_flags   ++
-                             getFlagNames flagsDynamic ++
-                             (filterUnwantedStatic . getFlagNames $ flagsStatic) ++
-                             flagsStaticNames
+                             getFlagNames flagsDynamic
       getFlagNames opts         = map getFlagName opts
 #if __GLASGOW_HASKELL__ < 709
       getFlagName (Flag name _) = name
 #else
       getFlagName (Flag name _ _) = name
 #endif
-      -- this is a hack to get rid of two unwanted entries that get listed
-      -- as static flags. Hopefully this hack will disappear one day together
-      -- with static flags
-      filterUnwantedStatic      = filter (\x -> not (x `elem` ["f", "fno-"]))
 
 showGhcUsage :: DynFlags -> IO ()
 showGhcUsage = showUsage False
@@ -846,12 +837,12 @@ abiHash strs = do
          case r of
            Found _ m -> return m
            _error    -> throwGhcException $ CmdLineError $ showSDoc dflags $
-                          cannotFindInterface dflags modname r
+                          cannotFindModule dflags modname r
 
   mods <- mapM find_it (map fst strs)
 
   let get_iface modl = loadUserInterface False (text "abiHash") modl
-  ifaces <- initIfaceCheck hsc_env $ mapM get_iface mods
+  ifaces <- initIfaceCheck (text "") hsc_env $ mapM get_iface mods
 
   bh <- openBinMem (3*1024) -- just less than a block
   put_ bh hiVersion

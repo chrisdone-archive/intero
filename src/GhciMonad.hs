@@ -299,7 +299,7 @@ printForUserPartWay doc = do
   liftIO $ Outputable.printForUserPartWay dflags stdout (pprUserLength dflags) unqual doc
 
 -- | Run a single Haskell expression
-runStmt :: String -> GHC.SingleStep -> GHCi (Maybe GHC.RunResult)
+runStmt :: String -> GHC.SingleStep -> GHCi (Maybe GHC.ExecResult)
 runStmt expr step = do
   st <- getGHCiState
   reifyGHCi $ \x ->
@@ -308,7 +308,7 @@ runStmt expr step = do
       reflectGHCi x $ do
         GHC.handleSourceError (\e -> do GHC.printException e;
                                         return Nothing) $ do
-          r <- GHC.runStmtWithLocation (progname st) (line_number st) expr step
+          r <- GHC.execStmt expr (GHC.execOptions { GHC.execSingleStep = step })
           return (Just r)
 
 runDecls :: String -> GHCi [GHC.Name]
@@ -321,14 +321,14 @@ runDecls decls = do
         GHC.handleSourceError (\e -> do GHC.printException e; return []) $ do
           GHC.runDeclsWithLocation (progname st) (line_number st) decls
 
-resume :: (SrcSpan -> Bool) -> GHC.SingleStep -> GHCi GHC.RunResult
+resume :: (SrcSpan -> Bool) -> GHC.SingleStep -> GHCi GHC.ExecResult
 resume canLogSpan step = do
   st <- getGHCiState
   reifyGHCi $ \x ->
     withProgName (progname st) $
     withArgs (args st) $
       reflectGHCi x $ do
-        GHC.resume canLogSpan step
+        GHC.resumeExec canLogSpan step
 
 -- --------------------------------------------------------------------------
 -- timing & statistics
