@@ -20,31 +20,28 @@ Key binding | Description
 `C-c C-k` | Clear REPL
 `C-c C-z` | Switch to and from the REPL
 
+## Enabling intero
+
+To enable `intero` in all `haskell-mode` buffers by default, enable
+`intero-global-mode`, by using `M-x customize` or by adding
+`(intero-global-mode 1)` to your Emacs start-up files.
+
+Intero will then activate for all projects, and for files without a
+stack.yaml, it will assume the "global" project.
+
 ## Whitelisting/blacklisting projects
 
-Typically Intero will enable for all projects, and for files
-without a stack.yaml, it will assume the "global" project. Some users
-prefer to enable Intero selectively. See below how to do that.
+Some users prefer to enable Intero selectively. The custom variables
+`intero-blacklist` and `intero-whitelist` are provided for this
+purpose, and are honoured by `intero-global-mode`:
 
-Find this line in your Emacs configuration and remove it:
+If the parent directory of a Haskell file is listed in
+`intero-blacklist`, then `intero` will not be enabled for that file,
+unless a parent directory of that file is also listed in
+`intero-whitelist`. In other words, whitelist entries take
+precedence. You can therefore blacklist `/` to disable `intero` in all
+projects unless they are whitelisted.
 
-``` lisp
-(add-hook 'haskell-mode-hook 'intero-mode)
-```
-
-To whitelist specific directories (and ignore everything else), use:
-
-``` lisp
-(setq intero-whitelist '("/work/directories/" "/my/directories/"))
-(add-hook 'haskell-mode-hook 'intero-mode-whitelist)
-```
-
-To blacklist specific directories (and allow everything else), use:
-
-``` lisp
-(setq intero-blacklist '("/path/to/bad/project" "/path/to/ignore/me"))
-(add-hook 'haskell-mode-hook 'intero-mode-blacklist)
-```
 
 ## Intero for IDE writers
 

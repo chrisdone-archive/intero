@@ -139,7 +139,7 @@ To use this, use the following mode hook:
 
 ;;;###autoload
 (define-minor-mode intero-mode
-  "Minor mode for Intero
+  "Minor mode for Intero.
 
 \\{intero-mode-map}"
   :lighter intero-lighter
@@ -160,21 +160,21 @@ To use this, use the following mode hook:
 (defun intero-mode-whitelist ()
   "Run intero-mode when the current project is in `intero-whitelist'."
   (interactive)
-  (let ((file (buffer-file-name)))
-    (when (cl-some (lambda (directory)
-                     (file-in-directory-p file directory))
-                   intero-whitelist)
-      (intero-mode))))
+  (when (intero-directories-contain-file (buffer-file-name) intero-whitelist)
+    (intero-mode)))
 
 ;;;###autoload
 (defun intero-mode-blacklist ()
   "Run intero-mode unless the current project is in `intero-blacklist'."
   (interactive)
-  (let ((file (buffer-file-name)))
-    (unless (cl-some (lambda (directory)
-                       (file-in-directory-p file directory))
-                     intero-blacklist)
-      (intero-mode))))
+  (unless (intero-directories-contain-file (buffer-file-name) intero-blacklist)
+    (intero-mode)))
+
+(dolist (f '(intero-mode-whitelist intero-mode-blacklist))
+  (make-obsolete
+   f
+   "use `intero-global-mode', which honours `intero-whitelist' and `intero-blacklist'."))
+
 
 (define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
 (define-key intero-mode-map (kbd "C-c C-i") 'intero-info)
@@ -184,16 +184,30 @@ To use this, use the following mode hook:
 (define-key intero-mode-map (kbd "C-c C-r") 'intero-apply-suggestions)
 (define-key intero-mode-map (kbd "C-c C-e") 'intero-expand-splice-at-point)
 
-(define-minor-mode intero-global-mode
-  "Enable Intero on all Haskell mode buffers."
-  :global t
-  (if intero-global-mode
-      (add-hook 'haskell-mode-hook 'intero-mode)
-    (remove-hook 'haskell-mode-hook 'intero-mode))
-  (when (called-interactively-p 'interactive)
-    (message "Intero mode is now %s in all future Haskell buffers."
-             (if intero-global-mode
-                 "enabled" "disabled"))))
+(defun intero-directories-contain-file (file dirs)
+  "Return non-nil if FILE is contained in at least one of DIRS."
+  (cl-some (lambda (directory)
+             (file-in-directory-p file directory))
+           dirs))
+
+(defun intero-mode-maybe ()
+  "Enable `intero-mode' in all Haskell mode buffers.
+The buffer's filename (or working directory) is checked against
+`intero-whitelist' and `intero-blacklist'.  If both the whitelist
+and blacklist match, then the whitelist entry wins, and
+`intero-mode' is enabled."
+  (when (and (derived-mode-p 'haskell-mode)
+             (let* ((file (or (buffer-file-name) default-directory))
+                    (blacklisted (intero-directories-contain-file
+                                  file intero-blacklist))
+                    (whitelisted (intero-directories-contain-file
+                                  file intero-whitelist)))
+               (or whitelisted (not blacklisted))))
+    (intero-mode 1)))
+
+;;;###autoload
+(define-globalized-minor-mode intero-global-mode
+  intero-mode intero-mode-maybe)
 
 (define-obsolete-function-alias 'global-intero-mode 'intero-global-mode)
 
