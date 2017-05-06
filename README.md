@@ -1,4 +1,4 @@
-# <img src="https://github.com/commercialhaskell/intero/raw/master/images/intero.svg" height=25> intero [![Build Status](https://travis-ci.org/commercialhaskell/intero.png)](https://travis-ci.org/commercialhaskell/intero) [![MELPA](https://melpa.org/packages/intero-badge.svg)](https://melpa.org/#/intero)
+# <img src="https://github.com/commercialhaskell/intero/raw/master/images/intero.svg" height=25> intero [![Build Status](https://travis-ci.org/commercialhaskell/intero.png)](https://travis-ci.org/commercialhaskell/intero) [![MELPA](https://melpa.org/packages/intero-badge.svg)](https://melpa.org/#/intero) [![MELPA Stable](https://stable.melpa.org/packages/intero-badge.svg)](https://stable.melpa.org/#/intero)
 
 Complete interactive development program for Haskell
 
