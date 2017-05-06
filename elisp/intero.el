@@ -977,23 +977,22 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
          (initial-buffer (current-buffer))
          (backend-buffer (intero-buffer 'backend)))
     (with-current-buffer
-        (if (get-buffer name)
-            (get-buffer name)
-          (with-current-buffer
-              (get-buffer-create name)
-            ;; The new buffer doesn't know if the initial buffer was hosted
-            ;; remotely or not, so we need to extend by the host of the
-            ;; initial buffer to cd. We could also achieve this by setting the
-            ;; buffer's intero-buffer-host, but intero-repl-mode wipes this, so
-            ;; we defer setting that until after.
-            (cd (intero-extend-path-by-buffer-host root initial-buffer))
-            (intero-repl-mode) ; wipes buffer-local variables
-            (intero-inherit-local-variables initial-buffer)
-            (setq intero-buffer-host (intero-buffer-host initial-buffer))
-            (intero-repl-mode-start backend-buffer
-                                    (buffer-local-value 'intero-targets backend-buffer)
-                                    prompt-options)
-            (current-buffer)))
+        (or (get-buffer name)
+            (with-current-buffer
+                (get-buffer-create name)
+              ;; The new buffer doesn't know if the initial buffer was hosted
+              ;; remotely or not, so we need to extend by the host of the
+              ;; initial buffer to cd. We could also achieve this by setting the
+              ;; buffer's intero-buffer-host, but intero-repl-mode wipes this, so
+              ;; we defer setting that until after.
+              (cd (intero-extend-path-by-buffer-host root initial-buffer))
+              (intero-repl-mode) ; wipes buffer-local variables
+              (intero-inherit-local-variables initial-buffer)
+              (setq intero-buffer-host (intero-buffer-host initial-buffer))
+              (intero-repl-mode-start backend-buffer
+                                      (buffer-local-value 'intero-targets backend-buffer)
+                                      prompt-options)
+              (current-buffer)))
       (progn
         (when store-previous
           (setq intero-repl-previous-buffer initial-buffer))
