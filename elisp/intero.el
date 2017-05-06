@@ -180,6 +180,7 @@ To use this, use the following mode hook:
 (define-key intero-mode-map (kbd "C-c C-i") 'intero-info)
 (define-key intero-mode-map (kbd "M-.") 'intero-goto-definition)
 (define-key intero-mode-map (kbd "C-c C-l") 'intero-repl-load)
+(define-key intero-mode-map (kbd "C-c C-c") 'intero-repl-eval-region)
 (define-key intero-mode-map (kbd "C-c C-z") 'intero-repl)
 (define-key intero-mode-map (kbd "C-c C-r") 'intero-apply-suggestions)
 (define-key intero-mode-map (kbd "C-c C-e") 'intero-expand-splice-at-point)
@@ -926,19 +927,43 @@ This is set by `intero-repl-buffer', and should otherwise be nil.")
   (let ((comint-buffer-maximum-size 0))
     (comint-truncate-buffer)))
 
+(defmacro intero-with-repl-buffer (prompt-options &rest body)
+  "Evaluate given forms with the REPL as the current buffer.
+The REPL will be started if necessary, and the REPL buffer will
+be activated after evaluation.  PROMPT-OPTIONS are passed to
+`intero-repl-buffer'.  BODY is the forms to be evaluated."
+  (declare (indent defun))
+  (let ((repl-buffer (cl-gensym)))
+    `(let ((,repl-buffer (intero-repl-buffer ,prompt-options t)))
+       (with-current-buffer ,repl-buffer
+         ,@body)
+       (pop-to-buffer ,repl-buffer))))
+
 (defun intero-repl-load (&optional prompt-options)
   "Load the current file in the REPL.
 If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (interactive "P")
   (save-buffer)
-  (let ((file (intero-localize-path (intero-temp-file-name)))
-        (repl-buffer (intero-repl-buffer prompt-options t)))
-    (with-current-buffer repl-buffer
+  (let ((file (intero-localize-path (intero-temp-file-name))))
+    (intero-with-repl-buffer prompt-options
       (comint-simple-send
        (get-buffer-process (current-buffer))
        (concat ":l " file))
-      (setq intero-repl-last-loaded file))
-    (pop-to-buffer repl-buffer)))
+      (setq intero-repl-last-loaded file))))
+
+(defun intero-repl-eval-region (begin end &optional prompt-options)
+  "Evaluate the code in region from BEGIN to END in the REPL.
+If the region is unset, the current line will be used.
+PROMPT-OPTIONS are passed to `intero-repl-buffer' if supplied."
+  (interactive "r")
+  (unless (use-region-p)
+    (setq begin (line-beginning-position)
+          end (line-end-position)))
+  (let ((text (buffer-substring-no-properties begin end)))
+    (intero-with-repl-buffer prompt-options
+      (comint-simple-send
+       (get-buffer-process (current-buffer))
+       text))))
 
 (defun intero-repl (&optional prompt-options)
   "Start up the REPL for this stack project.
