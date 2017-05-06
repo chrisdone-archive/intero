@@ -161,9 +161,9 @@ To use this, use the following mode hook:
   "Run intero-mode when the current project is in `intero-whitelist'."
   (interactive)
   (let ((file (buffer-file-name)))
-    (when (cl-remove-if-not (lambda (directory)
-                              (file-in-directory-p file directory))
-                            intero-whitelist)
+    (when (cl-some (lambda (directory)
+                     (file-in-directory-p file directory))
+                   intero-whitelist)
       (intero-mode))))
 
 ;;;###autoload
@@ -171,9 +171,9 @@ To use this, use the following mode hook:
   "Run intero-mode unless the current project is in `intero-blacklist'."
   (interactive)
   (let ((file (buffer-file-name)))
-    (unless (cl-remove-if-not (lambda (directory)
-                                (file-in-directory-p file directory))
-                              intero-blacklist)
+    (unless (cl-some (lambda (directory)
+                       (file-in-directory-p file directory))
+                     intero-blacklist)
       (intero-mode))))
 
 (define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
