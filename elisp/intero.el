@@ -1459,8 +1459,7 @@ project."
                    intero-temp-file-name))
       (let ((contents (buffer-string)))
         (with-temp-file intero-temp-file-name
-          (insert contents))
-        (set-file-times intero-temp-file-name)))))
+          (insert contents))))))
 
 (defun intero-localize-path (path)
   "Turn a possibly remote path to a purely local one. This is used to create paths which a remote intero process can load."
