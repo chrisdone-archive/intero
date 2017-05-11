@@ -2153,7 +2153,7 @@ Each option is a plist of (:key :default :title) wherein:
       (intero-with-temp-buffer
         (rename-buffer (generate-new-buffer-name "multiswitch"))
         (widget-insert (concat title "\n\n"))
-        (widget-insert (propertize "Hit " 'face 'font-lock-comment-face))
+        (widget-insert (propertize "Select options with RET, hit " 'face 'font-lock-comment-face))
         (widget-create 'push-button :notify
                        (lambda (&rest ignore)
                          (exit-recursive-edit))
