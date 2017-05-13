@@ -135,5 +135,5 @@ script:
       done
       ;;
   esac
-  $TRAVIS_BUILD_DIR/elisp/check.sh
+  # $TRAVIS_BUILD_DIR/elisp/check.sh
   set +ex
