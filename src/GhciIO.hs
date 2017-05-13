@@ -12,10 +12,6 @@ import qualified System.Win32 as Win32
 import System.Posix (touchFile)
 #endif
 
-#ifdef mingw32_HOST_OS
-import Data.Bits ((.&.))
-#endif
-
 {-| Touch a file, updating the access and modification times to the current time
 
     Creates an empty file if it does not exist
