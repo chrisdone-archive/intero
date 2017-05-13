@@ -13,6 +13,8 @@ cache:
   - $HOME/.ghc
   - $HOME/.cabal
   - $HOME/.stack
+  - $HOME/.evm
+  - $HOME/.cask
 
 # The different configurations we want to test. We have BUILD=cabal which uses
 # cabal-install, and BUILD=stack which uses Stack. More documentation on each
@@ -27,25 +29,25 @@ cache:
 matrix:
   include:
 
-  - env: BUILD=stack ARGS="--resolver lts-2"
+  - env: BUILD=stack ARGS="--resolver lts-2" EVM_EMACS=emacs-24.4-travis
     compiler: ": #stack 7.8.4"
     addons: {apt: {packages: [ghc-7.8.4], sources: [hvr-ghc]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-3"
+  - env: BUILD=stack ARGS="--resolver lts-3" EVM_EMACS=emacs-24.4-travis
     compiler: ": #stack 7.10.2"
     addons: {apt: {packages: [ghc-7.10.2], sources: [hvr-ghc]}}
 
-  - env: BUILD=stack ARGS="--resolver lts-5"
+  - env: BUILD=stack ARGS="--resolver lts-5" EVM_EMACS=emacs-24.4-travis
     compiler: ": #stack 7.10.3"
     addons: {apt: {packages: [ghc-7.10.3], sources: [hvr-ghc]}}
 
-  - env: BUILD=stack ARGS="--resolver nightly-2016-05-27"
+  - env: BUILD=stack ARGS="--resolver nightly-2016-05-27" EVM_EMACS=emacs-24.4-travis
     compiler: ": #stack 8.0.1"
     addons: {apt: {packages: [ghc-8.0.1], sources: [hvr-ghc]}}
 
 
   # Build on OS X in addition to Linux
-  - env: BUILD=stack ARGS=""
+  - env: BUILD=stack ARGS="" EVM_EMACS=emacs-24.4-travis
     compiler: ": #stack default osx"
     os: osx
 
@@ -80,6 +82,19 @@ before_install:
 
 # Get the list of packages from the stack.yaml file
 - PACKAGES=$(stack --install-ghc query locals | grep '^ *path' | sed 's@^ *path:@@')
+
+# Install correct Emacs version
+- git clone https://github.com/rejeep/evm.git $HOME/.evm
+- export PATH=$HOME/.evm/bin:$PATH
+
+- evm config path /tmp
+- evm install $EVM_EMACS --use --skip
+
+# Use cask to install elisp dependencies
+- git clone https://github.com/cask/cask.git $HOME/.cask
+- export PATH=$HOME/.cask/bin:$PATH
+- (cd $TRAVIS_BUILD_DIR/elisp && cask)
+
 
 install:
 - echo "$(ghc --version) [$(ghc --print-project-git-commit-id 2> /dev/null || echo '?')]"
@@ -120,4 +135,5 @@ script:
       done
       ;;
   esac
+  $TRAVIS_BUILD_DIR/elisp/check.sh
   set +ex
