@@ -151,6 +151,7 @@ To use this, use the following mode hook:
   (if intero-mode
       (progn (flycheck-select-checker 'intero)
              (flycheck-mode)
+             (add-hook 'completion-at-point-functions 'intero-completion-at-point nil t)
              (add-to-list (make-local-variable 'company-backends) 'intero-company)
              (company-mode)
              (setq-local eldoc-documentation-function 'intero-eldoc))
@@ -658,6 +659,23 @@ CHECKER and BUFFER are added to each item parsed from STRING."
     (apply func args)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Traditional completion-at-point function
+
+(defun intero-completion-at-point ()
+  "A (blocking) function suitable for use in `completion-at-point-functions'."
+  (let ((prefix-info (intero-completions-grab-prefix)))
+    (when prefix-info
+      (cl-destructuring-bind
+          (beg end prefix _type) prefix-info
+        (let ((completions
+               (intero-completion-response-to-list
+                (intero-blocking-call
+                 'backend
+                 (format ":complete repl %S" prefix)))))
+          (when completions
+            (list beg end completions)))))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Company integration (auto-completion)
 
 (defconst intero-pragmas
@@ -1119,6 +1137,7 @@ function is subsequently applied to each line, once."
             'intero-linkify-process-output
             t t)
   (setq-local comint-prompt-read-only t)
+  (add-hook 'completion-at-point-functions 'intero-completion-at-point nil t)
   (add-to-list (make-local-variable 'company-backends) 'intero-company)
   (company-mode))
 
@@ -1633,12 +1652,16 @@ passed to CONT in SOURCE-BUFFER."
          (plist-get state :source-buffer)
        (funcall
         (plist-get state :cont)
-        (if (string-match "^*** Exception" reply)
-            (list)
-          (mapcar
-           (lambda (x)
-             (replace-regexp-in-string "\\\"" "" x))
-           (split-string reply "\n" t))))))))
+        (intero-completion-response-to-list reply))))))
+
+(defun intero-completion-response-to-list (reply)
+  "Convert the REPLY from a backend completion to a list."
+  (if (string-match "^*** Exception" reply)
+      (list)
+    (mapcar
+     (lambda (x)
+       (replace-regexp-in-string "\\\"" "" x))
+     (split-string reply "\n" t))))
 
 (defun intero-get-repl-completions (source-buffer prefix cont)
   "Get REPL completions and send to SOURCE-BUFFER.
