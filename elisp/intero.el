@@ -225,6 +225,8 @@ and blacklist match, then the whitelist entry wins, and
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer-local variables/state
 
+(defvar-local intero-worker-name nil
+  "Name of the current worker.")
 (defvar-local intero-callbacks (list)
   "List of callbacks waiting for output.
 LIST is a FIFO.")
@@ -2061,6 +2063,7 @@ Uses the directory of the current buffer for context."
         (get-buffer-create buffer-name)
       (intero-inherit-local-variables initial-buffer)
       (setq intero-package-name package-name)
+      (setq intero-worker-name worker)
       (cd default-directory)
       (current-buffer))))
 
