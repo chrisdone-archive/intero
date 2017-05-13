@@ -23,6 +23,8 @@ data ModInfo =
            -- ^ Last time the module was updated.
           ,modinfoImports :: ![LImportDecl Name]
            -- ^ Import declarations within this module.
+          ,modinfoLocation :: !SrcSpan
+           -- ^ The location of the module
           }
 
 -- | Type of some span of source code. Most of these fields are

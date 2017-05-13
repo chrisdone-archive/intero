@@ -77,12 +77,18 @@ getModInfo :: (GhcMonad m) => ModuleName -> m ModInfo
 getModInfo name =
   do m <- getModSummary name
      p <- parseModule m
+     let location = getModuleLocation (parsedSource p)
      typechecked <- typecheckModule p
      let Just (_, imports, _, _) = renamedSource typechecked
      allTypes <- processAllTypeCheckedModule typechecked
      let i = tm_checked_module_info typechecked
      now <- liftIO getCurrentTime
-     return (ModInfo m allTypes i now imports)
+     return (ModInfo m allTypes i now imports location)
+
+getModuleLocation :: ParsedSource -> SrcSpan
+getModuleLocation pSource = case hsmodName (unLoc pSource) of
+  Just located -> getLoc located
+  Nothing -> noSrcSpan
 
 -- | Get ALL source spans in the module.
 processAllTypeCheckedModule :: GhcMonad m
