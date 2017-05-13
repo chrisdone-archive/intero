@@ -354,11 +354,32 @@ You can use this to kill them or look inside."
 With prefix argument INSERT, inserts the type above the current
 line as a type signature."
   (interactive "P")
-  (let ((ty (apply #'intero-get-type-at (intero-thing-at-point))))
+  (let* ((thing (intero-thing-at-point))
+         (origin-buffer (current-buffer))
+         (origin (buffer-name))
+         (package (intero-package-name))
+         (ty (apply #'intero-get-type-at thing))
+         (string (buffer-substring (nth 0 thing) (nth 1 thing))))
     (if insert
         (save-excursion
           (goto-char (line-beginning-position))
           (insert (intero-fontify-expression ty) "\n"))
+      (with-current-buffer (intero-help-buffer)
+        (let ((buffer-read-only nil)
+              (help-string
+               (concat
+                (intero-fontify-expression string)
+                " in `"
+                (propertize origin 'origin-buffer origin-buffer)
+                "'"
+                " (" package ")"
+                "\n\n"
+                (intero-fontify-expression ty))))
+          (erase-buffer)
+          (intero-help-push-history origin-buffer help-string)
+          (intero-help-pagination)
+          (insert help-string)
+          (goto-char (point-min))))
       (message
        "%s" (intero-fontify-expression ty)))))
 
@@ -368,23 +389,23 @@ line as a type signature."
   (let ((origin-buffer (current-buffer))
         (package (intero-package-name))
         (info (intero-get-info-of ident))
-        (help-xref-following nil)
         (origin (buffer-name)))
-    (help-setup-xref (list #'intero-call-in-buffer origin-buffer 'intero-info ident)
-                     (called-interactively-p 'interactive))
-    (save-excursion
-      (let ((help-xref-following nil))
-        (with-help-window (help-buffer)
-          (with-current-buffer (help-buffer)
-            (insert
-             (intero-fontify-expression ident)
-             " in `"
-             origin
-             "'"
-             " (" package ")"
-             "\n\n"
-             (intero-fontify-expression info))
-            (goto-char (point-min))))))))
+    (with-current-buffer (pop-to-buffer (intero-help-buffer))
+      (let ((buffer-read-only nil)
+            (help-string
+             (concat
+              (intero-fontify-expression ident)
+              " in `"
+              (propertize origin 'origin-buffer origin-buffer)
+              "'"
+              " (" package ")"
+              "\n\n"
+              (intero-fontify-expression info))))
+        (erase-buffer)
+        (intero-help-push-history origin-buffer help-string)
+        (intero-help-pagination)
+        (insert help-string)
+        (goto-char (point-min))))))
 
 (defun intero-goto-definition ()
   "Jump to the definition of the thing at point.
@@ -2691,6 +2712,89 @@ suggestions are available."
   "Display a warning message made from (format MESSAGE ARGS...).
 Equivalent to 'warn', but label the warning as coming from intero."
   (display-warning 'intero (apply 'format message args) :warning))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Intero help buffer
+
+(defun intero-help-buffer ()
+  "Get the help buffer."
+  (with-current-buffer (get-buffer-create "*Intero-Help*")
+    (unless (eq major-mode 'intero-help-mode) (intero-help-mode))
+    (current-buffer)))
+
+(defvar-local intero-help-entries nil
+  "History for help entries.")
+
+(defun intero-help-pagination ()
+  "Insert pagination for the current help buffer."
+  (let ((buffer-read-only nil))
+    (when (> (length intero-help-entries) 1)
+      (insert-text-button
+       "[back]"
+       'buffer (current-buffer)
+       'action (lambda (&rest ignore)
+                 (let ((first (pop intero-help-entries)))
+                   (setcdr (last intero-help-entries) (cons first nil))
+                   (intero-help-refresh)))
+       'keymap (let ((map (make-sparse-keymap)))
+                 (define-key map [mouse-1] 'push-button)
+                 map))
+      (insert " ")
+      (insert-text-button
+       "[forward]"
+       'buffer (current-buffer)
+       'keymap (let ((map (make-sparse-keymap)))
+                 (define-key map [mouse-1] 'push-button)
+                 map)
+       'action (lambda (&rest ignore)
+                 (setq intero-help-entries
+                       (intero-bring-to-front intero-help-entries))
+                 (intero-help-refresh)))
+      (insert " ")
+      (insert-text-button
+       "[forget]"
+       'buffer (current-buffer)
+       'keymap (let ((map (make-sparse-keymap)))
+                 (define-key map [mouse-1] 'push-button)
+                 map)
+       'action (lambda (&rest ignore)
+                 (pop intero-help-entries)
+                 (intero-help-refresh)))
+      (insert "\n\n"))))
+
+(defun intero-help-refresh ()
+  "Refresh the help buffer with the current thing in the history."
+  (interactive)
+  (let ((buffer-read-only nil))
+    (erase-buffer)
+    (if (car intero-help-entries)
+        (progn
+          (intero-help-pagination)
+          (insert (cdr (car intero-help-entries)))
+          (goto-char (point-min)))
+      (insert "No help entries."))))
+
+(defun intero-bring-to-front (xs)
+  "Bring the last element to the front."
+  (cons (car (last xs)) (butlast xs)))
+
+(defun intero-help-push-history (buffer item)
+  "Add to the history of help entries."
+  (push (cons buffer item) intero-help-entries))
+
+(defun intero-help-info (ident)
+  "Get the info of the thing with IDENT at point."
+  (interactive (list (intero-ident-at-point)))
+  (with-current-buffer (car (car intero-help-entries))
+    (intero-info ident)))
+
+(define-derived-mode intero-help-mode help-mode "Intero-Help"
+  "Help mode for intero."
+  (setq buffer-read-only t)
+  (setq intero-help-entries nil))
+
+(define-key intero-help-mode-map (kbd "g") 'intero-help-refresh)
+(define-key intero-help-mode-map (kbd "C-c C-i") 'intero-help-info)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
