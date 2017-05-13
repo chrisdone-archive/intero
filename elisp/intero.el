@@ -569,12 +569,15 @@ running context across :load/:reloads in Intero."
                       cont
                       'interrupted)
     (let ((file-buffer (current-buffer)))
-      (intero-async-call
+      (intero-queue-call
        'backend
-       (concat ":l " (intero-localize-path (intero-temp-file-name)))
+       (concat ":l " (intero-localize-path (intero-temp-file-name nil t)))
        (list :cont cont
              :file-buffer file-buffer
              :checker checker)
+       (lambda (state)
+         (with-current-buffer (plist-get state :file-buffer)
+           (intero-temp-file-name)))
        (lambda (state string)
          (let ((compile-ok (string-match "OK, modules loaded: \\(.*\\)\\.$" string)))
            (with-current-buffer (plist-get state :file-buffer)
@@ -1502,7 +1505,7 @@ project."
                             intero-absolute-project-root)))
     temporary-file-directory))
 
-(defun intero-temp-file-name (&optional buffer)
+(defun intero-temp-file-name (&optional buffer do-not-write)
   "Return the name of a temp file containing an up-to-date copy of BUFFER's contents."
   (with-current-buffer (or buffer (current-buffer))
     (prog1
@@ -1518,9 +1521,10 @@ project."
                             (current-buffer)
                             intero-temp-file-buffer-mapping)
                    intero-temp-file-name))
-      (let ((contents (buffer-string)))
-        (with-temp-file intero-temp-file-name
-          (insert contents))))))
+      (unless do-not-write
+        (let ((contents (buffer-string)))
+          (with-temp-file intero-temp-file-name
+            (insert contents)))))))
 
 (defun intero-localize-path (path)
   "Turn a possibly remote path to a purely local one. This is used to create paths which a remote intero process can load."
