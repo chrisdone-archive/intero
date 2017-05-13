@@ -225,8 +225,12 @@ and blacklist match, then the whitelist entry wins, and
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Buffer-local variables/state
 
+(defvar-local intero-current-callback nil
+  "Current callback mutex.")
+
 (defvar-local intero-worker-name nil
   "Name of the current worker.")
+
 (defvar-local intero-callbacks (list)
   "List of callbacks waiting for output.
 LIST is a FIFO.")
@@ -1740,18 +1744,39 @@ Completions for PREFIX are passed to CONT in SOURCE-BUFFER."
   "Send WORKER the command string CMD.
 The result, along with the given STATE, is passed to CALLBACK
 as (CALLBACK STATE REPLY)."
+  (intero-queue-call worker cmd state nil callback))
+
+(defun intero-queue-call (worker cmd state pre-callback callback)
+  "Queue for the given WORKER to send CMD to the process.
+
+Call CALLBACK with STATE and the text reply from the process.
+Call PRE-CALLBACK with STATE just before sending CMD to the process."
   (let ((buffer (intero-buffer worker)))
     (if (and buffer (process-live-p (get-buffer-process buffer)))
-        (progn (with-current-buffer buffer
-                 (setq intero-callbacks
-                       (append intero-callbacks
-                               (list (list state
-                                           (or callback #'ignore)
-                                           cmd)))))
-               (when intero-debug
-                 (message "[Intero] -> %s" cmd))
-               (comint-simple-send (intero-process worker) cmd))
+        (with-current-buffer buffer
+          (setq intero-callbacks
+                (append intero-callbacks
+                        (list (list state
+                                    (or callback #'ignore)
+                                    cmd
+                                    pre-callback))))
+          (intero-next-callback worker))
       (error "Intero process is not running: run M-x intero-restart to start it"))))
+
+(defun intero-next-callback (worker)
+  "Trigger the next callback."
+  (when (and intero-callbacks
+             (not intero-current-callback))
+    (setq intero-current-callback t)
+    (let* ((callback (car intero-callbacks))
+           (state (nth 0 callback))
+           (cmd (nth 2 callback))
+           (pre-callback (nth 3 callback)))
+      (when pre-callback
+        (funcall pre-callback state))
+      (when intero-debug
+        (message "[Intero] -> %s" cmd))
+      (comint-simple-send (intero-process worker) cmd))))
 
 (defun intero-buffer (worker)
   "Get the WORKER buffer for the current directory."
@@ -2024,23 +2049,21 @@ You can always run M-x intero-restart to make it try again.
 
 (defun intero-read-buffer ()
   "In the process buffer, we read what's in it."
-  (let ((repeat t))
-    (while repeat
-      (setq repeat nil)
-      (goto-char (point-min))
-      (when (search-forward "\4" (point-max) t 1)
-        (let* ((next-callback (pop intero-callbacks))
-               (state (nth 0 next-callback))
-               (func (nth 1 next-callback)))
-          (let ((string (intero-strip-carriage-returns (buffer-substring (point-min) (1- (point))))))
-            (if next-callback
-                (progn (intero-with-temp-buffer
-                         (funcall func state string))
-                       (setq repeat t))
-              (when intero-debug
-                (intero--warn "Received output but no callback in `intero-callbacks': %S"
-                              string)))))
-        (delete-region (point-min) (point))))))
+  (goto-char (point-min))
+  (when (search-forward "\4" (point-max) t 1)
+    (let* ((next-callback (pop intero-callbacks))
+           (state (nth 0 next-callback))
+           (func (nth 1 next-callback)))
+      (let ((string (intero-strip-carriage-returns (buffer-substring (point-min) (1- (point))))))
+        (if next-callback
+            (progn (intero-with-temp-buffer
+                     (funcall func state string))
+                   (setq intero-current-callback nil)
+                   (intero-next-callback intero-worker-name))
+          (when intero-debug
+            (intero--warn "Received output but no callback in `intero-callbacks': %S"
+                          string))))))
+  (delete-region (point-min) (point)))
 
 (defun intero-strip-carriage-returns (string)
   "Strip the \\r from Windows \\r\\n line endings in STRING."
