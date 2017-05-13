@@ -174,7 +174,8 @@ To use this, use the following mode hook:
 (dolist (f '(intero-mode-whitelist intero-mode-blacklist))
   (make-obsolete
    f
-   "use `intero-global-mode', which honours `intero-whitelist' and `intero-blacklist'."))
+   "use `intero-global-mode', which honours `intero-whitelist' and `intero-blacklist'."
+   "2017-05-13"))
 
 
 (define-key intero-mode-map (kbd "C-c C-t") 'intero-type-at)
