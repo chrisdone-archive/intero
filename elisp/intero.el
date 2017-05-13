@@ -577,7 +577,7 @@ running context across :load/:reloads in Intero."
              :checker checker)
        (lambda (state)
          (with-current-buffer (plist-get state :file-buffer)
-           (intero-temp-file-name)))
+           (set-file-times (intero-temp-file-name))))
        (lambda (state string)
          (let ((compile-ok (string-match "OK, modules loaded: \\(.*\\)\\.$" string)))
            (with-current-buffer (plist-get state :file-buffer)
