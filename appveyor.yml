@@ -1,0 +1,21 @@
+# Disable standard build process with MSBuild
+build: off
+
+# In case of unreliable builds try disabling caching.
+cache:
+- "c:\\sr"
+
+before_test:
+- curl -sS -ostack.zip -L --insecure http://www.stackage.org/stack/windows-i386
+- 7z x stack.zip stack.exe
+
+clone_folder: "c:\\stack"
+environment:
+  global:
+    STACK_ROOT: "c:\\sr"
+
+test_script:
+- stack setup > nul
+# The ugly echo "" hack is to avoid complaints about 0 being an invalid file
+# descriptor
+- echo "" | stack --no-terminal build --test
