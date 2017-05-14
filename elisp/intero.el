@@ -2781,11 +2781,11 @@ Equivalent to 'warn', but label the warning as coming from intero."
       (insert "No help entries."))))
 
 (defun intero-bring-to-front (xs)
-  "Bring the last element to the front."
+  "Bring the last element of XS to the front."
   (cons (car (last xs)) (butlast xs)))
 
 (defun intero-help-push-history (buffer item)
-  "Add to the history of help entries."
+  "Add (BUFFER . ITEM) to the history of help entries."
   (push (cons buffer item) intero-help-entries))
 
 (defun intero-help-info (ident)
