@@ -302,7 +302,7 @@ This is slower, but will build required dependencies.")
 ;; Interactive commands
 
 (defun intero-add-package (package)
-  "Add a package dependency to the currently running project backend."
+  "Add a dependency on PACKAGE to the currently-running project backend."
   (interactive "sPackage: ")
   (intero-blocking-call 'backend (concat ":set -package " package))
   (flycheck-buffer))
@@ -426,7 +426,7 @@ Returns nil when unable to find definition."
             (let ((original-buffer (intero-temp-file-origin-buffer loaded-file)))
               (if original-buffer
                   (switch-to-buffer original-buffer)
-                (error "Attempted to load temp file. Try restarting Intero.
+                (error "Attempted to load temp file.  Try restarting Intero.
 If the problem persists, please report this as a bug!")))
           (find-file loaded-file))
         (pop-mark)
@@ -1487,8 +1487,7 @@ path."
     (make-temp-file prefix dir-flag suffix)))
 
 (defun intero-temp-file-dir ()
-  "Get the temporary file directory for the current intero
-project."
+  "Get the temporary file directory for the current intero project."
   (let* ((intero-absolute-project-root
           (intero-extend-path-by-buffer-host (intero-project-root)))
          (temporary-file-directory
@@ -1517,7 +1516,8 @@ project."
           (insert contents))))))
 
 (defun intero-localize-path (path)
-  "Turn a possibly remote path to a purely local one. This is used to create paths which a remote intero process can load."
+  "Turn a possibly-remote PATH to a purely local one.
+This is used to create paths which a remote intero process can load."
   (if (tramp-tramp-file-p path)
       (tramp-file-name-localname (tramp-dissect-file-name path))
     path))
@@ -1706,7 +1706,11 @@ Completions for PREFIX are passed to CONT in SOURCE-BUFFER."
 ;; Process communication
 
 (defun intero-call-process (program &optional infile destination display &rest args)
-  "Synchronously call PROGRAM.  Same interface as 'call-process'/'process-file'.  Provides TRAMP compatibility for 'call-process'; when the 'default-directory' is on a remote machine, PROGRAM is launched on that machine."
+  "Synchronously call PROGRAM.
+INFILE, DESTINATION, DISPLAY and ARGS are as for
+'call-process'/'process-file'.  Provides TRAMP compatibility for
+'call-process'; when the 'default-directory' is on a remote
+machine, PROGRAM is launched on that machine."
   (let ((process-args (append (list program infile destination display) args)))
     (apply 'process-file process-args)))
 
@@ -1910,7 +1914,9 @@ Restarts flycheck in case there was a problem and flycheck is stuck."
 (defun intero-make-options-list (targets no-build no-load ignore-dot-ghci)
   "Make the stack ghci options list.
 TARGETS are the build targets.  When non-nil, NO-BUILD and
-NO-LOAD enable the correspondingly-named stack options."
+NO-LOAD enable the correspondingly-named stack options.  When
+IGNORE-DOT-GHCI is non-nil, it enables the corresponding GHCI
+option."
   (append (list "--with-ghc"
                 "intero"
                 "--docker-run-args=--interactive=true --tty=false"
