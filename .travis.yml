@@ -13,8 +13,6 @@ cache:
   - $HOME/.ghc
   - $HOME/.cabal
   - $HOME/.stack
-  - $HOME/.evm
-  - $HOME/.cask
 
 # The different configurations we want to test. We have BUILD=cabal which uses
 # cabal-install, and BUILD=stack which uses Stack. More documentation on each
@@ -84,14 +82,14 @@ before_install:
 - PACKAGES=$(stack --install-ghc query locals | grep '^ *path' | sed 's@^ *path:@@')
 
 # Install correct Emacs version
-- test -d $HOME/.evm || git clone https://github.com/rejeep/evm.git $HOME/.evm
+- git clone https://github.com/rejeep/evm.git $HOME/.evm
 - export PATH=$HOME/.evm/bin:$PATH
 
 - evm config path /tmp
 - evm install $EVM_EMACS --use --skip
 
 # Use cask to install elisp dependencies
-- test -d $HOME/.cask || git clone https://github.com/cask/cask.git $HOME/.cask
+- git clone https://github.com/cask/cask.git $HOME/.cask
 - export PATH=$HOME/.cask/bin:$PATH
 
 
