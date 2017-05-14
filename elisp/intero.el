@@ -555,6 +555,20 @@ running context across :load/:reloads in Intero."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Flycheck integration
 
+(defvar-local intero-check-last-mod-time nil
+  "Most recent modification time of the current buffer when flycheck was last triggered.")
+
+(defvar-local intero-check-last-results nil
+  "Most recent flycheck results for the current buffer.")
+
+(defun intero-check-reuse-last-results (mod-time cont)
+  "If MOD-TIME is not new, return non-nil and call CONT with `intero-check-last-results'."
+  (let ((reuse (and intero-check-last-mod-time (equal mod-time intero-check-last-mod-time))))
+    (progn
+      (when reuse
+        (funcall cont 'finished intero-check-last-results))
+      reuse)))
+
 (defun intero-check (checker cont)
   "Run a check with CHECKER and pass the status onto CONT."
   (if (intero-gave-up 'backend)
@@ -562,33 +576,40 @@ running context across :load/:reloads in Intero."
                       nil
                       cont
                       'interrupted)
-    (let ((file-buffer (current-buffer)))
-      (intero-async-call
-       'backend
-       (concat ":l " (intero-localize-path (intero-temp-file-name)))
-       (list :cont cont
-             :file-buffer file-buffer
-             :checker checker)
-       (lambda (state string)
-         (let ((compile-ok (string-match "OK, modules loaded: \\(.*\\)\\.$" string)))
+    (let* ((file-buffer (current-buffer))
+           (temp-file (intero-localize-path (intero-temp-file-name)))
+           (mod-time (nth 5 (file-attributes temp-file))))
+      (unless (intero-check-reuse-last-results mod-time cont)
+        (intero-async-call
+         'backend
+         (concat ":l " temp-file)
+         (list :cont cont
+               :file-buffer file-buffer
+               :mod-time mod-time
+               :checker checker)
+         (lambda (state string)
            (with-current-buffer (plist-get state :file-buffer)
-             (let ((modules (match-string 1 string))
-                   (msgs (intero-parse-errors-warnings-splices
-                          (plist-get state :checker)
-                          (current-buffer)
-                          string)))
-               (intero-collect-compiler-messages msgs)
-               (funcall (plist-get state :cont)
-                        'finished
-                        (cl-remove-if (lambda (msg)
-                                        (eq 'splice (flycheck-error-level msg)))
-                                      msgs))
-               (when compile-ok
-                 (intero-async-call 'backend
-                                    (concat ":m + "
-                                            (replace-regexp-in-string modules "," ""))
-                                    nil
-                                    (lambda (_st _))))))))))))
+             (unless (intero-check-reuse-last-results (plist-get state :mod-time)
+                                                      (plist-get state :cont))
+               (let* ((compile-ok (string-match "OK, modules loaded: \\(.*\\)\\.$" string))
+                      (modules (match-string 1 string))
+                      (msgs (intero-parse-errors-warnings-splices
+                             (plist-get state :checker)
+                             (current-buffer)
+                             string)))
+                 (intero-collect-compiler-messages msgs)
+                 (let ((results (cl-remove-if (lambda (msg)
+                                                (eq 'splice (flycheck-error-level msg)))
+                                              msgs)))
+                   (setq intero-check-last-mod-time (plist-get state :mod-time)
+                         intero-check-last-results results)
+                   (funcall (plist-get state :cont) 'finished results))
+                 (when compile-ok
+                   (intero-async-call 'backend
+                                      (concat ":m + "
+                                              (replace-regexp-in-string modules "," ""))
+                                      nil
+                                      (lambda (_st _)))))))))))))
 
 
 (flycheck-define-generic-checker 'intero
@@ -1511,9 +1532,15 @@ path."
                             (current-buffer)
                             intero-temp-file-buffer-mapping)
                    intero-temp-file-name))
-      (let ((contents (buffer-string)))
-        (with-temp-file intero-temp-file-name
-          (insert contents))))))
+      (let* ((contents (buffer-string))
+             (fname intero-temp-file-name)
+             (prev-contents (and (file-readable-p fname)
+                                 (with-temp-buffer
+                                   (insert-file-contents fname)
+                                   (buffer-string)))))
+        (unless (and prev-contents (string-equal contents prev-contents))
+          (with-temp-file intero-temp-file-name
+            (insert contents)))))))
 
 (defun intero-localize-path (path)
   "Turn a possibly-remote PATH to a purely local one.
