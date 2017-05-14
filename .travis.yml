@@ -45,7 +45,7 @@ matrix:
 
 
   # Build on OS X in addition to Linux
-  - env: BUILD=stack ARGS="" EVM_EMACS=emacs-24.4-travis
+  - env: BUILD=stack ARGS="" EVM_EMACS=""
     compiler: ": #stack default osx"
     os: osx
 
@@ -82,15 +82,17 @@ before_install:
 - PACKAGES=$(stack --install-ghc query locals | grep '^ *path' | sed 's@^ *path:@@')
 
 # Install correct Emacs version
-- git clone https://github.com/rejeep/evm.git $HOME/.evm
-- export PATH=$HOME/.evm/bin:$PATH
+- |
+  if [ -n "$EVM_EMACS" ]; then
+    git clone https://github.com/rejeep/evm.git $HOME/.evm
+    export PATH=$HOME/.evm/bin:$PATH
+    evm config path /tmp
+    evm install $EVM_EMACS --use --skip
 
-- evm config path /tmp
-- evm install $EVM_EMACS --use --skip
-
-# Use cask to install elisp dependencies
-- git clone https://github.com/cask/cask.git $HOME/.cask
-- export PATH=$HOME/.cask/bin:$PATH
+    # Use cask to install elisp dependencies
+    git clone https://github.com/cask/cask.git $HOME/.cask
+    export PATH=$HOME/.cask/bin:$PATH
+  fi
 
 
 install:
@@ -132,6 +134,8 @@ script:
       done
       ;;
   esac
-  emacs --version
-  $TRAVIS_BUILD_DIR/elisp/check.sh
+  if [ -n "$EVM_EMACS" ]; then
+    emacs --version
+    $TRAVIS_BUILD_DIR/elisp/check.sh
+  fi
   set +ex
