@@ -149,12 +149,12 @@ To use this, use the following mode hook:
       (message "Disabling interactive-haskell-mode ...")
       (interactive-haskell-mode -1)))
   (if intero-mode
-      (progn (flycheck-select-checker 'intero)
-             (flycheck-mode)
-             (add-hook 'completion-at-point-functions 'intero-completion-at-point nil t)
-             (add-to-list (make-local-variable 'company-backends) 'intero-company)
-             (company-mode)
-             (setq-local eldoc-documentation-function 'intero-eldoc))
+      (progn
+        (intero-flycheck-enable)
+        (add-hook 'completion-at-point-functions 'intero-completion-at-point nil t)
+        (add-to-list (make-local-variable 'company-backends) 'intero-company)
+        (company-mode)
+        (setq-local eldoc-documentation-function 'intero-eldoc))
     (message "Intero mode disabled.")))
 
 ;;;###autoload
@@ -604,6 +604,13 @@ running context across :load/:reloads in Intero."
       (when reuse
         (funcall cont 'finished intero-check-last-results))
       reuse)))
+
+(defun intero-flycheck-enable ()
+  "Enable intero's flycheck support in this buffer."
+  (flycheck-select-checker 'intero)
+  (setq intero-check-last-mod-time nil
+        intero-check-last-results nil)
+  (flycheck-mode))
 
 (defun intero-check (checker cont)
   "Run a check with CHECKER and pass the status onto CONT."
