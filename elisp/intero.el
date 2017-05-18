@@ -2958,7 +2958,7 @@ Equivalent to 'warn', but label the warning as coming from intero."
       (mapc
        (lambda (o)
          (when (overlay-get o 'intero-highlight-uses-mode-highlight)
-           (overlay-put o 'face 'lazy-highlight-face)))
+           (overlay-put o 'face 'lazy-highlight)))
        (overlays-in (line-beginning-position) (line-end-position)))
       (goto-char (overlay-start (car os)))
       (overlay-put (car os) 'face 'isearch)
@@ -2978,7 +2978,7 @@ Equivalent to 'warn', but label the warning as coming from intero."
       (mapc
        (lambda (o)
          (when (overlay-get o 'intero-highlight-uses-mode-highlight)
-           (overlay-put o 'face 'lazy-highlight-face)))
+           (overlay-put o 'face 'lazy-highlight)))
        (overlays-in (line-beginning-position) (line-end-position)))
       (goto-char (overlay-start (car os)))
       (overlay-put (car os) 'face 'isearch)
@@ -2991,7 +2991,7 @@ Equivalent to 'warn', but label the warning as coming from intero."
     (overlay-put o 'face
                  (if current
                      'isearch
-                   'lazy-highlight-face))
+                   'lazy-highlight))
     (overlay-put o 'intero-highlight-uses-mode-highlight t)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
