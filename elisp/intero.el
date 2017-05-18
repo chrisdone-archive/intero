@@ -236,6 +236,9 @@ LIST is a FIFO.")
 (defvar-local intero-targets (list)
   "Targets used for the stack process.")
 
+(defvar-local intero-start-time nil
+  "Start time of the stack process.")
+
 (defvar-local intero-source-buffer (list)
   "Buffer from which Intero was first requested to start.")
 
@@ -599,7 +602,12 @@ running context across :load/:reloads in Intero."
 
 (defun intero-check-reuse-last-results (mod-time cont)
   "If MOD-TIME is not new, return non-nil and call CONT with `intero-check-last-results'."
-  (let ((reuse (and intero-check-last-mod-time (equal mod-time intero-check-last-mod-time))))
+  (let ((reuse (and intero-check-last-mod-time
+                    (equal mod-time intero-check-last-mod-time)
+                    ;; Cached results are assumed invalid after a backend restart
+                    (time-less-p (with-current-buffer (intero-buffer 'backend)
+                                   intero-start-time)
+                                 intero-check-last-mod-time))))
     (progn
       (when reuse
         (funcall cont 'finished intero-check-last-results))
@@ -1928,6 +1936,7 @@ Automatically performs initial actions in SOURCE-BUFFER, if specified."
       (with-current-buffer buffer
         (erase-buffer)
         (setq intero-targets targets)
+        (setq intero-start-time (current-time))
         (setq intero-source-buffer source-buffer)
         (setq intero-arguments arguments)
         (setq intero-starting t)
