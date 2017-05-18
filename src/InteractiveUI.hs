@@ -28,8 +28,10 @@ module InteractiveUI (
 -- Intero
 #if __GLASGOW_HASKELL__ >= 800
 import           GHCi
-import           GHCi.Signals
 import           GHCi.RemoteTypes
+#endif
+#if __GLASGOW_HASKELL__ >= 802
+import           GHCi.Signals
 #endif
 import qualified Paths_intero
 import           Data.Version (showVersion)
@@ -61,13 +63,19 @@ import HscTypes ( tyThingParent_maybe, handleFlagWarnings, getSafeMode, hsc_IC,
                   setInteractivePrintName )
 import           Module
 import           Name
-#if __GLASGOW_HASKELL__ < 709
-import           Packages ( trusted, getPackageDetails, exposed, exposedModules, pkgIdMap )
-#else
+
+# if __GLASGOW_HASKELL__ >= 802
+import           Packages ( trusted, getPackageDetails, getInstalledPackageDetails, listVisibleModuleNames )
+#elif __GLASGOW_HASKELL__ >= 710
 import           Packages ( trusted, getPackageDetails, listVisibleModuleNames )
+#else
+import           Packages ( trusted, getPackageDetails, exposed, exposedModules, pkgIdMap )
 #endif
+
 import           PprTyThing
+#if __GLASGOW_HASKELL__ >= 802
 import           IfaceSyn
+#endif
 import           RdrName ( getGRE_NameQualifier_maybes )
 import           SrcLoc
 import qualified Lexer
@@ -76,7 +84,12 @@ import           StringBuffer
 #if __GLASGOW_HASKELL__ < 709
 import           UniqFM ( eltsUFM )
 #endif
+
+#if __GLASGOW_HASKELL__ >= 802
+import           Outputable hiding ( printForUser, printForUserPartWay )
+#else
 import           Outputable hiding ( printForUser, printForUserPartWay, bold )
+#endif
 
 -- Other random utilities
 import           BasicTypes hiding ( isTopLevel )
@@ -106,7 +119,9 @@ import           Data.IORef ( IORef, readIORef, writeIORef )
 import Data.List ( find, group, intercalate, intersperse, isPrefixOf, nub,
                    partition, sort, sortBy )
 import           Data.Maybe
+#if __GLASGOW_HASKELL__ >= 802
 import qualified Data.Set as Set
+#endif
 
 import           Exception hiding (catch)
 
@@ -139,21 +154,34 @@ import           GHC.IO.Exception ( IOErrorType(InvalidArgument) )
 import           GHC.IO.Handle ( hFlushAll )
 import           GHC.TopHandler ( topHandler )
 
-#if __GLASGOW_HASKELL__ >= 800
+pprTyThing', pprTyThingInContext' :: TyThing -> SDoc
+#if __GLASGOW_HASKELL__ >= 802
+pprTyThing'          = pprTyThingHdr
+pprTyThingInContext' = pprTyThingInContext showToHeader 
+#else
+pprTyThing'          = pprTyThing
+pprTyThingInContext' = pprTyThingInContext
+#endif
+
+#if __GLASGOW_HASKELL__ >= 802
+modulePackage :: Module -> UnitId
+modulePackage = moduleUnitId
+#elif __GLASGOW_HASKELL__ >= 800
 packageString :: UnitId -> String
 packageString = unitIdString
 modulePackage :: Module -> UnitId
 modulePackage = moduleUnitId
 #elif __GLASGOW_HASKELL__ < 709
-packageString :: PackageId -> String
-packageString = packageIdString
-modulePackage :: Module -> PackageId
-modulePackage = modulePackageId
-#else
 packageString :: PackageKey -> String
 packageString = packageKeyString
 modulePackage :: Module -> PackageKey
 modulePackage = modulePackageKey
+#else
+-- 7.08 and below
+packageString :: PackageId -> String
+packageString = packageIdString
+modulePackage :: Module -> PackageId
+modulePackage = modulePackageId
 #endif
 
 -----------------------------------------------------------------------------
@@ -791,7 +819,11 @@ mkPrompt = do
 
          --  use the 'as' name if there is one
         myIdeclName d | Just m <- ideclAs d = m
+#if __GLASGOW_HASKELL__ >= 802
                       | otherwise           = ideclName d
+#else
+                      | otherwise           = unLoc (ideclName d)
+#endif
 
         deflt_prompt = dots <> context_bit <> modules_bit
 
@@ -1021,7 +1053,11 @@ runStmt stmt step
  | any (flip isPrefixOf stmt) declPrefixes
  = do _ <- liftIO $ tryIO $ hFlushAll stdin
       result <- GhciMonad.runDecls stmt
+#if __GLASGOW_HASKELL__ >= 802
       afterRunStmt (const True) (GHC.ExecComplete (Right result) 0)
+#else
+      afterRunStmt (const True) (GHC.RunOk result)
+#endif
 
  | otherwise
  = do -- In the new IO library, read handles buffer data even if the Handle
@@ -1036,6 +1072,7 @@ runStmt stmt step
         Just result -> afterRunStmt (const True) result
 
 -- | Clean up the GHCi environment after a statement has run
+#if __GLASGOW_HASKELL__ >= 802
 afterRunStmt :: (SrcSpan -> Bool) -> GHC.ExecResult -> GHCi Bool
 afterRunStmt _ (GHC.ExecComplete (Left e) _) = liftIO $ Exception.throwIO e
 afterRunStmt step_here run_result = do
@@ -1066,6 +1103,38 @@ afterRunStmt step_here run_result = do
   when b revertCAFs
 
   return (case run_result of GHC.ExecComplete _ _ -> True; _ -> False)
+#else
+afterRunStmt :: (SrcSpan -> Bool) -> GHC.RunResult -> GHCi Bool 
+afterRunStmt _ (GHC.RunException e) = liftIO $ Exception.throwIO e 
+afterRunStmt step_here run_result = do
+  resumes <- GHC.getResumeContext
+  case run_result of
+     GHC.RunOk names -> do
+        show_types <- isOptionSet ShowType
+        when show_types $ printTypeOfNames names
+     GHC.RunBreak _ names mb_info
+         | isNothing  mb_info ||
+           step_here (GHC.resumeSpan $ head resumes) -> do
+               mb_id_loc <- toBreakIdAndLocation mb_info
+               let bCmd = maybe "" ( \(_,l) -> onBreakCmd l ) mb_id_loc
+               if (null bCmd)
+                 then printStoppedAtBreakInfo (head resumes) names
+                 else enqueueCommands [bCmd]
+               -- run the command set with ":set stop <cmd>"
+               st <- getGHCiState
+               enqueueCommands [stop st]
+               return ()
+         | otherwise -> resume step_here GHC.SingleStep >>=
+                        afterRunStmt step_here >> return ()
+     _ -> return ()
+
+  flushInterpBuffers
+  liftIO installSignalHandlers
+  b <- isOptionSet RevertCAFs
+  when b revertCAFs
+
+  return (case run_result of GHC.RunOk _ -> True; _ -> False)
+#endif
 
 toBreakIdAndLocation ::
   Maybe GHC.BreakInfo -> GHCi (Maybe (Int, BreakLocation))
@@ -1692,7 +1761,11 @@ typeOfExpr :: String -> InputT GHCi ()
 typeOfExpr str
   = handleSourceError GHC.printException
   $ do
+#if __GLASGOW_HASKELL__ >= 802
        ty <- GHC.exprType GHC.TM_Inst str
+#else
+       ty <- GHC.exprType str
+#endif
        printForUser $ sep [text str, nest 2 (dcolon <+> pprTypeForUser ty)]
 
 -----------------------------------------------------------------------------
@@ -1715,7 +1788,7 @@ typeAt str =
                   (sep [text sample,nest 2 (dcolon <+> ppr ty)])
               FindTyThing info' tything ->
                 printForUserModInfo (modinfoInfo info')
-                                    (pprTyThingHdr tything))
+                                    (pprTyThing' tything))
 
 -----------------------------------------------------------------------------
 -- :uses
@@ -1949,20 +2022,26 @@ isSafeModule m = do
     (msafe, pkgs) <- GHC.moduleTrustReqs m
     let trust  = showPpr dflags $ getSafeMode $ GHC.mi_trust $ fromJust iface
         pkg    = if packageTrusted dflags m then "trusted" else "untrusted"
-        (good, bad) = tallyPkgs dflags [] -- TODO: InstalledUnitId -> UnitId? (Set.toList pkgs)
+#if __GLASGOW_HASKELL__ >= 802
+        (good, bad) = tallyPkgs dflags (Set.toList pkgs)
+        getPackageStrings = map installedUnitIdString
+#else
+        (good, bad) = tallyPkgs dflags pkgs
+        getPackageStrings = map packageString
+#endif
 
     -- print info to user...
     liftIO $ putStrLn $ "Trust type is (Module: " ++ trust ++ ", Package: " ++ pkg ++ ")"
     liftIO $ putStrLn $ "Package Trust: " ++ (if packageTrustOn dflags then "On" else "Off")
     when (not $ null good)
          (liftIO $ putStrLn $ "Trusted package dependencies (trusted): " ++
-                        (intercalate ", " $ map packageString good))
+                        (intercalate ", " $ getPackageStrings good))
     case msafe && null bad of
         True -> liftIO $ putStrLn $ mname ++ " is trusted!"
         False -> do
             when (not $ null bad)
                  (liftIO $ putStrLn $ "Trusted package dependencies (untrusted): "
-                            ++ (intercalate ", " $ map packageString bad))
+                            ++ (intercalate ", " $ getPackageStrings bad))
             liftIO $ putStrLn $ mname ++ " is NOT trusted!"
 
   where
@@ -1970,20 +2049,22 @@ isSafeModule m = do
 
     packageTrusted dflags md
         | thisPackage dflags == modulePackage md = True
-#if __GLASGOW_HASKELL__ < 709
-        | otherwise = trusted $ getPackageDetails (pkgState dflags) (modulePackage md)
-#else
+#if __GLASGOW_HASKELL__ >= 710
         | otherwise = trusted $ getPackageDetails dflags (modulePackage md)
+#else
+        | otherwise = trusted $ getPackageDetails (pkgState dflags) (modulePackage md)
 #endif
 
     tallyPkgs dflags deps | not (packageTrustOn dflags) = ([], [])
                           | otherwise = partition part deps
         where
-#if __GLASGOW_HASKELL__ < 709
+#if __GLASGOW_HASKELL__ >= 802
+              part pkg = trusted $ getInstalledPackageDetails dflags pkg
+#elif __GLASGOW_HASKELL__ >= 710
+              part pkg = trusted $ getPackageDetails dflags pkg
+#else
               part pkg = trusted $ getPackageDetails state pkg
               state = pkgState dflags
-#else
-              part pkg = trusted $ getPackageDetails dflags pkg
 #endif
 
 --------------------------------------------------------------------------------
@@ -2100,8 +2181,8 @@ browseModule bang modl exports_only = do
 
         let things | bang      = catMaybes mb_things
                    | otherwise = filtered_things
-            pretty | bang      = pprTyThingHdr
-                   | otherwise = pprTyThingInContext showToHeader
+            pretty | bang      = pprTyThing'
+                   | otherwise = pprTyThingInContext'
 
             labels  [] = text "-- not currently imported"
             labels  l  = text $ intercalate "\n" $ map qualifier l
@@ -2752,7 +2833,7 @@ showBindings = do
 
     pprTT :: (TyThing, Fixity, [GHC.ClsInst], [GHC.FamInst]) -> SDoc
     pprTT (thing, fixity, _cls_insts, _fam_insts)
-      = pprTyThingHdr thing
+      = pprTyThing' thing
         $$ show_fixity
       where
         show_fixity
@@ -2761,7 +2842,7 @@ showBindings = do
 
 
 printTyThing :: TyThing -> GHCi ()
-printTyThing tyth = printForUser (pprTyThingHdr tyth)
+printTyThing tyth = printForUser (pprTyThing' tyth)
 
 showBkptTable :: GHCi ()
 showBkptTable = do
@@ -3457,8 +3538,12 @@ listAround pan do_highlight = do
           prefixed = zipWith ($) highlighted bs_line_nos
           output   = BS.intercalate (BS.pack "\n") prefixed
 
+#if __GLASGOW_HASKELL__ >= 802
+      let utf8Decoded = utf8DecodeByteString output
+#else
       utf8Decoded <- liftIO $ BS.useAsCStringLen output
                         $ \(p,n) -> utf8DecodeString (castPtr p) n
+#endif
       liftIO $ putStrLn utf8Decoded
   where
         file  = GHC.srcSpanFile pan
