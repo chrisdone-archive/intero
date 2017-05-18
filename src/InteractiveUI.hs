@@ -171,13 +171,13 @@ packageString :: UnitId -> String
 packageString = unitIdString
 modulePackage :: Module -> UnitId
 modulePackage = moduleUnitId
-#elif __GLASGOW_HASKELL__ < 709
+#elif __GLASGOW_HASKELL__ >= 710
 packageString :: PackageKey -> String
 packageString = packageKeyString
 modulePackage :: Module -> PackageKey
 modulePackage = modulePackageKey
 #else
--- 7.08 and below
+-- 7.8 and below
 packageString :: PackageId -> String
 packageString = packageIdString
 modulePackage :: Module -> PackageId
