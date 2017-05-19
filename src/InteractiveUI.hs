@@ -26,6 +26,7 @@ module InteractiveUI (
 #include "HsVersions.h"
 
 -- Intero
+import           GhciIO
 #if __GLASGOW_HASKELL__ >= 800
 import           GHCi
 import           GHCi.RemoteTypes
@@ -1495,7 +1496,9 @@ loadModule :: [(FilePath, Maybe Phase)] -> InputT GHCi SuccessFlag
 loadModule fs = timeIt (loadModule' fs)
 
 loadModule_ :: [FilePath] -> InputT GHCi ()
-loadModule_ fs = loadModule (zip fs (repeat Nothing)) >> return ()
+loadModule_ fs = do
+  liftIO (mapM_ touchIfExists fs)
+  loadModule (zip fs (repeat Nothing)) >> return ()
 
 loadModule' :: [(FilePath, Maybe Phase)] -> InputT GHCi SuccessFlag
 loadModule' files = do

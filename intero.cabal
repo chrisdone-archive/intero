@@ -65,6 +65,7 @@ executable intero
     GhciTypes
     GhciInfo
     GhciFind
+    GhciIO
   build-depends:
     base < 5,
     array,
