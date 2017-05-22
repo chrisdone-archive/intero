@@ -2047,8 +2047,10 @@ This is a standard process sentinel function."
                                   "--" "intero" "--version"))
         (progn
           (goto-char (point-min))
-          ;; This skipping comes due to https://github.com/commercialhaskell/intero/pull/216/files
-          (when (looking-at "Intero ")
+          ;; This skipping comes due to
+          ;; • https://github.com/commercialhaskell/intero/pull/216/files
+          ;; • https://github.com/commercialhaskell/intero/pull/405
+          (when (looking-at "\\(installing\n\\)?Intero ")
             (goto-char (match-end 0)))
           ;;
           (if (string= (buffer-substring (point) (line-end-position))
