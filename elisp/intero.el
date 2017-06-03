@@ -2329,6 +2329,7 @@ Each option is a plist of (:key :default :title) wherein:
           (use-local-map
            (let ((map (copy-keymap widget-keymap)))
              (define-key map (kbd "C-c C-c") 'exit-recursive-edit)
+             (define-key map (kbd "C-c C-k") 'abort-recursive-edit)
              (define-key map (kbd "C-g") 'abort-recursive-edit)
              map))
           (widget-setup)
