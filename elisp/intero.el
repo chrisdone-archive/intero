@@ -522,27 +522,38 @@ If the problem persists, please report this as a bug!")))
       (intero-get-worker-create 'backend targets (current-buffer))
       (intero-repl-restart))))
 
-(defun intero-targets ()
-  "Set the targets to use for stack ghci."
-  (interactive)
-  (let* ((old-targets
-          (with-current-buffer (intero-buffer 'backend)
-            intero-targets))
-         (available-targets (intero-get-targets))
-         (targets (if available-targets
-                      (intero-multiswitch
-                       "Set the targets to use for stack ghci:"
-                       (mapcar (lambda (target)
-                                 (list :key target
-                                       :title target
-                                       :default (member target old-targets)))
-                               available-targets))
-                    (split-string (read-from-minibuffer "Targets: " nil nil nil nil old-targets)
-                                  " "
-                                  t))))
-    (intero-destroy)
-    (intero-get-worker-create 'backend targets (current-buffer))
-    (intero-repl-restart)))
+(defun intero-read-targets ()
+  "Read a list of stack targets."
+  (let ((old-targets
+         (with-current-buffer (intero-buffer 'backend)
+           intero-targets))
+        (available-targets (intero-get-targets)))
+    (if available-targets
+        (intero-multiswitch
+         "Set the targets to use for stack ghci:"
+         (mapcar (lambda (target)
+                   (list :key target
+                         :title target
+                         :default (member target old-targets)))
+                 available-targets))
+      (split-string (read-from-minibuffer "Targets: " nil nil nil nil old-targets)
+                    " "
+                    t))))
+
+(defun intero-targets (targets save-dir-local)
+  "Set the TARGETS to use for stack ghci.
+When SAVE-DIR-LOCAL is non-nil, save TARGETS as the
+directory-local value for `intero-targets'."
+  (interactive (list (intero-read-targets)
+                     (y-or-n-p "Save selected target(s) in directory local variables for future sessions? ")))
+  (intero-destroy)
+  (intero-get-worker-create 'backend targets (current-buffer))
+  (intero-repl-restart)
+  (when save-dir-local
+    (save-window-excursion
+      (let ((default-directory (intero-project-root)))
+        (add-dir-local-variable 'haskell-mode 'intero-targets targets)
+        (save-buffer)))))
 
 (defun intero-destroy (&optional worker)
   "Stop WORKER and kill its associated process buffer.
