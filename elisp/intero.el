@@ -122,11 +122,16 @@ To use this, use the following mode hook:
   :group 'intero
   :type 'string)
 
-(defcustom intero-stack-executable
-  "stack"
-  "Name or path to the Stack executable to use."
+(defcustom intero-stack-executable-function
+  'intero-stack-executable-default
+  "The function used obtain the name or path of the Stack executable to use."
   :group 'intero
-  :type 'string)
+  :type '(radio (function-item intero-stack-executable-default)
+                (function :tag "Function")))
+
+(defun intero-stack-executable-default ()
+  "Use `stack' by default."
+  "stack")
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
@@ -286,7 +291,7 @@ This is slower, but will build required dependencies.")
 
 (defun intero-inherit-local-variables (buffer)
   "Make the current buffer inherit values of certain local variables from BUFFER."
-  (let ((variables '(intero-stack-executable
+  (let ((variables '(intero-stack-executable-function
                      intero-repl-no-build
                      intero-repl-no-load
                      ;; TODO: shouldn’t more of the above be here?
@@ -1265,7 +1270,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
                     (buffer-local-value 'intero-repl-no-load backend-buffer)
                     nil)))
     (insert (propertize
-             (format "Starting:\n  %s ghci %s\n" intero-stack-executable
+             (format "Starting:\n  %s ghci %s\n" (funcall intero-stack-executable-function)
                      (combine-and-quote-strings arguments))
              'face 'font-lock-comment-face))
     (let* ((script-buffer
@@ -1281,7 +1286,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
               (intero-localize-path (intero-buffer-file-name)))))
       (let ((process
              (get-buffer-process
-              (apply #'make-comint-in-buffer "intero" (current-buffer) intero-stack-executable nil "ghci"
+              (apply #'make-comint-in-buffer "intero" (current-buffer) (funcall intero-stack-executable-function) nil "ghci"
                      (append arguments
                              (list "--verbosity" "silent")
                              (list "--ghci-options"
@@ -1885,7 +1890,7 @@ Installing intero-%s automatically ...
 " intero-package-version))
       (redisplay)
       (cl-case (intero-call-process
-                intero-stack-executable nil (current-buffer) t "build"
+                (funcall intero-stack-executable-function) nil (current-buffer) t "build"
                 (with-current-buffer buffer
                   (let* ((cabal-file (intero-cabal-find-file))
                          (package-name (intero-package-name cabal-file)))
@@ -1939,7 +1944,7 @@ Automatically performs initial actions in SOURCE-BUFFER, if specified."
                       (when intero-debug
                         (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
                       (message "Booting up intero ...")
-                      (apply #'start-file-process "stack" buffer intero-stack-executable
+                      (apply #'start-file-process "stack" buffer (funcall intero-stack-executable-function)
                              arguments))))
       (set-process-query-on-exit-flag process nil)
       (process-send-string process ":set -fobject-code\n")
@@ -2053,7 +2058,7 @@ This is a standard process sentinel function."
   "Return non-nil if intero (of the right version) is installed in the stack environment."
   (redisplay)
   (intero-with-temp-buffer
-    (if (= 0 (intero-call-process intero-stack-executable nil t nil "exec"
+    (if (= 0 (intero-call-process (funcall intero-stack-executable-function) nil t nil "exec"
                                   "--verbosity" "silent"
                                   "--" "intero" "--version"))
         (progn
@@ -2097,7 +2102,7 @@ The process ended. Here is the reason that Emacs gives us:
 
 "
      (format "  %s %s"
-             intero-stack-executable
+             (funcall intero-stack-executable-function)
              (combine-and-quote-strings intero-arguments))
      "
 
@@ -2191,7 +2196,7 @@ config exists."
     (setq intero-project-root
           (intero-with-temp-buffer
             (cl-case (save-excursion
-                       (intero-call-process intero-stack-executable nil
+                       (intero-call-process (funcall intero-stack-executable-function) nil
                                             (current-buffer)
                                             nil
                                             "path"
@@ -2209,7 +2214,7 @@ Otherwise, please report this as a bug!
 
 For debugging purposes, try running the following in your terminal:
 
-%s path --project-root" intero-stack-executable)
+%s path --project-root" (funcall intero-stack-executable-function))
                  nil))))))
 
 (defun intero-ghc-version ()
@@ -2219,7 +2224,7 @@ For debugging purposes, try running the following in your terminal:
         (setq intero-ghc-version
               (intero-with-temp-buffer
                 (cl-case (save-excursion
-                           (intero-call-process intero-stack-executable
+                           (intero-call-process (funcall intero-stack-executable-function)
                                                 nil (current-buffer) t "ghc" "--" "--numeric-version"))
                   (0
                    (buffer-substring (line-beginning-position) (line-end-position)))
@@ -2228,7 +2233,8 @@ For debugging purposes, try running the following in your terminal:
 (defun intero-get-targets ()
   "Get all available targets."
   (intero-with-temp-buffer
-    (cl-case (intero-call-process intero-stack-executable nil (current-buffer) t "ide" "targets")
+    (cl-case (intero-call-process (funcall intero-stack-executable-function)
+                                  nil (current-buffer) t "ide" "targets")
       (0
        (cl-remove-if-not
         (lambda (line)
@@ -2392,7 +2398,7 @@ automatically."
                     (setq intero-hoogle-port port)
                     (start-process "hoogle"
                                    buffer
-                                   intero-stack-executable
+                                   (funcall intero-stack-executable-function)
                                    "hoogle"
                                    "server"
                                    "--no-setup"
@@ -2446,14 +2452,16 @@ automatically."
 (defun intero-hoogle-ready-p ()
   "Is hoogle ready to be started?"
   (intero-with-temp-buffer
-    (cl-case (intero-call-process intero-stack-executable nil (current-buffer) t
+    (cl-case (intero-call-process (funcall intero-stack-executable-function)
+                                  nil (current-buffer) t
                                   "hoogle" "--no-setup" "--verbosity" "silent")
       (0 t))))
 
 (defun intero-hoogle-supported-p ()
   "Is the stack hoogle command supported?"
   (intero-with-temp-buffer
-    (cl-case (intero-call-process intero-stack-executable nil (current-buffer) t
+    (cl-case (intero-call-process (funcall intero-stack-executable-function)
+                                  nil (current-buffer) t
                                   "hoogle" "--help")
       (0 t))))
 
@@ -2629,7 +2637,7 @@ suggestions are available."
         (setq intero-extensions
               (split-string
                (shell-command-to-string
-                (concat intero-stack-executable
+                (concat (funcall intero-stack-executable-function)
                         " exec --verbosity silent -- ghc --supported-extensions")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
