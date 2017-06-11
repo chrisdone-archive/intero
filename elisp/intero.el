@@ -151,6 +151,14 @@ by default."
   :group 'intero
   :type '(repeat string))
 
+(defcustom intero--flycheck-multiple-files-support nil
+  "I added multiple file support to flycheck here:
+https://github.com/chrisdone/flycheck/commits/errors-from-other-buffers
+
+But the PR was never accepted into flycheck mainline. However,
+it's clearly better to have multiple file support, so I'm
+including the option here.")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
 
@@ -806,7 +814,9 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                        :checker checker
                        :buffer (when (intero-paths-for-same-file temp-file file)
                                  buffer)
-                       :filename (intero-buffer-file-name buffer))
+                       :filename (if intero--flycheck-multiple-files-support
+                                     file
+                                   (intero-buffer-file-name buffer)))
                       messages)))
         (forward-line -1))
       (delete-dups
