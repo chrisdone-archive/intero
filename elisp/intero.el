@@ -717,7 +717,7 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                        :checker checker
                        :buffer (when (intero-paths-for-same-file temp-file file)
                                  buffer)
-                       :filename file)
+                       :filename (intero-buffer-file-name buffer))
                       messages)))
         (forward-line -1))
       (delete-dups messages))))
