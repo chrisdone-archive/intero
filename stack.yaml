@@ -5,4 +5,4 @@ extra-deps: []
 flags: {}
 extra-package-dbs: []
 nix:
-  packages: [ ncurses ]
+  packages: [ ncurses clang ]
