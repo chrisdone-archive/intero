@@ -2929,7 +2929,7 @@ completeMacro = wrapIdentCompleter $ \w -> do
   return (filter (w `isPrefixOf`) (map cmdName cmds))
 
 completeIdentifier = wrapIdentCompleter $ \w -> do
-  rdrs <- GHC.getRdrNamesInScope
+  rdrs <- fmap rdrNamesInScope getGHCiState
   dflags <- GHC.getSessionDynFlags
   return (filter (w `isPrefixOf`) (map (showPpr dflags) rdrs))
 
