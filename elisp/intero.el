@@ -154,8 +154,13 @@ To use this, use the following mode hook:
         (add-hook 'completion-at-point-functions 'intero-completion-at-point nil t)
         (add-to-list (make-local-variable 'company-backends) 'intero-company)
         (company-mode)
-        (setq-local eldoc-documentation-function 'intero-eldoc))
-    (message "Intero mode disabled.")))
+        (unless eldoc-documentation-function
+          (setq-local eldoc-documentation-function #'ignore))
+        (add-function :before-until (local 'eldoc-documentation-function) #'intero-eldoc)
+        )
+    (progn
+      (remove-function (local 'eldoc-documentation-function) #'intero-eldoc)
+      (message "Intero mode disabled."))))
 
 ;;;###autoload
 (defun intero-mode-whitelist ()
