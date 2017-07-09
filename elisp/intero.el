@@ -353,7 +353,7 @@ You can use this to kill them or look inside."
     (buffer-string)))
 
 (defun intero-uses-at ()
-  "Highlight uses of the identifier at point."
+  "Highlight where the identifier at point is used."
   (interactive)
   (let* ((thing (intero-thing-at-point))
          (uses (split-string (apply #'intero-get-uses-at thing)
@@ -2928,8 +2928,7 @@ Equivalent to 'warn', but label the warning as coming from intero."
   (remove-overlays (point-min) (point-max) 'intero-highlight-uses-mode-highlight t))
 
 (defun intero-highlight-uses-mode-replace ()
-  "Replace all highlighted instances in the buffer with something
-  else."
+  "Replace all highlighted instances in the buffer with something else."
   (interactive)
   (save-excursion
     (goto-char (point-min))
@@ -2997,7 +2996,8 @@ Equivalent to 'warn', but label the warning as coming from intero."
       (car os))))
 
 (defun intero-highlight-uses-mode-highlight (start end current)
-  "Make a highlight overlay at the given span."
+  "Make a highlight overlay at the span from START to END.
+If CURRENT, highlight the span uniquely."
   (let ((o (make-overlay start end)))
     (overlay-put o 'priority 999)
     (overlay-put o 'face
