@@ -13,7 +13,7 @@
 ;; Created: 3rd June 2016
 ;; Version: 0.1.13
 ;; Keywords: haskell, tools
-;; Package-Requires: ((flycheck "0.25") (company "0.8") (emacs "25") (haskell-mode "13.0"))
+;; Package-Requires: ((flycheck "0.25") (company "0.8") (emacs "24.4") (haskell-mode "13.0"))
 
 ;; This file is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -354,7 +354,9 @@ You can use this to kill them or look inside."
             (haskell-mode-hook nil))
         (haskell-mode)))
     (insert expression)
-    (font-lock-ensure)
+    (if (fboundp 'font-lock-ensure)
+        (font-lock-ensure)
+      (font-lock-fontify-buffer))
     (buffer-string)))
 
 (defun intero-uses-at ()
