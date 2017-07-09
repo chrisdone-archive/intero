@@ -289,11 +289,17 @@ This is slower, but will build required dependencies.")
 (defvar-local intero-buffer-host nil
   "The hostname of the box hosting the intero process for the current buffer.")
 
+(defvar-local intero-stack-yaml nil
+  "The yaml file that intero should tell stack to use. When nil,
+  intero relies on stack's default, usually the 'stack.yaml' in
+  the project root.")
+
 (defun intero-inherit-local-variables (buffer)
   "Make the current buffer inherit values of certain local variables from BUFFER."
   (let ((variables '(intero-stack-executable
                      intero-repl-no-build
                      intero-repl-no-load
+                     intero-stack-yaml
                      ;; TODO: shouldn’t more of the above be here?
                      )))
     (cl-loop for v in variables do
@@ -524,9 +530,11 @@ If the problem persists, please report this as a bug!")))
   (interactive)
   (when (intero-buffer-p 'backend)
     (let ((targets (with-current-buffer (intero-buffer 'backend)
-                     intero-targets)))
+                     intero-targets))
+          (stack-yaml (with-current-buffer (intero-buffer 'backend)
+                        intero-stack-yaml)))
       (intero-destroy 'backend)
-      (intero-get-worker-create 'backend targets (current-buffer))
+      (intero-get-worker-create 'backend targets (current-buffer) stack-yaml)
       (intero-repl-restart))))
 
 (defun intero-read-targets ()
@@ -561,6 +569,27 @@ directory-local value for `intero-targets'."
       (let ((default-directory (intero-project-root)))
         (add-dir-local-variable 'haskell-mode 'intero-targets targets)
         (save-buffer)))))
+
+(defun intero-stack-yaml (file save-dir-local)
+  "Change the yaml FILE that intero should tell stack to use.
+Intero will be restarted with the new configuration.  When
+SAVE-DIR-LOCAL is non-nil, save FILE as the directory-local value
+for `intero-stack-yaml'."
+  (interactive (list (read-file-name
+                      "Select YAML config: "
+                      (file-name-as-directory (intero-project-root)))
+                     (y-or-n-p "Save selected stack yaml config in directory local variable for future sessions? ")))
+  (let ((stack-yaml (expand-file-name file)))
+    (setq intero-stack-yaml stack-yaml)
+    (with-current-buffer (intero-buffer 'backend)
+      (setq intero-stack-yaml stack-yaml))
+    (intero-restart)
+    (intero-repl-restart)
+    (when save-dir-local
+      (save-window-excursion
+        (let ((default-directory (intero-project-root)))
+          (add-dir-local-variable 'haskell-mode 'intero-stack-yaml stack-yaml)
+          (save-buffer))))))
 
 (defun intero-destroy (&optional worker)
   "Stop WORKER and kill its associated process buffer.
@@ -1131,7 +1160,8 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
           (when process (kill-process process)))
         (intero-repl-mode-start backend-buffer
                                 (buffer-local-value 'intero-targets backend-buffer)
-                                nil)))))
+                                nil
+                                (buffer-local-value 'intero-stack-yaml backend-buffer))))))
 
 (defun intero-repl-buffer (prompt-options &optional store-previous)
   "Start the REPL buffer.
@@ -1160,7 +1190,8 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
               (setq intero-buffer-host (intero-buffer-host initial-buffer))
               (intero-repl-mode-start backend-buffer
                                       (buffer-local-value 'intero-targets backend-buffer)
-                                      prompt-options)
+                                      prompt-options
+                                      (buffer-local-value 'intero-stack-yaml backend-buffer))
               (current-buffer)))
       (progn
         (when store-previous
@@ -1253,16 +1284,23 @@ function is subsequently applied to each line, once."
   (add-to-list (make-local-variable 'company-backends) 'intero-company)
   (company-mode))
 
-(defun intero-repl-mode-start (backend-buffer targets prompt-options)
+(defun intero-repl-mode-start (backend-buffer targets prompt-options stack-yaml)
   "Start the process for the repl in the current buffer.
-BACKEND-BUFFER is used for options.
-TARGETS is the targets to load.
-If PROMPT-OPTIONS is non-nil, prompt with an options list."
+BACKEND-BUFFER is used for options.  TARGETS is the targets to
+load.  If PROMPT-OPTIONS is non-nil, prompt with an options list.
+STACK-YAML is the stack yaml config to use.  When nil, tries to
+use project-wide intero-stack-yaml when nil, otherwise uses
+stack's default)."
   (setq intero-repl-last-loaded nil)
   (setq intero-targets targets)
+  (when stack-yaml
+    (setq intero-stack-yaml stack-yaml))
   (when prompt-options
     (intero-repl-options backend-buffer))
-  (let ((arguments (intero-make-options-list
+  (let ((stack-yaml (if stack-yaml
+                        stack-yaml
+                      (buffer-local-value 'intero-stack-yaml backend-buffer)))
+        (arguments (intero-make-options-list
                     (or targets
                         (let ((package-name (buffer-local-value 'intero-package-name
                                                                 backend-buffer)))
@@ -1270,7 +1308,8 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
                             (list package-name))))
                     (buffer-local-value 'intero-repl-no-build backend-buffer)
                     (buffer-local-value 'intero-repl-no-load backend-buffer)
-                    nil)))
+                    nil
+                    stack-yaml)))
     (insert (propertize
              (format "Starting:\n  %s ghci %s\n" intero-stack-executable
                      (combine-and-quote-strings arguments))
@@ -1810,6 +1849,17 @@ machine, PROGRAM is launched on that machine."
   (let ((process-args (append (list program infile destination display) args)))
     (apply 'process-file process-args)))
 
+(defun intero-call-stack (&optional infile destination display stack-yaml &rest args)
+  "Synchronously call stack using the same arguments as `intero-call-process'.
+INFILE, DESTINATION, DISPLAY and ARGS are as for
+`call-process'/`process-file'.  STACK-YAML specifies which stack
+yaml config to use, or stack's default when nil."
+  (let ((stack-yaml-args (when stack-yaml
+                           (list "--stack-yaml" stack-yaml))))
+    (apply #'intero-call-process intero-stack-executable
+           infile destination display
+           (append stack-yaml-args args))))
+
 (defun intero-delete-worker (worker)
   "Delete the given WORKER."
   (when (intero-buffer-p worker)
@@ -1856,27 +1906,29 @@ as (CALLBACK STATE REPLY)."
   (let ((buffer (intero-get-buffer-create worker)))
     (if (get-buffer-process buffer)
         buffer
-      (intero-get-worker-create worker nil (current-buffer)))))
+      (intero-get-worker-create worker nil (current-buffer)
+                                (buffer-local-value
+                                 'intero-stack-yaml (current-buffer))))))
 
 (defun intero-process (worker)
   "Get the WORKER process for the current directory."
   (get-buffer-process (intero-buffer worker)))
 
-(defun intero-get-worker-create (worker &optional targets source-buffer)
+(defun intero-get-worker-create (worker &optional targets source-buffer stack-yaml)
   "Start the given WORKER.
-If provided, use the specified TARGETS and SOURCE-BUFFER."
+If provided, use the specified TARGETS, SOURCE-BUFFER and STACK-YAML."
   (let* ((buffer (intero-get-buffer-create worker)))
     (if (get-buffer-process buffer)
         buffer
       (let ((install-status (intero-installed-p)))
         (if (eq install-status 'installed)
-            (intero-start-process-in-buffer buffer targets source-buffer)
-          (intero-auto-install buffer install-status targets source-buffer))))))
+            (intero-start-process-in-buffer buffer targets source-buffer stack-yaml)
+          (intero-auto-install buffer install-status targets source-buffer stack-yaml))))))
 
-(defun intero-auto-install (buffer install-status &optional targets source-buffer)
+(defun intero-auto-install (buffer install-status &optional targets source-buffer stack-yaml)
   "Automatically install Intero appropriately for BUFFER.
 INSTALL-STATUS indicates the current installation status.
-If supplied, use the given TARGETS and SOURCE-BUFFER."
+If supplied, use the given TARGETS, SOURCE-BUFFER and STACK-YAML."
   (if (buffer-local-value 'intero-give-up buffer)
       buffer
     (let ((source-buffer (or source-buffer (current-buffer))))
@@ -1891,8 +1943,9 @@ Installing intero-%s automatically ...
 
 " intero-package-version))
       (redisplay)
-      (cl-case (intero-call-process
-                intero-stack-executable nil (current-buffer) t "build"
+      (cl-case (intero-call-stack
+                nil (current-buffer) t stack-yaml
+                "build"
                 (with-current-buffer buffer
                   (let* ((cabal-file (intero-cabal-find-file))
                          (package-name (intero-package-name cabal-file)))
@@ -1926,9 +1979,10 @@ feature, kill this buffer.
                              'face 'compilation-error))
          nil)))))
 
-(defun intero-start-process-in-buffer (buffer &optional targets source-buffer)
-  "Start an Intero worker in BUFFER, for the default or specified TARGETS.
-Automatically performs initial actions in SOURCE-BUFFER, if specified."
+(defun intero-start-process-in-buffer (buffer &optional targets source-buffer stack-yaml)
+  "Start an Intero worker in BUFFER, for the default or specified TARGETS
+and STACK-YAML file. Automatically performs initial actions in SOURCE-BUFFER,
+if specified."
   (if (buffer-local-value 'intero-give-up buffer)
       buffer
     (let* ((options
@@ -1940,6 +1994,7 @@ Automatically performs initial actions in SOURCE-BUFFER, if specified."
              (not (buffer-local-value 'intero-try-with-build buffer))
              t ;; pass --no-load to stack
              t ;; pass -ignore-dot-ghci to intero
+             stack-yaml ;; let stack choose a default when nil
              ))
            (arguments (cons "ghci" options))
            (process (with-current-buffer buffer
@@ -1953,6 +2008,8 @@ Automatically performs initial actions in SOURCE-BUFFER, if specified."
       (process-send-string process ":set prompt \"\\4\"\n")
       (with-current-buffer buffer
         (erase-buffer)
+        (when stack-yaml
+          (setq intero-stack-yaml stack-yaml))
         (setq intero-targets targets)
         (setq intero-start-time (current-time))
         (setq intero-source-buffer source-buffer)
@@ -2008,13 +2065,16 @@ Restarts flycheck in case there was a problem and flycheck is stuck."
   (flycheck-mode)
   (flycheck-buffer))
 
-(defun intero-make-options-list (targets no-build no-load ignore-dot-ghci)
+(defun intero-make-options-list (targets no-build no-load ignore-dot-ghci stack-yaml)
   "Make the stack ghci options list.
 TARGETS are the build targets.  When non-nil, NO-BUILD and
 NO-LOAD enable the correspondingly-named stack options.  When
 IGNORE-DOT-GHCI is non-nil, it enables the corresponding GHCI
-option."
-  (append (list "--with-ghc"
+option.  STACK-YAML is the stack config file to use (or stack's
+default when nil)."
+  (append (when stack-yaml
+            (list "--stack-yaml" stack-yaml))
+          (list "--with-ghc"
                 "intero"
                 "--docker-run-args=--interactive=true --tty=false"
                 )
@@ -2060,9 +2120,10 @@ This is a standard process sentinel function."
   "Return non-nil if intero (of the right version) is installed in the stack environment."
   (redisplay)
   (intero-with-temp-buffer
-    (if (= 0 (intero-call-process intero-stack-executable nil t nil "exec"
-                                  "--verbosity" "silent"
-                                  "--" "intero" "--version"))
+    (if (= 0 (intero-call-stack nil t nil intero-stack-yaml
+                                "exec"
+                                "--verbosity" "silent"
+                                "--" "intero" "--version"))
         (progn
           (goto-char (point-min))
           ;; This skipping comes due to https://github.com/commercialhaskell/intero/pull/216/files
@@ -2190,22 +2251,22 @@ Uses the directory of the current buffer for context."
 
 (defun intero-project-root ()
   "Get the current stack config directory.
-This is either the directory where the stack.yaml is placed for
-this project, or the global one if no such project-specific
-config exists."
+This is the directory where the file specified in
+`intero-stack-yaml' is located, or if nil then the directory
+where stack.yaml is placed for this project, or the global one if
+no such project-specific config exists."
   (if intero-project-root
       intero-project-root
-    (setq intero-project-root
-          (intero-with-temp-buffer
-            (cl-case (save-excursion
-                       (intero-call-process intero-stack-executable nil
-                                            (current-buffer)
-                                            nil
-                                            "path"
-                                            "--project-root"
-                                            "--verbosity" "silent"))
-              (0 (buffer-substring (line-beginning-position) (line-end-position)))
-              (t (intero--warn "Couldn't get the Stack project root.
+    (let ((stack-yaml intero-stack-yaml))
+      (setq intero-project-root
+            (intero-with-temp-buffer
+              (cl-case (save-excursion
+                         (intero-call-stack nil (current-buffer) nil stack-yaml
+                                "path"
+                                "--project-root"
+                                "--verbosity" "silent"))
+                (0 (buffer-substring (line-beginning-position) (line-end-position)))
+                (t (intero--warn "Couldn't get the Stack project root.
 
 This can be caused by a syntax error in your stack.yaml file. Check that out.
 
@@ -2217,7 +2278,7 @@ Otherwise, please report this as a bug!
 For debugging purposes, try running the following in your terminal:
 
 %s path --project-root" intero-stack-executable)
-                 nil))))))
+                   nil)))))))
 
 (defun intero-ghc-version ()
   "Get the GHC version used by the project."
@@ -2226,22 +2287,26 @@ For debugging purposes, try running the following in your terminal:
         (setq intero-ghc-version
               (intero-with-temp-buffer
                 (cl-case (save-excursion
-                           (intero-call-process intero-stack-executable
-                                                nil (current-buffer) t "ghc" "--" "--numeric-version"))
+                           (intero-call-stack
+                            nil (current-buffer) t intero-stack-yaml
+                            "ghc" "--" "--numeric-version"))
                   (0
                    (buffer-substring (line-beginning-position) (line-end-position)))
                   (1 nil)))))))
 
 (defun intero-get-targets ()
   "Get all available targets."
-  (intero-with-temp-buffer
-    (cl-case (intero-call-process intero-stack-executable nil (current-buffer) t "ide" "targets")
-      (0
-       (cl-remove-if-not
-        (lambda (line)
-          (string-match "^[A-Za-z0-9-:_]+$" line))
-        (split-string (buffer-string) "[\r\n]" t)))
-      (1 nil))))
+  (with-current-buffer (intero-buffer 'backend)
+    (intero-with-temp-buffer
+      (cl-case (intero-call-stack nil (current-buffer) t
+                                  intero-stack-yaml
+                                  "ide" "targets")
+        (0
+         (cl-remove-if-not
+          (lambda (line)
+            (string-match "^[A-Za-z0-9-:_]+$" line))
+          (split-string (buffer-string) "[\r\n]" t)))
+        (1 nil)))))
 
 (defun intero-package-name (&optional cabal-file)
   "Get the current package name from a nearby .cabal file.
@@ -2453,15 +2518,16 @@ automatically."
 (defun intero-hoogle-ready-p ()
   "Is hoogle ready to be started?"
   (intero-with-temp-buffer
-    (cl-case (intero-call-process intero-stack-executable nil (current-buffer) t
+    (cl-case (intero-call-stack nil (current-buffer) t intero-stack-yaml
                                   "hoogle" "--no-setup" "--verbosity" "silent")
       (0 t))))
 
 (defun intero-hoogle-supported-p ()
   "Is the stack hoogle command supported?"
   (intero-with-temp-buffer
-    (cl-case (intero-call-process intero-stack-executable nil (current-buffer) t
-                                  "hoogle" "--help")
+    (cl-case (intero-call-stack nil (current-buffer) t
+                                intero-stack-yaml
+                                "hoogle" "--help")
       (0 t))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -2637,6 +2703,9 @@ suggestions are available."
               (split-string
                (shell-command-to-string
                 (concat intero-stack-executable
+                        (if intero-stack-yaml
+                            (concat "--stack-yaml " intero-stack-yaml)
+                          "")
                         " exec --verbosity silent -- ghc --supported-extensions")))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

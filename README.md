@@ -28,7 +28,11 @@ To enable `intero` in all `haskell-mode` buffers by default, enable
 `(intero-global-mode 1)` to your Emacs start-up files.
 
 Intero will then activate for all projects, and for files without a
-stack.yaml, it will assume the "global" project.
+stack.yaml, it will assume the "global" project. If you want to use an
+alternate stack yaml configuration file (for example, when developing
+for multiple GHC versions), use `M-x intero-stack-yaml` to switch
+file. When switching configuration, you will asked whether you want to
+preserve this choice across emacs sessions for the given project.
 
 ## Whitelisting/blacklisting projects
 
