@@ -2663,6 +2663,16 @@ suggestions are available."
                                  :signature (mapconcat #'identity (split-string (substring text start)) " ")
                                  :line (flycheck-error-line msg)))))
           ;; Messages of this format:
+          (when (string-match "The import of [‘`‛]\\(.+?\\)[’`'][\n ]+from[\n ]+module[\n ]+[‘`‛]\\(.+?\\)[’`'][\n ]+is[\n ]+redundant" text)
+            (let ((module (match-string 2 text))
+                  (idents (split-string (match-string 1 text) "," t "[ \n]+")))
+              (setq note t)
+              (add-to-list 'intero-suggestions
+                           (list :type 'redundant-import-item
+                                 :idents idents
+                                 :line (flycheck-error-line msg)
+                                 :module module))))
+          ;; Messages of this format:
           ;;
           ;;     Redundant constraints: (Arith var, Bitwise var)
           ;; Or
@@ -2762,6 +2772,15 @@ suggestions are available."
                                         (plist-get suggestion :ident)
                                         (plist-get suggestion :module))
                          :default t))
+                  (redundant-import-item
+                   (list :key suggestion
+                         :title
+                         (format "Remove redundant imports %s from import of ‘%s’"
+                                 (mapconcat (lambda (ident)
+                                              (concat "‘" ident "’"))
+                                            (plist-get suggestion :idents) ", ")
+                                 (plist-get suggestion :module))
+                         :default t))
                   (add-extension
                    (list :key suggestion
                          :title (concat "Add {-# LANGUAGE "
@@ -2838,6 +2857,38 @@ suggestions are available."
                      (insert (if (string-match "^[_a-zA-Z]" (plist-get suggestion :ident))
                                  (plist-get suggestion :ident)
                                (concat "(" (plist-get suggestion :ident) ")")) ", "))))
+                (redundant-import-item
+                 (save-excursion
+                   (goto-char (point-min))
+                   (forward-line (1- (plist-get suggestion :line)))
+                   (let* ((start (point))
+                          (end (or (save-excursion
+                                     (when (search-forward-regexp "\n[^ \t]" nil t 1)
+                                       (1- (point))))
+                                   (line-end-position)))
+                          (regex
+                           (concat
+                            "\\("
+                            (mapconcat
+                             (lambda (ident)
+                               (if (string-match "^[_a-zA-Z]" ident)
+                                   (concat "\\<" (regexp-quote ident) "\\>")
+                                 (concat "(" (regexp-quote ident) ")")))
+                             (plist-get suggestion :idents)
+                             "\\|")
+                            "\\)"))
+                          (string (buffer-substring start end)))
+                     (delete-region start end)
+                     (insert (replace-regexp-in-string
+                              "([\n ]*," "("
+                              (replace-regexp-in-string
+                               "[\n ,]*,[\n ,]*" ", "
+                               (replace-regexp-in-string
+                                ",[\n ]*)" ")"
+                                (replace-regexp-in-string
+                                 regex ""
+                                 string))))
+                             (make-string (1- (length (split-string string "\n" t))) 10)))))
                 (fix-typo
                  (save-excursion
                    (goto-char (point-min))
