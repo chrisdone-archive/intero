@@ -2596,6 +2596,22 @@ suggestions are available."
                                  :option "-fno-warn-name-shadowing"))
               (setq start (min (length text) (1+ (match-end 0))))))
           ;; Messages of this format:
+          ;; Perhaps you want to add ‘foo’ to the import list
+          ;; in the import of ‘Blah’
+          ;; (/path/to/thing:19
+          (when (string-match "Perhaps you want to add [‘`‛]\\([^ ]+\\)['’][\n ]+to[\n ]+the[\n ]+import[\n ]+list[\n ]+in[\n ]+the[\n ]+import[\n ]+of[\n ]+[‘`‛]\\([^ ]+\\)['’][\n ]+(\\([^ ]+\\):\\([0-9]+\\):"
+                              text)
+            (let ((ident (match-string 1 text))
+                  (module (match-string 2 text))
+                  (file (match-string 3 text))
+                  (line (string-to-number (match-string 4 text))))
+              (setq note t)
+              (add-to-list 'intero-suggestions
+                           (list :type 'add-to-import
+                                 :module module
+                                 :ident ident
+                                 :line line))))
+          ;; Messages of this format:
           ;;
           ;; The import of ‘Control.Monad’ is redundant
           ;;   except perhaps to import instances from ‘Control.Monad’
@@ -2740,6 +2756,12 @@ suggestions are available."
              (mapcar
               (lambda (suggestion)
                 (cl-case (plist-get suggestion :type)
+                  (add-to-import
+                   (list :key suggestion
+                         :title (format "Add ‘%s’ to import of ‘%s’"
+                                        (plist-get suggestion :ident)
+                                        (plist-get suggestion :module))
+                         :default t))
                   (add-extension
                    (list :key suggestion
                          :title (concat "Add {-# LANGUAGE "
@@ -2807,6 +2829,15 @@ suggestions are available."
           (cl-loop
            for suggestion in sorted
            do (cl-case (plist-get suggestion :type)
+                (add-to-import
+                 (save-excursion
+                   (goto-char (point-min))
+                   (forward-line (1- (plist-get suggestion :line)))
+                   (when (and (search-forward (plist-get suggestion :module) nil t 1)
+                              (search-forward "(" nil t 1))
+                     (insert (if (string-match "^[_a-zA-Z]" (plist-get suggestion :ident))
+                                 (plist-get suggestion :ident)
+                               (concat "(" (plist-get suggestion :ident) ")")) ", "))))
                 (fix-typo
                  (save-excursion
                    (goto-char (point-min))
