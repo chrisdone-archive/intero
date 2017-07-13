@@ -299,6 +299,19 @@ printForUserPartWay doc = do
   liftIO $ Outputable.printForUserPartWay dflags stdout (pprUserLength dflags) unqual doc
 
 -- | Run a single Haskell expression
+#if __GLASGOW_HASKELL__ >= 802
+runStmt :: String -> GHC.SingleStep -> GHCi (Maybe GHC.ExecResult)
+runStmt expr step = do
+  st <- getGHCiState
+  reifyGHCi $ \x ->
+    withProgName (progname st) $
+    withArgs (args st) $
+      reflectGHCi x $ do
+        GHC.handleSourceError (\e -> do GHC.printException e;
+                                        return Nothing) $ do
+          r <- GHC.execStmt expr (GHC.execOptions { GHC.execSingleStep = step })
+          return (Just r)
+#else
 runStmt :: String -> GHC.SingleStep -> GHCi (Maybe GHC.RunResult)
 runStmt expr step = do
   st <- getGHCiState
@@ -310,6 +323,7 @@ runStmt expr step = do
                                         return Nothing) $ do
           r <- GHC.runStmtWithLocation (progname st) (line_number st) expr step
           return (Just r)
+#endif
 
 runDecls :: String -> GHCi [GHC.Name]
 runDecls decls = do
@@ -321,6 +335,16 @@ runDecls decls = do
         GHC.handleSourceError (\e -> do GHC.printException e; return []) $ do
           GHC.runDeclsWithLocation (progname st) (line_number st) decls
 
+#if __GLASGOW_HASKELL__ >= 802
+resume :: (SrcSpan -> Bool) -> GHC.SingleStep -> GHCi GHC.ExecResult
+resume canLogSpan step = do
+  st <- getGHCiState
+  reifyGHCi $ \x ->
+    withProgName (progname st) $
+    withArgs (args st) $
+      reflectGHCi x $ do
+        GHC.resumeExec canLogSpan step
+#else
 resume :: (SrcSpan -> Bool) -> GHC.SingleStep -> GHCi GHC.RunResult
 resume canLogSpan step = do
   st <- getGHCiState
@@ -329,6 +353,7 @@ resume canLogSpan step = do
     withArgs (args st) $
       reflectGHCi x $ do
         GHC.resume canLogSpan step
+#endif
 
 -- --------------------------------------------------------------------------
 -- timing & statistics

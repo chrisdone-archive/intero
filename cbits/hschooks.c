@@ -30,7 +30,7 @@ initGCStatistics(void)
 void
 defaultsHook (void)
 {
-#if __GLASGOW_HASKELL__ >= 707
+#if __GLASGOW_HASKELL__ >= 707 && __GLASGOW_HASKELL__ < 802
     // This helps particularly with large compiles, but didn't work
     // very well with earlier GHCs because it caused large amounts of
     // fragmentation.  See rts/sm/BlockAlloc.c:allocLargeChunk().
