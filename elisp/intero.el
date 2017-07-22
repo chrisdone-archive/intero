@@ -2599,7 +2599,7 @@ suggestions are available."
           ;; Perhaps you want to add ‘foo’ to the import list
           ;; in the import of ‘Blah’
           ;; (/path/to/thing:19
-          (when (string-match "Perhaps you want to add [‘`‛]\\([^ ]+\\)['’][\n ]+to[\n ]+the[\n ]+import[\n ]+list[\n ]+in[\n ]+the[\n ]+import[\n ]+of[\n ]+[‘`‛]\\([^ ]+\\)['’][\n ]+(\\([^ ]+\\):\\([0-9]+\\):"
+          (when (string-match "Perhaps you want to add [‘`‛]\\([^ ]+\\)['’][\n ]+to[\n ]+the[\n ]+import[\n ]+list[\n ]+in[\n ]+the[\n ]+import[\n ]+of[\n ]+[‘`‛]\\([^ ]+\\)['’][\n ]+(\\([^ ]+\\):(?\\([0-9]+\\)[:,]"
                               text)
             (let ((ident (match-string 1 text))
                   (module (match-string 2 text))
