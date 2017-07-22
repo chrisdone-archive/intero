@@ -2262,9 +2262,9 @@ no such project-specific config exists."
             (intero-with-temp-buffer
               (cl-case (save-excursion
                          (intero-call-stack nil (current-buffer) nil stack-yaml
-                                "path"
-                                "--project-root"
-                                "--verbosity" "silent"))
+                                            "path"
+                                            "--project-root"
+                                            "--verbosity" "silent"))
                 (0 (buffer-substring (line-beginning-position) (line-end-position)))
                 (t (intero--warn "Couldn't get the Stack project root.
 
@@ -2519,7 +2519,7 @@ automatically."
   "Is hoogle ready to be started?"
   (intero-with-temp-buffer
     (cl-case (intero-call-stack nil (current-buffer) t intero-stack-yaml
-                                  "hoogle" "--no-setup" "--verbosity" "silent")
+                                "hoogle" "--no-setup" "--verbosity" "silent")
       (0 t))))
 
 (defun intero-hoogle-supported-p ()
