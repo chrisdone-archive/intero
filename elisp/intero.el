@@ -1980,9 +1980,10 @@ feature, kill this buffer.
          nil)))))
 
 (defun intero-start-process-in-buffer (buffer &optional targets source-buffer stack-yaml)
-  "Start an Intero worker in BUFFER, for the default or specified TARGETS
-and STACK-YAML file. Automatically performs initial actions in SOURCE-BUFFER,
-if specified."
+  "Start an Intero worker in BUFFER.
+Uses the specified TARGETS if supplied.
+Automatically performs initial actions in SOURCE-BUFFER, if specified.
+Uses the default stack config file, or STACK-YAML file if given."
   (if (buffer-local-value 'intero-give-up buffer)
       buffer
     (let* ((options
