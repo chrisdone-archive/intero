@@ -2856,7 +2856,9 @@ suggestions are available."
                               (search-forward "(" nil t 1))
                      (insert (if (string-match "^[_a-zA-Z]" (plist-get suggestion :ident))
                                  (plist-get suggestion :ident)
-                               (concat "(" (plist-get suggestion :ident) ")")) ", "))))
+                               (concat "(" (plist-get suggestion :ident) ")")))
+                     (unless (looking-at "[:space:]*)")
+                       (insert ", ")))))
                 (redundant-import-item
                  (save-excursion
                    (goto-char (point-min))
