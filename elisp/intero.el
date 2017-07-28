@@ -2574,8 +2574,10 @@ suggestions are available."
           ;; Expected type: String
           ;; Actual type: Data.Text.Internal.Builder.Builder
           (let ((start 0))
-            (while (string-match
-                    "Expected type: String" text start)
+            (while (or (string-match
+                        "Expected type: String" text start)
+                       (string-match
+                        "Expected type: \\[Char\\]" text start))
               (setq note t)
               (add-to-list 'intero-suggestions
                            (list :type 'add-extension
