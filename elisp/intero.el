@@ -2578,6 +2578,10 @@ suggestions are available."
             (while (or (string-match
                         "Expected type: String" text start)
                        (string-match
+                        "Actual type: String" text start)
+                       (string-match
+                        "Actual type: \\[Char\\]" text start)
+                       (string-match
                         "Expected type: \\[Char\\]" text start))
               (setq note t)
               (add-to-list 'intero-suggestions
