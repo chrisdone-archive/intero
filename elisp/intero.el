@@ -2571,6 +2571,17 @@ suggestions are available."
                                  :package (match-string 1 text)))
               (setq start (min (length text) (1+ (match-end 0))))))
           ;; Messages of this format:
+          ;; Expected type: String
+          ;; Actual type: Data.Text.Internal.Builder.Builder
+          (let ((start 0))
+            (while (string-match
+                    "Expected type: String" text start)
+              (setq note t)
+              (add-to-list 'intero-suggestions
+                           (list :type 'add-extension
+                                 :extension "OverloadedStrings"))
+              (setq start (min (length text) (1+ (match-end 0))))))
+          ;; Messages of this format:
           ;;
           ;; Defaulting the following constraint(s) to type ‘Integer’
           ;;   (Num a0) arising from the literal ‘1’
@@ -2786,7 +2797,7 @@ suggestions are available."
                          :title (concat "Add {-# LANGUAGE "
                                         (plist-get suggestion :extension)
                                         " #-}")
-                         :default t))
+                         :default (not (string= "OverloadedStrings" (plist-get suggestion :extension)))))
                   (add-ghc-option
                    (list :key suggestion
                          :title (concat "Add {-# OPTIONS_GHC "
