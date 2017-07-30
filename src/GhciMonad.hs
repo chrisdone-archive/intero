@@ -123,7 +123,6 @@ data GHCiState = GHCiState
 
         -- stored state
         mod_infos :: !(Map ModuleName ModInfo),
-        rdrNamesInScope :: ![GHC.RdrName],
 
         ghci_work_directory :: FilePath,
             -- ^ Used to store the working directory associated with
