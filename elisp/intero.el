@@ -151,7 +151,6 @@ To use this, use the following mode hook:
   (if intero-mode
       (progn
         (intero-flycheck-enable)
-        (add-hook 'completion-at-point-functions 'intero-completion-at-point nil t)
         (add-to-list (make-local-variable 'company-backends) 'intero-company)
         (company-mode)
         (unless eldoc-documentation-function
@@ -802,7 +801,7 @@ CHECKER and BUFFER are added to each item parsed from STRING."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Traditional completion-at-point function
 
-(defun intero-completion-at-point ()
+(defun intero-repl-tab-completion-at-point ()
   "A (blocking) function suitable for use in `completion-at-point-functions'."
   (let ((prefix-info (text-from-prompt-to-point)))
     (when prefix-info
@@ -1298,7 +1297,7 @@ function is subsequently applied to each line, once."
             'intero-linkify-process-output
             t t)
   (setq-local comint-prompt-read-only t)
-  (add-hook 'completion-at-point-functions 'intero-completion-at-point nil t)
+  (add-hook 'completion-at-point-functions 'intero-repl-tab-completion-at-point nil t)
   (add-to-list (make-local-variable 'company-backends) 'intero-company)
   (company-mode))
 
