@@ -804,17 +804,35 @@ CHECKER and BUFFER are added to each item parsed from STRING."
 
 (defun intero-completion-at-point ()
   "A (blocking) function suitable for use in `completion-at-point-functions'."
-  (let ((prefix-info (intero-completions-grab-prefix)))
+  (let ((prefix-info (text-from-prompt-to-point)))
     (when prefix-info
       (cl-destructuring-bind
           (beg end prefix _type) prefix-info
-        (let ((completions
-               (intero-completion-response-to-list
-                (intero-blocking-call
-                 'backend
-                 (format ":complete repl %S" prefix)))))
-          (when completions
-            (list beg end completions)))))))
+        (let* ((tmp-buf (get-buffer-create (make-temp-name "intero-completions")))
+               (completions
+                (save-excursion
+                  (comint-redirect-send-command
+                   (format ":complete repl %S" prefix) ;; command
+                   tmp-buf ;; output buffer
+                   nil     ;; echo
+                   t)    ;; no-display
+                  (while (not comint-redirect-completed)
+                    (sleep-for 0.01))
+                  (switch-to-buffer tmp-buf)
+                  (let ((str (buffer-string)))
+                    (kill-buffer tmp-buf)
+                    (intero-completion-response-to-list str)))))
+          (let ((first-line (car completions)))
+            (when (and (string-match "[^ ]* [^ ]* " first-line) ;; "2 2 :load src/"
+                       completions)
+              (setq first-line (replace-match "" nil nil first-line))
+              (list (+ beg (length first-line)) end (cdr completions)))))))))
+
+(defun text-from-prompt-to-point ()
+  "Return the text from this buffer from the prompt up to right behind the point."
+  (let ((beg (save-excursion (intero-repl-beginning-of-line) (point)))
+        (end (point)))
+    (list beg end (buffer-substring-no-properties beg end) 'repl-complete)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Company integration (auto-completion)
