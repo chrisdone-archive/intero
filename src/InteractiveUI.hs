@@ -157,7 +157,7 @@ import           GHC.TopHandler ( topHandler )
 pprTyThing', pprTyThingInContext' :: TyThing -> SDoc
 #if __GLASGOW_HASKELL__ >= 802
 pprTyThing'          = pprTyThingHdr
-pprTyThingInContext' = pprTyThingInContext showToHeader 
+pprTyThingInContext' = pprTyThingInContext showToHeader
 #else
 pprTyThing'          = pprTyThing
 pprTyThingInContext' = pprTyThingInContext
@@ -1101,8 +1101,8 @@ afterRunStmt step_here run_result = do
 
   return (case run_result of GHC.ExecComplete _ _ -> True; _ -> False)
 #else
-afterRunStmt :: (SrcSpan -> Bool) -> GHC.RunResult -> GHCi Bool 
-afterRunStmt _ (GHC.RunException e) = liftIO $ Exception.throwIO e 
+afterRunStmt :: (SrcSpan -> Bool) -> GHC.RunResult -> GHCi Bool
+afterRunStmt _ (GHC.RunException e) = liftIO $ Exception.throwIO e
 afterRunStmt step_here run_result = do
   resumes <- GHC.getResumeContext
   case run_result of
@@ -3013,7 +3013,6 @@ completeGhciCommand = wrapCompleter " " $ \w -> do
 completeMacro = wrapIdentCompleter $ \w -> do
   cmds <- liftIO $ readIORef macros_ref
   return (filter (w `isPrefixOf`) (map cmdName cmds))
-
 
 isSymbolChar :: Char -> Bool
 isSymbolChar c = not (c `elem` specials) && case generalCategory c of
