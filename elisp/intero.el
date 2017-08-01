@@ -803,7 +803,7 @@ CHECKER and BUFFER are added to each item parsed from STRING."
 
 (defun intero-repl-tab-completion-at-point ()
   "A (blocking) function suitable for use in `completion-at-point-functions'."
-  (let ((prefix-info (text-from-prompt-to-point)))
+  (let ((prefix-info (intero-text-from-prompt-to-point)))
     (when prefix-info
       (cl-destructuring-bind
           (beg end prefix _type) prefix-info
@@ -827,7 +827,7 @@ CHECKER and BUFFER are added to each item parsed from STRING."
               (setq first-line (replace-match "" nil nil first-line))
               (list (+ beg (length first-line)) end (cdr completions)))))))))
 
-(defun text-from-prompt-to-point ()
+(defun intero-text-from-prompt-to-point ()
   "Return the text from this buffer from the prompt up to right behind the point."
   (let ((beg (save-excursion (intero-repl-beginning-of-line) (point)))
         (end (point)))
