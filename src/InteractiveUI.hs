@@ -294,6 +294,7 @@ ghciCommands = [
 --
 -- NOTE: in order for us to override the default correctly, any custom entry
 -- must be a SUBSET of word_break_chars.
+word_break_chars :: String
 word_break_chars = spaces ++ specials ++ symbols
 
 symbols, specials, spaces :: String
