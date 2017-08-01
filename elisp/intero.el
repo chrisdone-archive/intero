@@ -1296,7 +1296,9 @@ function is subsequently applied to each line, once."
   (add-hook 'comint-output-filter-functions
             'intero-linkify-process-output
             t t)
+  (local-set-key (kbd "TAB") 'complete-symbol)
   (setq-local comint-prompt-read-only t)
+  (setq-local company-idle-delay nil)
   (add-hook 'completion-at-point-functions 'intero-repl-tab-completion-at-point nil t)
   (add-to-list (make-local-variable 'company-backends) 'intero-company)
   (company-mode))
