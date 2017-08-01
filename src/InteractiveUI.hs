@@ -592,7 +592,6 @@ interactiveUI config srcs maybe_exprs = do
                    short_help          = shortHelpText config,
                    long_help           = fullHelpText config,
                    mod_infos           = M.empty,
-                   rdrNamesInScope     = [],
                    ghci_work_directory = current_directory,
                    ghc_work_directory  = current_directory
                  }
@@ -680,10 +679,6 @@ runGHCi paths maybe_exprs = do
 
   -- reset line number
   getGHCiState >>= \st -> setGHCiState st{line_number=1}
-
-  -- Get the names in scope
-  names <- GHC.getRdrNamesInScope
-  modifyGHCiState (\s -> s { rdrNamesInScope = names })
 
   case maybe_exprs of
         Nothing ->
@@ -1635,11 +1630,10 @@ doLoad retain_context howmuch = do
       return ok
   case wasok of
     Succeeded -> do
-      names <- GHC.getRdrNamesInScope
       loaded <- getModuleGraph >>= filterM GHC.isLoaded . map GHC.ms_mod_name
       v <- lift (fmap mod_infos getGHCiState)
       !newInfos <- collectInfo v loaded
-      lift (modifyGHCiState (\s -> s { mod_infos = newInfos, rdrNamesInScope = names }))
+      lift (modifyGHCiState (\s -> s { mod_infos = newInfos }))
     _ -> return ()
   return wasok
 
@@ -2386,9 +2380,6 @@ setGHCContextFromGHCiState = do
         then iidecls ++ [implicitPreludeImport]
         else iidecls
     -- XXX put prel at the end, so that guessCurrentModule doesn't pick it up.
-  -- Get the names in scope
-  names <- GHC.getRdrNamesInScope
-  modifyGHCiState (\s -> s { rdrNamesInScope = names })
 
 -- -----------------------------------------------------------------------------
 -- Utils on InteractiveImport
