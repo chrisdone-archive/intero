@@ -642,20 +642,16 @@ running context across :load/:reloads in Intero."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Flycheck integration
 
-(defvar-local intero-check-last-mod-time nil
-  "Most recent modification time of the current buffer when flycheck was last triggered.")
+(defvar-local intero-check-last-hash nil
+  "Most recent hash for the current buffer when flycheck was last triggered.")
 
 (defvar-local intero-check-last-results nil
   "Most recent flycheck results for the current buffer.")
 
-(defun intero-check-reuse-last-results (mod-time cont)
-  "If MOD-TIME is not new, return non-nil and call CONT with `intero-check-last-results'."
-  (let ((reuse (and intero-check-last-mod-time
-                    (equal mod-time intero-check-last-mod-time)
-                    ;; Cached results are assumed invalid after a backend restart
-                    (time-less-p (with-current-buffer (intero-buffer 'backend)
-                                   intero-start-time)
-                                 intero-check-last-mod-time))))
+(defun intero-check-reuse-last-results (hash cont)
+  "If HASH is not new, return non-nil and call CONT with `intero-check-last-results'."
+  (let ((reuse (and intero-check-last-hash
+                    (equal hash intero-check-last-hash))))
     (progn
       (when reuse
         (funcall cont 'finished intero-check-last-results))
@@ -668,6 +664,13 @@ running context across :load/:reloads in Intero."
         intero-check-last-results nil)
   (flycheck-mode))
 
+(defun intero-check-calculate-hash ()
+  "Calculate a hash for the current buffer that will change when it needs re-checking."
+  (secure-hash
+   'md5
+   (concat (prin1-to-string intero-start-time) ; Force re-check after intero-restart
+           (buffer-substring-no-properties (point-min) (point-max)))))
+
 (defun intero-check (checker cont)
   "Run a check with CHECKER and pass the status onto CONT."
   (if (intero-gave-up 'backend)
@@ -677,18 +680,18 @@ running context across :load/:reloads in Intero."
                       'interrupted)
     (let* ((file-buffer (current-buffer))
            (temp-file (intero-localize-path (intero-temp-file-name)))
-           (mod-time (nth 5 (file-attributes temp-file))))
-      (unless (intero-check-reuse-last-results mod-time cont)
+           (hash (intero-check-calculate-hash)))
+      (unless (intero-check-reuse-last-results hash cont)
         (intero-async-call
          'backend
          (concat ":l " temp-file)
          (list :cont cont
                :file-buffer file-buffer
-               :mod-time mod-time
+               :hash hash
                :checker checker)
          (lambda (state string)
            (with-current-buffer (plist-get state :file-buffer)
-             (unless (intero-check-reuse-last-results (plist-get state :mod-time)
+             (unless (intero-check-reuse-last-results (plist-get state :hash)
                                                       (plist-get state :cont))
                (let* ((compile-ok (string-match "OK, modules loaded: \\(.*\\)\\.$" string))
                       (modules (match-string 1 string))
@@ -700,7 +703,7 @@ running context across :load/:reloads in Intero."
                  (let ((results (cl-remove-if (lambda (msg)
                                                 (eq 'splice (flycheck-error-level msg)))
                                               msgs)))
-                   (setq intero-check-last-mod-time (plist-get state :mod-time)
+                   (setq intero-check-last-hash (plist-get state :hash)
                          intero-check-last-results results)
                    (funcall (plist-get state :cont) 'finished results))
                  (when compile-ok
