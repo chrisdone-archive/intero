@@ -1,6 +1,7 @@
 ;;; intero.el --- Complete development mode for Haskell
 
 ;; Copyright (c) 2016 Chris Done
+;; Copyright (c) 2016 Steve Purcell
 ;; Copyright (C) 2016 Артур Файзрахманов
 ;; Copyright (c) 2015 Athur Fayzrakhmanov
 ;; Copyright (C) 2015 Gracjan Polak
