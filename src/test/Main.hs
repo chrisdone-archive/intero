@@ -9,6 +9,7 @@ import Control.Monad (forM_)
 import Data.Char
 import System.IO
 import System.IO.Temp
+import System.FilePath ((</>))
 import System.Process
 import Test.Hspec
 import Text.Regex
@@ -66,7 +67,7 @@ basics =
           (do reply <- withIntero [] (\_ repl -> repl ":i Nothing")
               shouldBe
                 (subRegex (mkRegex "Data.Maybe") reply "GHC.Base")
-                "data Maybe a = Nothing | ... \t-- Defined in ‘GHC.Base’\n")
+                "data Maybe a = Nothing | ... \t-- Defined in `GHC.Base'\n")
         it ":k Just" (eval ":k Maybe" "Maybe :: * -> *\n"))
 
 -- | Loading files and seeing the results.
@@ -334,7 +335,7 @@ definition =
           (locAtMultiple
              [("X.hs", "import Y"), ("Y.hs", "module Y where")]
              (1, 8, 1, 9, "Y")
-             (unlines ["./Y.hs:(1,8)-(1,9)"]))
+             (unlines ["." </> "Y.hs:(1,8)-(1,9)"]))
         issue
           "To unexported thing"
           "https://github.com/commercialhaskell/intero/issues/98"

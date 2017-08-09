@@ -111,4 +111,5 @@ test-suite intero-test
     process,
     transformers,
     directory,
-    regex-compat
+    regex-compat,
+    filepath
