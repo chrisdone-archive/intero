@@ -11,6 +11,7 @@ import System.IO
 import System.IO.Temp
 import System.FilePath ((</>))
 import System.Process
+import System.Info (os)
 import Test.Hspec
 import Text.Regex
 
@@ -67,8 +68,16 @@ basics =
           (do reply <- withIntero [] (\_ repl -> repl ":i Nothing")
               shouldBe
                 (subRegex (mkRegex "Data.Maybe") reply "GHC.Base")
-                "data Maybe a = Nothing | ... \t-- Defined in `GHC.Base'\n")
+                ("data Maybe a = Nothing | ... \t-- Defined in " ++ (quote "GHC.Base") ++ "\n"))
         it ":k Just" (eval ":k Maybe" "Maybe :: * -> *\n"))
+  where
+    quote s = opQuote : s ++ [clQuote]
+    opQuote = case os of
+        "mingw32" -> '`'
+        _ -> '‘'
+    clQuote = case os of
+        "mingw32" -> '\''
+        _ -> '’'
 
 -- | Loading files and seeing the results.
 load :: Spec
