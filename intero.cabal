@@ -1,7 +1,7 @@
 name:
   intero
 version:
-  0.1.20
+  0.1.21
 synopsis:
   Complete interactive development program for Haskell
 license:
@@ -65,13 +65,14 @@ executable intero
     GhciTypes
     GhciInfo
     GhciFind
+    Paths_intero
   build-depends:
     base < 5,
     array,
     bytestring,
     directory,
     filepath,
-    -- We permit any 8.0.1.* or 8.0.2.*
+    -- We permit any 8.0.1.* or 8.0.2.* or 8.2.1
     ghc >= 7.8 && < 8.2.2,
     ghc-paths,
     haskeline,
