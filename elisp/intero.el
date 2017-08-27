@@ -217,7 +217,8 @@ and blacklist match, then the whitelist entry wins, and
 
 ;;;###autoload
 (define-globalized-minor-mode intero-global-mode
-  intero-mode intero-mode-maybe)
+  intero-mode intero-mode-maybe
+  :require 'intero)
 
 (define-obsolete-function-alias 'global-intero-mode 'intero-global-mode)
 
