@@ -3087,7 +3087,6 @@ Equivalent to 'warn', but label the warning as coming from intero."
     (define-key map (kbd "<backtab>") 'intero-highlight-uses-mode-prev)
     (define-key map (kbd "RET") 'intero-highlight-uses-mode-stop-here)
     (define-key map (kbd "r") 'intero-highlight-uses-mode-replace)
-    (define-key map (kbd "C-g") 'intero-highlight-uses-mode)
     (define-key map (kbd "q") 'intero-highlight-uses-mode)
     map)
   "Keymap for using `intero-highlight-uses-mode'.")
