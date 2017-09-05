@@ -661,14 +661,14 @@ running context across :load/:reloads in Intero."
            (staging-file (intero-localize-path (intero-staging-file-name)))
            (temp-file (intero-localize-path (intero-temp-file-name)))
            (hash (intero-check-calculate-hash)))
-      ;; We queue up a copy of a staging file to the target temp
-      ;; file. Once that's copied, we remove the staging file.
+      ;; We queue up to mv the staging file to the target temp
+      ;; file and touch it to update its modified time.
       (intero-async-call
        'backend
-       (format ":!cp \"%s\" \"%s\"; rm \"%s\""
+       (format ":!mv \"%s\" \"%s\"; touch \"%s\""
                staging-file
                temp-file
-               staging-file))
+               temp-file))
       ;; We load up the target temp file, which has only been updated
       ;; by the copy above.
       (intero-async-call
