@@ -1622,7 +1622,7 @@ path."
     temporary-file-directory))
 
 (defun intero-temp-file-name (&optional buffer)
-  "Return the name of a temp file containing an up-to-date copy of BUFFER's contents."
+  "Return the name of a temp file pertaining to BUFFER."
   (with-current-buffer (or buffer (current-buffer))
     (or intero-temp-file-name
         (progn (setq intero-temp-file-name
