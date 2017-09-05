@@ -658,8 +658,19 @@ running context across :load/:reloads in Intero."
                       cont
                       'interrupted)
     (let* ((file-buffer (current-buffer))
+           (staging-file (intero-localize-path (intero-staging-file-name)))
            (temp-file (intero-localize-path (intero-temp-file-name)))
            (hash (intero-check-calculate-hash)))
+      ;; We queue up a copy of a staging file to the target temp
+      ;; file. Once that's copied, we remove the staging file.
+      (intero-async-call
+       'backend
+       (format ":!cp \"%s\" \"%s\"; rm \"%s\""
+               staging-file
+               temp-file
+               staging-file))
+      ;; We load up the target temp file, which has only been updated
+      ;; by the copy above.
       (intero-async-call
        'backend
        (concat ":l " temp-file)
@@ -687,8 +698,14 @@ running context across :load/:reloads in Intero."
                                   (concat ":m + "
                                           (replace-regexp-in-string modules "," ""))
                                   nil
-                                  (lambda (_st _)))))))))))
-
+                                  (lambda (_st _))))))))
+      ;; We sleep for at least one second to allow a buffer period
+      ;; between module updates. GHCi will consider a module Foo to be
+      ;; unchanged even if its filename has changed or timestmap has
+      ;; changed, if the timestamp is less than 1 second.
+      (intero-async-call
+       'backend
+       ":!sleep 1"))))
 
 (flycheck-define-generic-checker 'intero
   "A syntax and type checker for Haskell using an Intero worker
@@ -1607,28 +1624,32 @@ path."
 (defun intero-temp-file-name (&optional buffer)
   "Return the name of a temp file containing an up-to-date copy of BUFFER's contents."
   (with-current-buffer (or buffer (current-buffer))
-    (prog1
-        (or intero-temp-file-name
-            (progn (setq intero-temp-file-name
-                         (intero-canonicalize-path
-                          (intero-make-temp-file
-                           "intero" nil
-                           (concat "." (if (buffer-file-name)
-                                           (file-name-extension (buffer-file-name))
-                                         "hs")))))
-                   (puthash intero-temp-file-name
-                            (current-buffer)
-                            intero-temp-file-buffer-mapping)
-                   intero-temp-file-name))
-      (let* ((contents (buffer-string))
-             (fname intero-temp-file-name)
-             (prev-contents (and (file-readable-p fname)
-                                 (with-temp-buffer
-                                   (insert-file-contents fname)
-                                   (buffer-string)))))
-        (unless (and prev-contents (string-equal contents prev-contents))
-          (with-temp-file intero-temp-file-name
-            (insert contents)))))))
+    (or intero-temp-file-name
+        (progn (setq intero-temp-file-name
+                     (intero-canonicalize-path
+                      (intero-make-temp-file
+                       "intero" nil
+                       (concat "-TEMP." (if (buffer-file-name)
+                                       (file-name-extension (buffer-file-name))
+                                     "hs")))))
+               (puthash intero-temp-file-name
+                        (current-buffer)
+                        intero-temp-file-buffer-mapping)
+               intero-temp-file-name))))
+
+(defun intero-staging-file-name (&optional buffer)
+  "Return the name of a temp file containing an up-to-date copy of BUFFER's contents."
+  (with-current-buffer (or buffer (current-buffer))
+    (let* ((contents (buffer-string))
+           (fname (intero-canonicalize-path
+                   (intero-make-temp-file
+                    "intero" nil
+                    (concat "-STAGING." (if (buffer-file-name)
+                                    (file-name-extension (buffer-file-name))
+                                  "hs"))))))
+      (with-temp-file fname
+        (insert contents))
+      fname)))
 
 (defun intero-localize-path (path)
   "Turn a possibly-remote PATH to a purely local one.
