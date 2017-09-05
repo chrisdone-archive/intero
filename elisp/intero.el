@@ -643,34 +643,12 @@ running context across :load/:reloads in Intero."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Flycheck integration
 
-(defvar-local intero-check-last-hash nil
-  "Most recent hash for the current buffer when flycheck was last triggered.")
-
-(defvar-local intero-check-last-results nil
-  "Most recent flycheck results for the current buffer.")
-
-(defun intero-check-reuse-last-results (hash cont)
-  "If HASH is not new, return non-nil and call CONT with `intero-check-last-results'."
-  (let ((reuse (and intero-check-last-hash
-                    (equal hash intero-check-last-hash))))
-    (progn
-      (when reuse
-        (funcall cont 'finished intero-check-last-results))
-      reuse)))
-
 (defun intero-flycheck-enable ()
   "Enable intero's flycheck support in this buffer."
   (flycheck-select-checker 'intero)
   (setq intero-check-last-mod-time nil
         intero-check-last-results nil)
   (flycheck-mode))
-
-(defun intero-check-calculate-hash ()
-  "Calculate a hash for the current buffer that will change when it needs re-checking."
-  (secure-hash
-   'md5
-   (concat (prin1-to-string intero-start-time) ; Force re-check after intero-restart
-           (buffer-substring-no-properties (point-min) (point-max)))))
 
 (defun intero-check (checker cont)
   "Run a check with CHECKER and pass the status onto CONT."
@@ -682,37 +660,34 @@ running context across :load/:reloads in Intero."
     (let* ((file-buffer (current-buffer))
            (temp-file (intero-localize-path (intero-temp-file-name)))
            (hash (intero-check-calculate-hash)))
-      (unless (intero-check-reuse-last-results hash cont)
-        (intero-async-call
-         'backend
-         (concat ":l " temp-file)
-         (list :cont cont
-               :file-buffer file-buffer
-               :hash hash
-               :checker checker)
-         (lambda (state string)
-           (with-current-buffer (plist-get state :file-buffer)
-             (unless (intero-check-reuse-last-results (plist-get state :hash)
-                                                      (plist-get state :cont))
-               (let* ((compile-ok (string-match "OK, modules loaded: \\(.*\\)\\.$" string))
-                      (modules (match-string 1 string))
-                      (msgs (intero-parse-errors-warnings-splices
-                             (plist-get state :checker)
-                             (current-buffer)
-                             string)))
-                 (intero-collect-compiler-messages msgs)
-                 (let ((results (cl-remove-if (lambda (msg)
-                                                (eq 'splice (flycheck-error-level msg)))
-                                              msgs)))
-                   (setq intero-check-last-hash (plist-get state :hash)
-                         intero-check-last-results results)
-                   (funcall (plist-get state :cont) 'finished results))
-                 (when compile-ok
-                   (intero-async-call 'backend
-                                      (concat ":m + "
-                                              (replace-regexp-in-string modules "," ""))
-                                      nil
-                                      (lambda (_st _)))))))))))))
+      (intero-async-call
+       'backend
+       (concat ":l " temp-file)
+       (list :cont cont
+             :file-buffer file-buffer
+             :hash hash
+             :checker checker)
+       (lambda (state string)
+         (with-current-buffer (plist-get state :file-buffer)
+           (let* ((compile-ok (string-match "OK, modules loaded: \\(.*\\)\\.$" string))
+                  (modules (match-string 1 string))
+                  (msgs (intero-parse-errors-warnings-splices
+                         (plist-get state :checker)
+                         (current-buffer)
+                         string)))
+             (intero-collect-compiler-messages msgs)
+             (let ((results (cl-remove-if (lambda (msg)
+                                            (eq 'splice (flycheck-error-level msg)))
+                                          msgs)))
+               (setq intero-check-last-hash (plist-get state :hash)
+                     intero-check-last-results results)
+               (funcall (plist-get state :cont) 'finished results))
+             (when compile-ok
+               (intero-async-call 'backend
+                                  (concat ":m + "
+                                          (replace-regexp-in-string modules "," ""))
+                                  nil
+                                  (lambda (_st _)))))))))))
 
 
 (flycheck-define-generic-checker 'intero
