@@ -2396,7 +2396,7 @@ Each option is a plist of (:key :default :title) wherein:
                        (lambda (&rest ignore)
                          (abort-recursive-edit))
                        "C-c C-k")
-        (widget-insert (propertize " to quit without applying choices.\n\n" 'face 'font-lock-comment-face))
+        (widget-insert (propertize " to cancel.\n\n" 'face 'font-lock-comment-face))
         (let* ((me (current-buffer))
                (choices (mapcar (lambda (option)
                                   (append option (list :value (plist-get option :default))))
