@@ -70,7 +70,7 @@
   :group 'haskell)
 
 (defcustom intero-package-version
-  "0.1.21"
+  "0.1.22"
   "Package version to auto-install.
 
 This version does not necessarily have to be the latest version
@@ -661,13 +661,12 @@ running context across :load/:reloads in Intero."
            (staging-file (intero-localize-path (intero-staging-file-name)))
            (temp-file (intero-localize-path (intero-temp-file-name)))
            (hash (intero-check-calculate-hash)))
-      ;; We queue up to mv the staging file to the target temp
-      ;; file and touch it to update its modified time.
+      ;; We queue up to :move the staging file to the target temp
+      ;; file, which also updates its modified time.
       (intero-async-call
        'backend
-       (format ":!mv \"%s\" \"%s\"; touch \"%s\""
+       (format ":move \"%s\" \"%s\""
                staging-file
-               temp-file
                temp-file))
       ;; We load up the target temp file, which has only been updated
       ;; by the copy above.
@@ -705,7 +704,7 @@ running context across :load/:reloads in Intero."
       ;; changed, if the timestamp is less than 1 second.
       (intero-async-call
        'backend
-       ":!sleep 1"))))
+       ":sleep 1"))))
 
 (flycheck-define-generic-checker 'intero
   "A syntax and type checker for Haskell using an Intero worker
