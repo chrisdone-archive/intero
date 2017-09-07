@@ -110,6 +110,10 @@ import           Control.Applicative hiding (empty)
 import           Control.Monad as Monad
 import           Control.Monad.Trans.Class
 import           Control.Monad.IO.Class
+import           Control.Concurrent (threadDelay)
+#if MIN_VERSION_directory(1,2,3)
+import           Data.Time (getCurrentTime)
+#endif
 
 import           Data.Array
 import qualified Data.ByteString.Char8 as BS
@@ -157,7 +161,7 @@ import           GHC.TopHandler ( topHandler )
 pprTyThing', pprTyThingInContext' :: TyThing -> SDoc
 #if __GLASGOW_HASKELL__ >= 802
 pprTyThing'          = pprTyThingHdr
-pprTyThingInContext' = pprTyThingInContext showToHeader 
+pprTyThingInContext' = pprTyThingInContext showToHeader
 #else
 pprTyThing'          = pprTyThing
 pprTyThingInContext' = pprTyThingInContext
@@ -234,6 +238,8 @@ ghciCommands = [
   ("browse!",   keepGoing' (browseCmd True),    completeModule),
   ("extensions", keepGoing' extensionsCmd,   completeModule),
   ("cd",        keepGoing' changeDirectory,     completeFilename),
+  ("move",      keepGoing' moveCommand,         completeFilename),
+  ("sleep",     keepGoing' sleepCommand,         noCompletion),
   ("cd-ghc",    keepGoing' changeDirectoryGHC,  completeFilename),
   ("check",     keepGoing' checkModule,         completeHomeModule),
   ("continue",  keepGoing continueCmd,          noCompletion),
@@ -1104,8 +1110,8 @@ afterRunStmt step_here run_result = do
 
   return (case run_result of GHC.ExecComplete _ _ -> True; _ -> False)
 #else
-afterRunStmt :: (SrcSpan -> Bool) -> GHC.RunResult -> GHCi Bool 
-afterRunStmt _ (GHC.RunException e) = liftIO $ Exception.throwIO e 
+afterRunStmt :: (SrcSpan -> Bool) -> GHC.RunResult -> GHCi Bool
+afterRunStmt _ (GHC.RunException e) = liftIO $ Exception.throwIO e
 afterRunStmt step_here run_result = do
   resumes <- GHC.getResumeContext
   case run_result of
@@ -1372,6 +1378,38 @@ runRun s = case toCmdArgs s of
 doWithArgs :: [String] -> String -> GHCi ()
 doWithArgs args cmd = enqueueCommands ["System.Environment.withArgs " ++
                                        show args ++ " (" ++ cmd ++ ")"]
+
+--------------------------------------------------------------------------------
+-- :move
+
+moveCommand :: String -> InputT GHCi ()
+moveCommand i =
+  case toArgs i of
+    Right [from, to] -> liftIO (do moveUpdatingTime from to)
+    _ -> throwGhcException (CmdLineError "expected :move from to")
+
+moveUpdatingTime :: FilePath -> FilePath -> IO ()
+#if MIN_VERSION_directory(1,2,3)
+moveUpdatingTime from to = do
+  renameFile from to
+  now <- getCurrentTime
+  setModificationTime to now
+#else
+moveUpdatingTime from to = do
+  copyFile from to
+  removeFile from
+#endif
+
+--------------------------------------------------------------------------------
+-- :sleep
+
+sleepCommand :: String -> InputT GHCi ()
+sleepCommand i =
+  case reads i of
+    [(n, "")] -> do
+      liftIO (threadDelay (1000 * 1000 * n))
+      pure ()
+    _ -> throwGhcException (CmdLineError "expected :sleep <n seconds>") ()
 
 -----------------------------------------------------------------------------
 -- :cd
