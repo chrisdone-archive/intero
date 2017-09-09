@@ -626,7 +626,7 @@ running context across :load/:reloads in Intero."
          ":load DevelMain"
          (current-buffer)
          (lambda (buffer reply)
-           (if (string-match "^OK, modules loaded" reply)
+           (if (string-match "^O[Kk], modules loaded" reply)
                (intero-async-call
                 'backend
                 "DevelMain.update"
@@ -677,7 +677,7 @@ running context across :load/:reloads in Intero."
              :checker checker)
        (lambda (state string)
          (with-current-buffer (plist-get state :file-buffer)
-           (let* ((compile-ok (string-match "OK, modules loaded: \\(.*\\)\\.$" string))
+           (let* ((compile-ok (string-match "O[Kk], modules loaded: \\(.*\\)\\.$" string))
                   (modules (match-string 1 string))
                   (msgs (intero-parse-errors-warnings-splices
                          (plist-get state :checker)
@@ -692,7 +692,7 @@ running context across :load/:reloads in Intero."
              (when compile-ok
                (intero-async-call 'backend
                                   (concat ":module + "
-                                          (replace-regexp-in-string modules "," ""))
+                                          (replace-regexp-in-string "," "" modules))
                                   nil
                                   (lambda (_st _))))))))
       ;; We sleep for at least one second to allow a buffer period
