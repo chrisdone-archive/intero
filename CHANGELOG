@@ -1,3 +1,9 @@
+0.1.23:
+	* :cd handles quoted filepaths properly
+
+0.1.22:
+	* Support for :move and :sleep
+
 0.1.20:
 	* More robust name finding, fixes bug https://github.com/commercialhaskell/intero/issues/98
 
