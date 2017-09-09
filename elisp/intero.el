@@ -2084,9 +2084,9 @@ default when nil)."
             (list "--ghci-options" "-ignore-dot-ghci"))
           (let ((dir (intero-localize-path (intero-make-temp-file "intero" t))))
             (list "--ghci-options"
-                  (concat "-odir=" (shell-quote-argument dir))
+                  (concat "-odir=" dir)
                   "--ghci-options"
-                  (concat "-hidir=" (shell-quote-argument dir))))
+                  (concat "-hidir=" dir)))
           targets))
 
 (defun intero-sentinel (process change)
