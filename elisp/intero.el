@@ -659,8 +659,7 @@ running context across :load/:reloads in Intero."
                       'interrupted)
     (let* ((file-buffer (current-buffer))
            (staging-file (intero-localize-path (intero-staging-file-name)))
-           (temp-file (intero-localize-path (intero-temp-file-name)))
-           (hash (intero-check-calculate-hash)))
+           (temp-file (intero-localize-path (intero-temp-file-name))))
       ;; We queue up to :move the staging file to the target temp
       ;; file, which also updates its modified time.
       (intero-async-call
@@ -675,7 +674,6 @@ running context across :load/:reloads in Intero."
        (concat ":l " temp-file)
        (list :cont cont
              :file-buffer file-buffer
-             :hash hash
              :checker checker)
        (lambda (state string)
          (with-current-buffer (plist-get state :file-buffer)
@@ -689,8 +687,7 @@ running context across :load/:reloads in Intero."
              (let ((results (cl-remove-if (lambda (msg)
                                             (eq 'splice (flycheck-error-level msg)))
                                           msgs)))
-               (setq intero-check-last-hash (plist-get state :hash)
-                     intero-check-last-results results)
+               (setq intero-check-last-results results)
                (funcall (plist-get state :cont) 'finished results))
              (when compile-ok
                (intero-async-call 'backend
