@@ -237,10 +237,10 @@ ghciCommands = [
   ("browse",    keepGoing' (browseCmd False),   completeModule),
   ("browse!",   keepGoing' (browseCmd True),    completeModule),
   ("extensions", keepGoing' extensionsCmd,   completeModule),
-  ("cd",        keepGoing' changeDirectory,     completeFilename),
+  ("cd",        keepGoingPaths changeDirectory,     completeFilename),
 
   ("sleep",     keepGoing' sleepCommand,         noCompletion),
-  ("cd-ghc",    keepGoing' changeDirectoryGHC,  completeFilename),
+  ("cd-ghc",    keepGoingPaths changeDirectoryGHC,  completeFilename),
   ("check",     keepGoing' checkModule,         completeHomeModule),
   ("continue",  keepGoing continueCmd,          noCompletion),
   ("complete",  keepGoing completeCmd,          noCompletion),
@@ -1415,14 +1415,14 @@ sleepCommand i =
 -----------------------------------------------------------------------------
 -- :cd
 
-changeDirectory :: String -> InputT GHCi ()
-changeDirectory "" = do
+changeDirectory :: [FilePath] -> InputT GHCi ()
+changeDirectory [] = do
   -- :cd on its own changes to the user's home directory
   either_dir <- liftIO $ tryIO getHomeDirectory
   case either_dir of
      Left _e -> return ()
-     Right dir -> changeDirectory dir
-changeDirectory dir = do
+     Right dir -> changeDirectory [dir]
+changeDirectory (dir:_) = do
   graph <- GHC.getModuleGraph
   when (not (null graph)) $
         liftIO $ putStrLn "Warning: changing directory causes all loaded modules to be unloaded,\nbecause the search path has changed."
@@ -1448,12 +1448,12 @@ trySuccess act =
 
 -- NOTE: calling :cd will reset the GHC working directory as well as
 -- the GHCi working directory.
-changeDirectoryGHC :: String -> InputT GHCi ()
+changeDirectoryGHC :: [FilePath] -> InputT GHCi ()
 -- :cd-ghc on its own resets the ghc work directory to match
 -- the ghci work directory.
-changeDirectoryGHC "" = lift $ modifyGHCiState $ \state ->
+changeDirectoryGHC [] = lift $ modifyGHCiState $ \state ->
   state { ghc_work_directory = (ghci_work_directory state) }
-changeDirectoryGHC dir = do
+changeDirectoryGHC (dir:_) = do
   dir' <- expandPath dir
   lift $ modifyGHCiState $ \state -> state { ghc_work_directory = dir' }
 
