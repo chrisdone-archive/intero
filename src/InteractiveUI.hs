@@ -238,7 +238,7 @@ ghciCommands = [
   ("browse!",   keepGoing' (browseCmd True),    completeModule),
   ("extensions", keepGoing' extensionsCmd,   completeModule),
   ("cd",        keepGoing' changeDirectory,     completeFilename),
-  ("move",      keepGoing' moveCommand,         completeFilename),
+
   ("sleep",     keepGoing' sleepCommand,         noCompletion),
   ("cd-ghc",    keepGoing' changeDirectoryGHC,  completeFilename),
   ("check",     keepGoing' checkModule,         completeHomeModule),
@@ -266,6 +266,7 @@ ghciCommands = [
   ("load",      keepGoingPaths loadModule_,     completeHomeModuleOrFile),
   ("list",      keepGoing' listCmd,             noCompletion),
   ("module",    keepGoing moduleCmd,            completeSetModule),
+  ("move",      keepGoing' moveCommand,         completeFilename),
   ("main",      keepGoing runMain,              completeFilename),
   ("print",     keepGoing printCmd,             completeExpression),
   ("quit",      quit,                           noCompletion),
