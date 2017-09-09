@@ -504,7 +504,7 @@ If the problem persists, please report this as a bug!")))
     (intero-with-dump-splices
      (let* ((output (intero-blocking-call
                      'backend
-                     (concat ":l " (intero-localize-path (intero-temp-file-name)))))
+                     (concat ":load " (intero-localize-path (intero-temp-file-name)))))
             (msgs (intero-parse-errors-warnings-splices nil (current-buffer) output))
             (line (line-number-at-pos))
             (column (if (save-excursion
@@ -623,7 +623,7 @@ running context across :load/:reloads in Intero."
         (message "Reloading ...")
         (intero-async-call
          'backend
-         ":l DevelMain"
+         ":load DevelMain"
          (current-buffer)
          (lambda (buffer reply)
            (if (string-match "^OK, modules loaded" reply)
@@ -671,7 +671,7 @@ running context across :load/:reloads in Intero."
       ;; by the copy above.
       (intero-async-call
        'backend
-       (concat ":l " temp-file)
+       (concat ":load " temp-file)
        (list :cont cont
              :file-buffer file-buffer
              :checker checker)
@@ -691,7 +691,7 @@ running context across :load/:reloads in Intero."
                (funcall (plist-get state :cont) 'finished results))
              (when compile-ok
                (intero-async-call 'backend
-                                  (concat ":m + "
+                                  (concat ":module + "
                                           (replace-regexp-in-string modules "," ""))
                                   nil
                                   (lambda (_st _))))))))
@@ -1114,7 +1114,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
     (intero-with-repl-buffer prompt-options
       (comint-simple-send
        (get-buffer-process (current-buffer))
-       (concat ":l " file))
+       (concat ":load " file))
       (setq intero-repl-last-loaded file))))
 
 (defun intero-repl-eval-region (begin end &optional prompt-options)
@@ -1724,7 +1724,7 @@ type as arguments."
           "\n$" ""
           (intero-blocking-call
            'backend
-           (format ":i %s" thing)))))
+           (format ":info %s" thing)))))
     (if (string-match "^<interactive>" optimistic-result)
         ;; Load the module Interpreted so that we get information,
         ;; then restore bytecode.
@@ -1736,7 +1736,7 @@ type as arguments."
                (unless (member 'save flycheck-check-syntax-automatically)
                  (intero-async-call
                   'backend
-                  (concat ":l " (intero-localize-path (intero-temp-file-name)))))
+                  (concat ":load " (intero-localize-path (intero-temp-file-name)))))
                (intero-async-call
                 'backend
                 ":set -fobject-code")
@@ -1744,7 +1744,7 @@ type as arguments."
                 "\n$" ""
                 (intero-blocking-call
                  'backend
-                 (format ":i %s" thing))))
+                 (format ":info %s" thing))))
       optimistic-result)))
 
 (defun intero-get-loc-at (beg end)
