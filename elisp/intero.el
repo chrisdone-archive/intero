@@ -1110,7 +1110,7 @@ be activated after evaluation.  PROMPT-OPTIONS are passed to
 If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (interactive "P")
   (save-buffer)
-  (let ((file (intero-localize-path (intero-temp-file-name))))
+  (let ((file (intero-localize-path (intero-buffer-file-name))))
     (intero-with-repl-buffer prompt-options
       (comint-simple-send
        (get-buffer-process (current-buffer))
