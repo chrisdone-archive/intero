@@ -2978,15 +2978,22 @@ suggestions are available."
                 (add-extension
                  (save-excursion
                    (goto-char (point-min))
+                   (intero-skip-shebangs)
                    (insert "{-# LANGUAGE "
                            (plist-get suggestion :extension)
                            " #-}\n")))
                 (add-ghc-option
                  (save-excursion
                    (goto-char (point-min))
+                   (intero-skip-shebangs)
                    (insert "{-# OPTIONS_GHC "
                            (plist-get suggestion :option)
                            " #-}\n"))))))))))
+
+(defun intero-skip-shebangs ()
+  "Skip #! and -- shebangs used in Haskell scripts."
+  (when (looking-at "#!") (forward-line 1))
+  (when (looking-at "-- stack ") (forward-line 1)))
 
 (defun intero--warn (message &rest args)
   "Display a warning message made from (format MESSAGE ARGS...).
