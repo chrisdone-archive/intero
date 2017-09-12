@@ -2542,7 +2542,7 @@ automatically."
 This may update in-place the MSGS objects to hint that
 suggestions are available."
   (setq intero-suggestions nil)
-  (let ((extension-regex (regexp-opt (intero-extensions)))
+  (let ((extension-regex (concat " " (regexp-opt (intero-extensions)) " "))
         (quoted-symbol-regex "[‘`‛]\\([^ ]+\\)['’]"))
     (cl-loop
      for msg in msgs
