@@ -2812,7 +2812,10 @@ suggestions are available."
                          :title (concat "Add {-# OPTIONS_GHC "
                                         (plist-get suggestion :option)
                                         " #-}")
-                         :default t))
+                         :default (not
+                                   (string=
+                                    (plist-get suggestion :option)
+                                    "-fno-warn-name-shadowing"))))
                   (add-package
                    (list :key suggestion
                          :title (concat "Enable package: " (plist-get suggestion :package))
