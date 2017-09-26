@@ -665,8 +665,15 @@ running context across :load/:reloads in Intero."
       (intero-async-call
        'backend
        (format ":move \"%s\" \"%s\""
-               staging-file
-               temp-file))
+               ;; TODO: This is a temporary fix. I don't want to use
+               ;; %S as that may escape things that Haskell doesn't
+               ;; consider escapable; Intero's function reads with
+               ;; 'read' (not my implementation!). Instead, I should
+               ;; implement an alternative reading function for Intero
+               ;; which would consume only "strings" and treat any
+               ;; non-double-quote characters as-is.
+               (replace-regexp-in-string "\\\\" "\\\\\\\\" staging-file)
+               (replace-regexp-in-string "\\\\" "\\\\\\\\" temp-file)))
       ;; We load up the target temp file, which has only been updated
       ;; by the copy above.
       (intero-async-call
