@@ -807,25 +807,21 @@ CHECKER and BUFFER are added to each item parsed from STRING."
     (when prefix-info
       (cl-destructuring-bind
           (beg end prefix _type) prefix-info
-        (let* ((tmp-buf (get-buffer-create (make-temp-name "intero-completions")))
-               (completions
-                (save-excursion
-                  (comint-redirect-send-command
-                   (format ":complete repl %S" prefix) ;; command
-                   tmp-buf ;; output buffer
-                   nil     ;; echo
-                   t)    ;; no-display
-                  (while (not comint-redirect-completed)
-                    (sleep-for 0.01))
-                  (switch-to-buffer tmp-buf)
-                  (let ((str (buffer-string)))
-                    (kill-buffer tmp-buf)
-                    (intero-completion-response-to-list str)))))
-          (let ((first-line (car completions)))
+        (let ((proc (get-buffer-process (current-buffer))))
+          (with-temp-buffer
+            (comint-redirect-send-command-to-process
+             (format ":complete repl %S" prefix) ;; command
+             (current-buffer) ;; output buffer
+             proc ;; target process
+             nil  ;; echo
+             t)   ;; no-display
+          (while (not comint-redirect-completed)
+            (sleep-for 0.01))
+          (let ((first-line (car (buffer-string))))
             (when (and (string-match "[^ ]* [^ ]* " first-line) ;; "2 2 :load src/"
-                       completions)
+                       (buffer-string))
               (setq first-line (replace-match "" nil nil first-line))
-              (list (+ beg (length first-line)) end (cdr completions)))))))))
+              (list (+ beg (length first-line)) end (cdr (buffer-string)))))))))))
 
 (defun intero-text-from-prompt-to-point ()
   "Return the text from this buffer from the prompt up to right behind the point."
