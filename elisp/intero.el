@@ -807,21 +807,29 @@ CHECKER and BUFFER are added to each item parsed from STRING."
     (when prefix-info
       (cl-destructuring-bind
           (beg end prefix _type) prefix-info
-        (let ((proc (get-buffer-process (current-buffer))))
-          (with-temp-buffer
-            (comint-redirect-send-command-to-process
-             (format ":complete repl %S" prefix) ;; command
-             (current-buffer) ;; output buffer
-             proc ;; target process
-             nil  ;; echo
-             t)   ;; no-display
-          (while (not comint-redirect-completed)
-            (sleep-for 0.01))
-          (let ((first-line (car (buffer-string))))
-            (when (and (string-match "[^ ]* [^ ]* " first-line) ;; "2 2 :load src/"
-                       (buffer-string))
-              (setq first-line (replace-match "" nil nil first-line))
-              (list (+ beg (length first-line)) end (cdr (buffer-string)))))))))))
+        (let* ((proc (get-buffer-process (current-buffer)))
+               (time0 (float-time))
+               (output (with-temp-buffer
+                  (comint-redirect-send-command-to-process
+                   (format ":complete repl %S" prefix) ;; command
+                   (current-buffer) ;; output buffer
+                   proc ;; target process
+                   nil  ;; echo
+                   t)   ;; no-display
+                (while (and (string-empty-p (buffer-string))
+                            (< (- (float-time) time0) 5))
+                    (sleep-for 0.01))
+                (if (not (string-empty-p (buffer-string)))
+                  (let* ((completions (intero-completion-response-to-list (buffer-string)))
+                         (first-line (car completions)))
+                    (when (string-match "[^ ]* [^ ]* " first-line) ;; "2 2 :load src/"
+                      (setq first-line (replace-match "" nil nil first-line))
+                      (list (+ beg (length first-line)) end (cdr completions))))
+                 ; old intero bins don't do :complete right
+                (message "Repl complete lagging. Try deleting .stackwork")))))
+         (message (format "thing: %S" output))
+         (message (format "curbf: %S" (current-buffer)))
+         output)))))
 
 (defun intero-text-from-prompt-to-point ()
   "Return the text from this buffer from the prompt up to right behind the point."
