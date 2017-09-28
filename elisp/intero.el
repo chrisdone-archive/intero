@@ -1297,7 +1297,6 @@ function is subsequently applied to each line, once."
             'intero-linkify-process-output
             t t)
   (setq-local comint-prompt-read-only t)
-  (setq-local company-idle-delay nil)
   (add-hook 'completion-at-point-functions 'intero-repl-completion-at-point nil t)
   (add-to-list (make-local-variable 'company-backends) 'intero-company)
   (company-mode))
