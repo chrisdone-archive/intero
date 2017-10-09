@@ -531,10 +531,10 @@ If the problem persists, please report this as a bug!")))
   "Simply restart the process with the same configuration as before."
   (interactive)
   (when (intero-buffer-p 'backend)
-    (let ((targets (with-current-buffer (intero-buffer 'backend)
-                     intero-targets))
-          (stack-yaml (with-current-buffer (intero-buffer 'backend)
-                        intero-stack-yaml)))
+    (let ((targets (buffer-local-value 'intero-targets
+                                       (intero-buffer 'backend)))
+          (stack-yaml (buffer-local-value 'intero-stack-yaml
+                                          (intero-buffer 'backend))))
       (intero-destroy 'backend)
       (intero-get-worker-create 'backend targets (current-buffer) stack-yaml)
       (intero-repl-restart))))
@@ -542,8 +542,7 @@ If the problem persists, please report this as a bug!")))
 (defun intero-read-targets ()
   "Read a list of stack targets."
   (let ((old-targets
-         (with-current-buffer (intero-buffer 'backend)
-           intero-targets))
+         (buffer-local-value 'intero-targets (intero-buffer 'backend)))
         (available-targets (intero-get-targets)))
     (if available-targets
         (intero-multiswitch
