@@ -808,24 +808,22 @@ CHECKER and BUFFER are added to each item parsed from STRING."
       (cl-destructuring-bind
           (beg end prefix _type) prefix-info
         (let* ((repl-buffer (current-buffer))
-               (proc (get-buffer-process (current-buffer)))
-               (output
-                (with-temp-buffer
-                  (comint-redirect-send-command-to-process
-                   (format ":complete repl %S" prefix) ;; command
-                   (current-buffer) ;; output buffer
-                   proc ;; target process
-                   nil  ;; echo
-                   t)   ;; no-display
-                  (while (not (with-current-buffer repl-buffer
-                                      comint-redirect-completed))
-                    (sleep-for 0.01))
-                  (let* ((completions (intero-completion-response-to-list (buffer-string)))
-                         (first-line (car completions)))
-                    (when (string-match "[^ ]* [^ ]* " first-line) ;; "2 2 :load src/"
-                      (setq first-line (replace-match "" nil nil first-line))
-                      (list (+ beg (length first-line)) end (cdr completions)))))))
-          output)))))
+               (proc (get-buffer-process (current-buffer))))
+          (with-temp-buffer
+            (comint-redirect-send-command-to-process
+             (format ":complete repl %S" prefix) ;; command
+             (current-buffer) ;; output buffer
+             proc ;; target process
+             nil  ;; echo
+             t)   ;; no-display
+            (while (not (with-current-buffer repl-buffer
+                          comint-redirect-completed))
+              (sleep-for 0.01))
+            (let* ((completions (intero-completion-response-to-list (buffer-string)))
+                   (first-line (car completions)))
+              (when (string-match "[^ ]* [^ ]* " first-line) ;; "2 2 :load src/"
+                (setq first-line (replace-match "" nil nil first-line))
+                (list (+ beg (length first-line)) end (cdr completions))))))))))
 
 (defun intero-text-from-prompt-to-point ()
   "Return the text from this buffer from the prompt up to right behind the point."
