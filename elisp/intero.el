@@ -807,7 +807,8 @@ CHECKER and BUFFER are added to each item parsed from STRING."
     (when prefix-info
       (cl-destructuring-bind
           (beg end prefix _type) prefix-info
-        (let* ((proc (get-buffer-process (current-buffer)))
+        (let* ((repl-buffer (current-buffer))
+               (proc (get-buffer-process (current-buffer)))
                (time0 (float-time))
                (output
                 (with-temp-buffer
@@ -817,19 +818,20 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                    proc ;; target process
                    nil  ;; echo
                    t)   ;; no-display
-                  (while (and (string-empty-p (buffer-string))
-                              (< (- (float-time) time0) 5))
+                  (defun done ()
+                    (with-current-buffer repl-buffer
+                      comint-redirect-completed))
+                  (while (and (not (done))
+                              (< (- (float-time) time0) 3))
                     (sleep-for 0.01))
-                  (if (not (string-empty-p (buffer-string)))
+                  (if (done)
                       (let* ((completions (intero-completion-response-to-list (buffer-string)))
                              (first-line (car completions)))
                         (when (string-match "[^ ]* [^ ]* " first-line) ;; "2 2 :load src/"
                           (setq first-line (replace-match "" nil nil first-line))
                           (list (+ beg (length first-line)) end (cdr completions))))
-                                        ; old intero bins don't do :complete right
-                    (message "Repl complete lagging. Try deleting .stackwork")))))
-          (message (format "thing: %S" output))
-          (message (format "curbf: %S" (current-buffer)))
+                    ; old intero builds interfere with :complete
+                    (message "Repl autocomplete not finishing. Try deleting .stackwork")))))
           output)))))
 
 (defun intero-text-from-prompt-to-point ()
