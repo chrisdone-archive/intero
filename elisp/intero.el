@@ -809,7 +809,6 @@ CHECKER and BUFFER are added to each item parsed from STRING."
           (beg end prefix _type) prefix-info
         (let* ((repl-buffer (current-buffer))
                (proc (get-buffer-process (current-buffer)))
-               (time0 (float-time))
                (output
                 (with-temp-buffer
                   (comint-redirect-send-command-to-process
@@ -818,20 +817,14 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                    proc ;; target process
                    nil  ;; echo
                    t)   ;; no-display
-                  (defun done ()
-                    (with-current-buffer repl-buffer
-                      comint-redirect-completed))
-                  (while (and (not (done))
-                              (< (- (float-time) time0) 3))
+                  (while (not (with-current-buffer repl-buffer
+                                      comint-redirect-completed))
                     (sleep-for 0.01))
-                  (if (done)
-                      (let* ((completions (intero-completion-response-to-list (buffer-string)))
-                             (first-line (car completions)))
-                        (when (string-match "[^ ]* [^ ]* " first-line) ;; "2 2 :load src/"
-                          (setq first-line (replace-match "" nil nil first-line))
-                          (list (+ beg (length first-line)) end (cdr completions))))
-                    ; old intero builds interfere with :complete
-                    (message "Comint repl autocomplete timed out")))))
+                  (let* ((completions (intero-completion-response-to-list (buffer-string)))
+                         (first-line (car completions)))
+                    (when (string-match "[^ ]* [^ ]* " first-line) ;; "2 2 :load src/"
+                      (setq first-line (replace-match "" nil nil first-line))
+                      (list (+ beg (length first-line)) end (cdr completions)))))))
           output)))))
 
 (defun intero-text-from-prompt-to-point ()
