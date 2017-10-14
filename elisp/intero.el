@@ -831,7 +831,7 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                           (setq first-line (replace-match "" nil nil first-line))
                           (list (+ beg (length first-line)) end (cdr completions))))
                     ; old intero builds interfere with :complete
-                    (message "Repl autocomplete not finishing. Try deleting .stackwork")))))
+                    (message "Comint repl autocomplete timed out")))))
           output)))))
 
 (defun intero-text-from-prompt-to-point ()
