@@ -1216,7 +1216,7 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
     (forward-char (1- char))))
 
 (defun intero-linkify-file-line-char (begin end)
-  "Linkify all occurences of <file>:<line>:<char>: betwen BEGIN and END."
+  "Linkify all occurences of <file>:<line>:<char>: between BEGIN and END."
   (when (> end begin)
     (let ((end-marker (copy-marker end))
           ;; match - /path/to/file.ext:<line>:<char>:
