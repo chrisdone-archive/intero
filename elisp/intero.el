@@ -2171,6 +2171,15 @@ The process ended. Here is the reason that Emacs gives us:
      (format "  %s %s"
              intero-stack-executable
              (combine-and-quote-strings intero-arguments))
+
+     "
+
+It's worth checking that the correct stack executable is being
+found on your path, or has been set via
+`intero-stack-executable'.  The executable being used now is:
+
+  "
+     (executable-find intero-stack-executable)
      "
 
 WHAT TO DO NEXT
