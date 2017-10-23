@@ -129,6 +129,12 @@ To use this, use the following mode hook:
   :group 'intero
   :type 'string)
 
+(defcustom intero-pop-to-repl
+  t
+  "When non-nil, pop to REPL when code is sent to it."
+  :group 'intero
+  :type 'boolean)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
 
@@ -1109,7 +1115,8 @@ be activated after evaluation.  PROMPT-OPTIONS are passed to
     `(let ((,repl-buffer (intero-repl-buffer ,prompt-options t)))
        (with-current-buffer ,repl-buffer
          ,@body)
-       (pop-to-buffer ,repl-buffer))))
+       (when intero-pop-to-repl
+         (pop-to-buffer ,repl-buffer)))))
 
 (defun intero-repl-load (&optional prompt-options)
   "Load the current file in the REPL.
