@@ -131,8 +131,7 @@ To use this, use the following mode hook:
 
 (defcustom intero-pop-to-repl
   t
-  "Wether to call `pop-to-buffer' when code is sent to the
-  REPL."
+  "When non-nil, pop to REPL when code is sent to it."
   :group 'intero
   :type 'boolean)
 
