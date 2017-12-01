@@ -761,7 +761,7 @@ CHECKER and BUFFER are added to each item parsed from STRING."
         (forward-line -1))
       (delete-dups
        (if found-error-as-warning
-           (remove-if (lambda (msg) (eq 'warning (flycheck-error-level msg))) messages)
+           (cl-remove-if (lambda (msg) (eq 'warning (flycheck-error-level msg))) messages)
          messages)))))
 
 (defconst intero-error-regexp-alist
