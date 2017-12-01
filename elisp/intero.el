@@ -1318,6 +1318,7 @@ stack's default)."
             (with-current-buffer (find-file-noselect (intero-make-temp-file "intero-script"))
               (insert ":set prompt \"\"
 :set -fbyte-code
+:set -fdefer-type-errors
 :set prompt \"\\4 \"
 ")
               (basic-save-buffer)
@@ -2010,6 +2011,7 @@ Uses the default stack config file, or STACK-YAML file if given."
                              arguments))))
       (set-process-query-on-exit-flag process nil)
       (process-send-string process ":set -fobject-code\n")
+      (process-send-string process ":set -fdefer-type-errors\n")
       (process-send-string process ":set prompt \"\\4\"\n")
       (with-current-buffer buffer
         (erase-buffer)
