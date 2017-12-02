@@ -731,7 +731,8 @@ CHECKER and BUFFER are added to each item parsed from STRING."
     (insert string)
     (goto-char (point-min))
     (let ((messages (list))
-          (temp-file (intero-temp-file-name buffer)))
+          (temp-file (intero-temp-file-name buffer))
+          (found-error-as-warning nil))
       (while (search-forward-regexp
               (concat "[\r\n]\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\):\\([0-9()-:]+\\):"
                       "[ \n\r]+\\([[:unibyte:][:nonascii:]]+?\\)\n[^ ]")
@@ -742,8 +743,10 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                (msg (match-string 3)) ;; Replace gross bullet points.
                (type (cond ((string-match "^Warning:" msg)
                             (setq msg (replace-regexp-in-string "^Warning: *" "" msg))
-                            (if (string-match "^\\[-Wdeferred-type-errors\\]" msg)
-                                'error
+                            (if (or (string-match "^\\[-Wdeferred-type-errors\\]" msg)
+                                    (string-match "^\\[-Wdeferred-out-of-scope-variables\\]" msg))
+                                (progn (setq found-error-as-warning t)
+                                       'error)
                               'warning))
                            ((string-match "^Splicing " msg) 'splice)
                            (t                               'error)))
@@ -761,7 +764,10 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                        :filename (intero-buffer-file-name buffer))
                       messages)))
         (forward-line -1))
-      (delete-dups messages))))
+      (delete-dups
+       (if found-error-as-warning
+           (cl-remove-if (lambda (msg) (eq 'warning (flycheck-error-level msg))) messages)
+         messages)))))
 
 (defconst intero-error-regexp-alist
   `((,(concat
@@ -1324,6 +1330,7 @@ stack's default)."
             (with-current-buffer (find-file-noselect (intero-make-temp-file "intero-script"))
               (insert ":set prompt \"\"
 :set -fbyte-code
+:set -fdefer-type-errors
 :set prompt \"\\4 \"
 ")
               (basic-save-buffer)
@@ -2016,6 +2023,7 @@ Uses the default stack config file, or STACK-YAML file if given."
                              arguments))))
       (set-process-query-on-exit-flag process nil)
       (process-send-string process ":set -fobject-code\n")
+      (process-send-string process ":set -fdefer-type-errors\n")
       (process-send-string process ":set prompt \"\\4\"\n")
       (with-current-buffer buffer
         (erase-buffer)
