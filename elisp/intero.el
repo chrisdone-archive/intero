@@ -2851,7 +2851,8 @@ suggestions are available."
                  (save-excursion
                    (goto-char (point-min))
                    (forward-line (1- (plist-get suggestion :line)))
-                   (let* ((start (search-forward "(" nil t 1))
+                   (let* ((case-fold-search nil)
+                          (start (search-forward "(" nil t 1))
                           (end (or (save-excursion
                                      (when (search-forward-regexp "\n[^ \t]" nil t 1)
                                        (1- (point))))
