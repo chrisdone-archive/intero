@@ -202,9 +202,10 @@ To use this, use the following mode hook:
 
 (defun intero-directories-contain-file (file dirs)
   "Return non-nil if FILE is contained in at least one of DIRS."
-  (cl-some (lambda (directory)
-             (file-in-directory-p file directory))
-           dirs))
+  (and (not (null file))
+       (cl-some (lambda (directory)
+                  (file-in-directory-p file directory))
+                dirs)))
 
 (defun intero-mode-maybe ()
   "Enable `intero-mode' in all Haskell mode buffers.
