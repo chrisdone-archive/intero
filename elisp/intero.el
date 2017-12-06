@@ -1219,70 +1219,6 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
     map)
   "Keymap for clicking on links in REPL.")
 
-(defun intero-find-file-with-line-and-char ()
-  "Jump to the file and location indicated by text properties at point."
-  (interactive)
-  (let ((file (get-text-property (point) 'file))
-        (line (get-text-property (point) 'line))
-        (char (get-text-property (point) 'char)))
-    (with-no-warnings (find-file-other-window file))
-    (goto-char (point-min))
-    (forward-line (1- line))
-    (forward-char (1- char))))
-
-(defun intero-linkify-file-line-char (begin end)
-  "Linkify all occurences of <file>:<line>:<char>: between BEGIN and END."
-  (when (> end begin)
-    (let ((end-marker (copy-marker end))
-          ;; match - /path/to/file.ext:<line>:<char>:
-          ;;       - /path/to/file.ext:<line>:<char>-
-          ;;       - /path/to/file.ext:(<line>:<char>)
-          (file:line:char-regexp "\\([A-Z]?:?[^ \r\n:][^:\n\r]+\\)[:](?\\([0-9]+\\)[:,]\\([0-9]+\\)[:)-]"))
-      (save-excursion
-        (goto-char begin)
-        ;; Delete unrecognized escape sequences.
-        (while (re-search-forward file:line:char-regexp end-marker t)
-          (let ((file (match-string-no-properties 1))
-                (line (match-string-no-properties 2))
-                (char (match-string-no-properties 3))
-                (link-start (1+ (match-beginning 1)))
-                (link-end   (1+ (match-end 2))))
-            (let ((unmangled-file (intero-unmangle-file-path file)))
-              (when unmangled-file
-                (setq file unmangled-file)
-                (replace-match unmangled-file nil nil nil 1)))
-            (add-text-properties
-             link-start link-end
-             (list 'keymap intero-hyperlink-map
-                   'file   file
-                   'line   (string-to-number line)
-                   'char   (string-to-number char)
-                   'help-echo "mouse-2: visit this file"))))))))
-
-(defvar intero-last-output-newline-marker nil)
-
-(defun intero-linkify-process-output (_)
-  "Comint filter function to make <file>:<line>:<char>: into clickable links.
-
-Note that this function uses the `intero-last-output-newline-marker',
-to keep track of line breaks.  The `intero-linkify-file-line-char'
-function is subsequently applied to each line, once."
-  (unless intero-last-output-newline-marker
-    (setq-local intero-last-output-newline-marker (make-marker))
-    (set-marker intero-last-output-newline-marker (marker-position comint-last-output-start)))
-  (let ((start-marker (if (and (markerp intero-last-output-newline-marker)
-                               (eq (marker-buffer intero-last-output-newline-marker)
-                                   (current-buffer))
-                               (marker-position intero-last-output-newline-marker))
-                          comint-last-output-start
-                        (point-min-marker)))
-        (end-marker (process-mark (get-buffer-process (current-buffer)))))
-    (save-excursion
-      (goto-char start-marker)
-      (while (re-search-forward "[\n\r]" end-marker t)
-        (intero-linkify-file-line-char intero-last-output-newline-marker (match-beginning 0))
-        (set-marker intero-last-output-newline-marker (match-end 0))))))
-
 (define-derived-mode intero-repl-mode comint-mode "Intero-REPL"
   "Interactive prompt for Intero."
   (when (and (not (eq major-mode 'fundamental-mode))
@@ -1290,9 +1226,6 @@ function is subsequently applied to each line, once."
     (error "You probably meant to run: M-x intero-repl"))
   (setq-local comint-prompt-regexp intero-prompt-regexp)
   (setq-local warning-suppress-types (cons '(undo discard-info) warning-suppress-types))
-  (add-hook 'comint-output-filter-functions
-            'intero-linkify-process-output
-            t t)
   (setq-local comint-prompt-read-only t)
   (add-hook 'completion-at-point-functions 'intero-completion-at-point nil t)
   (add-to-list (make-local-variable 'company-backends) 'intero-company)
