@@ -1889,8 +1889,8 @@ yaml config to use, or stack's default when nil."
      result
      (lambda (result reply)
        (setf (car result) reply)))
-    (with-current-buffer (intero-buffer worker)
-      (while (not (null intero-callbacks))
+    (let ((buffer (intero-buffer worker)))
+      (while (not (null (buffer-local-value 'intero-callbacks buffer)))
         (sleep-for 0.0001)))
     (car result)))
 
