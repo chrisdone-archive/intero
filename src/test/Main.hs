@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 -- | Test that various commands work properly.
 
@@ -34,6 +35,7 @@ spec = do
   definition
   bytecode
   completion
+  it "Support GHC 8.2 better" pending
 
 -- | Argument parsing should be user-friendly.
 argsparser :: Spec
@@ -253,6 +255,14 @@ alltypes =
                    , "X.hs:(2,5)-(2,13): String"
                    , "X.hs:(1,5)-(1,8): Integer"])))
 
+-- | Are we on ghc8_2 or above?
+ghc8_2 :: Bool
+#if __GLASGOW_HASKELL__ >= 802
+ghc8_2 = True
+#else
+ghc8_2 = False
+#endif
+
 -- | Find uses of a variable.
 use :: Spec
 use =
@@ -272,7 +282,9 @@ use =
              "x = 'a' : x"
              (1, 11, 1, 12, "x")
              id
-             (unlines ["X.hs:(1,1)-(1,2)", "X.hs:(1,11)-(1,12)"]))
+             (if ghc8_2
+                 then unlines ["X.hs:(1,1)-(1,2)","X.hs:(1,1)-(1,2)","X.hs:(1,11)-(1,12)"]
+                 else unlines ["X.hs:(1,1)-(1,2)", "X.hs:(1,11)-(1,12)"]))
         it
           ":uses X.hs 1 5 1 6 id -- package definition"
           (uses
@@ -311,7 +323,9 @@ use =
              (unlines ["data X = X", "foo :: X -> X", "foo x = X"])
              (3, 9, 3, 10, "X")
              lines
-             ["X.hs:(1,10)-(1,11)", "X.hs:(3,9)-(3,10)"]))
+             (if ghc8_2
+                 then ["X.hs:(1,1)-(1,11)"]
+                 else ["X.hs:(1,10)-(1,11)", "X.hs:(3,9)-(3,10)"])))
 
 -- | Find loc-ats of a variable.
 definition :: Spec
@@ -326,7 +340,9 @@ definition =
           (locAt
              "x = 'a' : x"
              (1, 11, 1, 12, "x")
-             (unlines ["X.hs:(1,1)-(1,12)"]))
+             (unlines (if ghc8_2
+                          then ["X.hs:(1,1)-(1,2)"]
+                          else ["X.hs:(1,1)-(1,12)"])))
         it
           "To function argument"
           (locAt

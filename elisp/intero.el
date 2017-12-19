@@ -70,7 +70,7 @@
   :group 'haskell)
 
 (defcustom intero-package-version
-  "0.1.23"
+  "0.1.24"
   "Package version to auto-install.
 
 This version does not necessarily have to be the latest version
@@ -741,7 +741,10 @@ CHECKER and BUFFER are added to each item parsed from STRING."
         (let* ((local-file (intero-canonicalize-path (match-string 1)))
                (file (intero-extend-path-by-buffer-host local-file buffer))
                (location-raw (match-string 2))
-               (msg (match-string 3)) ;; Replace gross bullet points.
+               (msg (replace-regexp-in-string
+                     "[\n\r ]*|$"
+                     ""
+                     (match-string 3))) ;; Replace gross bullet points.
                (type (cond ((string-match "^Warning:" msg)
                             (setq msg (replace-regexp-in-string "^Warning: *" "" msg))
                             (if (or (string-match "^\\[-Wdeferred-type-errors\\]" msg)
