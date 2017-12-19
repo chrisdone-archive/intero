@@ -302,10 +302,12 @@ ghciCommands = [
 -- NOTE: in order for us to override the default correctly, any custom entry
 -- must be a SUBSET of word_break_chars.
 word_break_chars :: String
-word_break_chars = let symbols = "!#$%&*+/<=>?@\\^|-~"
-                       specials = "(),;[]`{}"
-                       spaces = " \t\n"
-                   in spaces ++ specials ++ symbols
+word_break_chars = spaces ++ specials ++ symbols
+
+symbols, specials, spaces :: String
+symbols = "!#$%&*+/<=>?@\\^|-~"
+specials = "(),;[]`{}"
+spaces = " \t\n"
 
 flagWordBreakChars :: String
 flagWordBreakChars = " \t\n"
@@ -599,7 +601,6 @@ interactiveUI config srcs maybe_exprs = do
                    short_help          = shortHelpText config,
                    long_help           = fullHelpText config,
                    mod_infos           = M.empty,
-                   rdrNamesInScope     = [],
                    ghci_work_directory = current_directory,
                    ghc_work_directory  = current_directory
                  }
@@ -687,10 +688,6 @@ runGHCi paths maybe_exprs = do
 
   -- reset line number
   getGHCiState >>= \st -> setGHCiState st{line_number=1}
-
-  -- Get the names in scope
-  names <- GHC.getRdrNamesInScope
-  modifyGHCiState (\s -> s { rdrNamesInScope = names })
 
   case maybe_exprs of
         Nothing ->
@@ -1674,11 +1671,10 @@ doLoad retain_context howmuch = do
       return ok
   case wasok of
     Succeeded -> do
-      names <- GHC.getRdrNamesInScope
       loaded <- getModuleGraph >>= filterM GHC.isLoaded . map GHC.ms_mod_name
       v <- lift (fmap mod_infos getGHCiState)
       !newInfos <- collectInfo v loaded
-      lift (modifyGHCiState (\s -> s { mod_infos = newInfos, rdrNamesInScope = names }))
+      lift (modifyGHCiState (\s -> s { mod_infos = newInfos }))
     _ -> return ()
   return wasok
 
@@ -2425,9 +2421,6 @@ setGHCContextFromGHCiState = do
         then iidecls ++ [implicitPreludeImport]
         else iidecls
     -- XXX put prel at the end, so that guessCurrentModule doesn't pick it up.
-  -- Get the names in scope
-  names <- GHC.getRdrNamesInScope
-  modifyGHCiState (\s -> s { rdrNamesInScope = names })
 
 -- -----------------------------------------------------------------------------
 -- Utils on InteractiveImport
@@ -3060,10 +3053,28 @@ completeMacro = wrapIdentCompleter $ \w -> do
   cmds <- liftIO $ readIORef macros_ref
   return (filter (w `isPrefixOf`) (map cmdName cmds))
 
-completeIdentifier = wrapIdentCompleter $ \w -> do
-  rdrs <- fmap rdrNamesInScope getGHCiState
-  dflags <- GHC.getSessionDynFlags
-  return (filter (w `isPrefixOf`) (map (showPpr dflags) rdrs))
+isSymbolChar :: Char -> Bool
+isSymbolChar c = not (c `elem` specials) && case generalCategory c of
+    MathSymbol              -> True
+    CurrencySymbol          -> True
+    ModifierSymbol          -> True
+    OtherSymbol             -> True
+    DashPunctuation         -> True
+    OtherPunctuation        -> not (c `elem` "'\"")
+    ConnectorPunctuation    -> c /= '_'
+    _                       -> False
+
+completeIdentifier line@(left, _) =
+  -- Note: `left` is a reversed input
+  case left of
+    (x:_) | isSymbolChar x -> wrapCompleter (specials ++ spaces) completeIdent line
+    _                      -> wrapIdentCompleter completeIdent line
+  where
+    completeIdent w = do
+      rdrs <- GHC.getRdrNamesInScope
+      dflags <- GHC.getSessionDynFlags
+      return (filter (w `isPrefixOf`) (map (showPpr dflags) rdrs))
+
 
 completeModule = wrapIdentCompleter $ \w -> do
   dflags <- GHC.getSessionDynFlags

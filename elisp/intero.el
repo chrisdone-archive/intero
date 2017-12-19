@@ -158,7 +158,6 @@ To use this, use the following mode hook:
   (if intero-mode
       (progn
         (intero-flycheck-enable)
-        (add-hook 'completion-at-point-functions 'intero-completion-at-point nil t)
         (add-to-list (make-local-variable 'company-backends) 'intero-company)
         (company-mode)
         (unless eldoc-documentation-function
@@ -818,19 +817,35 @@ CHECKER and BUFFER are added to each item parsed from STRING."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Traditional completion-at-point function
 
-(defun intero-completion-at-point ()
+(defun intero-repl-completion-at-point ()
   "A (blocking) function suitable for use in `completion-at-point-functions'."
-  (let ((prefix-info (intero-completions-grab-prefix)))
+  (let ((prefix-info (intero-text-from-prompt-to-point)))
     (when prefix-info
       (cl-destructuring-bind
           (beg end prefix _type) prefix-info
-        (let ((completions
-               (intero-completion-response-to-list
-                (intero-blocking-call
-                 'backend
-                 (format ":complete repl %S" prefix)))))
-          (when completions
-            (list beg end completions)))))))
+        (let* ((repl-buffer (current-buffer))
+               (proc (get-buffer-process (current-buffer))))
+          (with-temp-buffer
+            (comint-redirect-send-command-to-process
+             (format ":complete repl %S" prefix) ;; command
+             (current-buffer) ;; output buffer
+             proc ;; target process
+             nil  ;; echo
+             t)   ;; no-display
+            (while (not (with-current-buffer repl-buffer
+                          comint-redirect-completed))
+              (sleep-for 0.01))
+            (let* ((completions (intero-completion-response-to-list (buffer-string)))
+                   (first-line (car completions)))
+              (when (string-match "[^ ]* [^ ]* " first-line) ;; "2 2 :load src/"
+                (setq first-line (replace-match "" nil nil first-line))
+                (list (+ beg (length first-line)) end (cdr completions))))))))))
+
+(defun intero-text-from-prompt-to-point ()
+  "Return the text from this buffer from the prompt up to right behind the point."
+  (let ((beg (save-excursion (intero-repl-beginning-of-line) (point)))
+        (end (point)))
+    (list beg end (buffer-substring-no-properties beg end) 'repl-complete)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Company integration (auto-completion)
@@ -1230,7 +1245,7 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
   (setq-local comint-prompt-regexp intero-prompt-regexp)
   (setq-local warning-suppress-types (cons '(undo discard-info) warning-suppress-types))
   (setq-local comint-prompt-read-only t)
-  (add-hook 'completion-at-point-functions 'intero-completion-at-point nil t)
+  (add-hook 'completion-at-point-functions 'intero-repl-completion-at-point nil t)
   (add-to-list (make-local-variable 'company-backends) 'intero-company)
   (company-mode))
 
