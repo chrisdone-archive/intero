@@ -1910,7 +1910,8 @@ Installing intero-%s automatically ...
                     (if (string= package-name "intero")
                         "intero"
                       (concat "intero-" intero-package-version))))
-                "ghc-paths" "syb")
+                "ghc-paths" "syb"
+                "--flag" "haskeline:-terminfo")
         (0
          (message "Installed successfully! Starting Intero in a moment ...")
          (bury-buffer buffer)
