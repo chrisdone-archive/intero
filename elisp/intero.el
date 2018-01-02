@@ -1270,6 +1270,7 @@ stack's default)."
               (insert ":set prompt \"\"
 :set -fbyte-code
 :set -fdefer-type-errors
+:set -fdiagnostics-color=never
 :set prompt \"\\4 \"
 ")
               (basic-save-buffer)
