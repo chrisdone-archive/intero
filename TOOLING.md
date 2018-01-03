@@ -10,20 +10,20 @@ It's basically GHCi plus extra features. Those are:
 
 # Installing
 
-Use `stack build` (not `install`) for each of your package sets. Each
+Use latest [Stack build tool](https://haskellstack.org). Use `stack build` (not `install`) for each of your package sets. Each
 LTS or nightly should have a separate `stack build`. **If you use**
 `stack install` **you will run into incompatibility issues
 between package sets.**
 
 Standard:
 
-    $ stack build intero
+    $ stack build --copy-compiler-tool intero
 
 From source:
 
     $ git clone https://github.com/commercialhaskell/intero.git
     $ cd intero
-    $ stack build intero
+    $ stack build --copy-compiler-tool intero
 
 # Running
 
