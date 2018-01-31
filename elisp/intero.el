@@ -360,7 +360,7 @@ You can use this to kill them or look inside."
   (interactive)
   (let ((buffers (cl-remove-if-not
                   (lambda (buffer)
-                    (string-match " intero:" (buffer-name buffer)))
+                    (string-match-p " intero:" (buffer-name buffer)))
                   (buffer-list))))
     (if buffers
         (display-buffer
@@ -534,7 +534,7 @@ If the problem persists, please report this as a bug!")))
                           (forward-char 1)
                           (looking-back "$(" 1))
                         (+ 2 (current-column))
-                      (if (looking-at "$(")
+                      (if (looking-at-p "$(")
                           (+ 3 (current-column))
                         (1+ (current-column)))))
             (expansion-msg
@@ -648,7 +648,7 @@ running context across :load/:reloads in Intero."
          ":load DevelMain"
          (current-buffer)
          (lambda (buffer reply)
-           (if (string-match "^O[Kk], modules loaded" reply)
+           (if (string-match-p "^O[Kk], modules loaded" reply)
                (intero-async-call
                 'backend
                 "DevelMain.update"
@@ -763,14 +763,14 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                      (match-string 3))) ;; Replace gross bullet points.
                (type (cond ((string-match "^Warning:" msg)
                             (setq msg (replace-regexp-in-string "^Warning: *" "" msg))
-                            (if (or (string-match "^\\[-Wdeferred-type-errors\\]" msg)
-                                    (string-match "^\\[-Wdeferred-out-of-scope-variables\\]" msg)
-                                    (string-match "^\\[-Wtyped-holes\\]" msg))
+                            (if (or (string-match-p "^\\[-Wdeferred-type-errors\\]" msg)
+                                    (string-match-p "^\\[-Wdeferred-out-of-scope-variables\\]" msg)
+                                    (string-match-p "^\\[-Wtyped-holes\\]" msg))
                                 (progn (setq found-error-as-warning t)
                                        'error)
                               'warning))
-                           ((string-match "^Splicing " msg) 'splice)
-                           (t                               'error)))
+                           ((string-match-p "^Splicing " msg) 'splice)
+                           (t                                 'error)))
                (location (intero-parse-error
                           (concat local-file ":" location-raw ": x")))
                (line (plist-get location :line))
@@ -910,7 +910,7 @@ Other arguments are IGNORED."
                 (funcall cont
                          (cl-remove-if-not
                           (lambda (candidate)
-                            (string-match (concat "^" prefix) candidate))
+                            (string-match-p (concat "^" prefix) candidate))
                           intero-pragmas))
                 t)))
         (intero-get-repl-completions source-buffer prefix cont))))
@@ -1425,7 +1425,7 @@ comment.  May return a qualified name."
         ;; First, skip whitespace if we're on it, moving point to last
         ;; identifier char.  That way, if we're at "map ", we'll see the word
         ;; "map".
-        (when (and (looking-at (rx eol))
+        (when (and (looking-at-p (rx eol))
                    (not (bolp)))
           (backward-char))
         (when (and (not (eobp))
@@ -1465,7 +1465,7 @@ comment.  May return a qualified name."
           ;; Try to slurp qualification part first.
           (skip-syntax-forward "w_")
           (setq end (point))
-          (while (and (looking-at (rx "." upper))
+          (while (and (looking-at-p (rx "." upper))
                       (not (zerop (progn (forward-char)
                                          (skip-syntax-forward "w_")))))
             (setq end (point)))
@@ -1489,14 +1489,14 @@ comment.  May return a qualified name."
 Expects point stands *after* delimiting dot.
 Returns beginning position of qualified part or nil if no qualified part found."
   (when (not (and (bobp)
-                  (looking-at (rx bol))))
+                  (looking-at-p (rx bol))))
     (let ((case-fold-search nil)
           pos)
       (while (and (eq (char-before) ?.)
                   (progn (backward-char)
                          (not (zerop (skip-syntax-backward "w'"))))
                   (skip-syntax-forward "'")
-                  (looking-at "[[:upper:]]"))
+                  (looking-at-p "[[:upper:]]"))
         (setq pos (point)))
       pos)))
 
@@ -1722,7 +1722,7 @@ type as arguments."
           (intero-blocking-call
            'backend
            (format ":info %s" thing)))))
-    (if (string-match "^<interactive>" optimistic-result)
+    (if (string-match-p "^<interactive>" optimistic-result)
         ;; Load the module Interpreted so that we get information,
         ;; then restore bytecode.
         (progn (intero-async-call
@@ -1807,7 +1807,7 @@ passed to CONT in SOURCE-BUFFER."
 
 (defun intero-completion-response-to-list (reply)
   "Convert the REPLY from a backend completion to a list."
-  (if (string-match "^*** Exception" reply)
+  (if (string-match-p "^*** Exception" reply)
       (list)
     (mapcar
      (lambda (x)
@@ -2044,7 +2044,7 @@ Uses the default stack config file, or STACK-YAML file if given."
                (let ((last-line (buffer-substring-no-properties
                                  (line-beginning-position)
                                  (line-end-position))))
-                 (if (string-match "^Progress" last-line)
+                 (if (string-match-p "^Progress" last-line)
                      (message "Booting up intero (building dependencies: %s)"
                               (downcase
                                (or (car (split-string (replace-regexp-in-string
@@ -2313,7 +2313,7 @@ For debugging purposes, try running the following in your terminal:
         (0
          (cl-remove-if-not
           (lambda (line)
-            (string-match "^[A-Za-z0-9-:_]+$" line))
+            (string-match-p "^[A-Za-z0-9-:_]+$" line))
           (split-string (buffer-string) "[\r\n]" t)))
         (1 nil)))))
 
@@ -2890,10 +2890,10 @@ suggestions are available."
                    (forward-line (1- (plist-get suggestion :line)))
                    (when (and (search-forward (plist-get suggestion :module) nil t 1)
                               (search-forward "(" nil t 1))
-                     (insert (if (string-match "^[_a-zA-Z]" (plist-get suggestion :ident))
+                     (insert (if (string-match-p "^[_a-zA-Z]" (plist-get suggestion :ident))
                                  (plist-get suggestion :ident)
                                (concat "(" (plist-get suggestion :ident) ")")))
-                     (unless (looking-at "[:space:]*)")
+                     (unless (looking-at-p "[:space:]*)")
                        (insert ", ")))))
                 (redundant-import-item
                  (save-excursion
@@ -2910,7 +2910,7 @@ suggestions are available."
                             "\\("
                             (mapconcat
                              (lambda (ident)
-                               (if (string-match "^[_a-zA-Z]" ident)
+                               (if (string-match-p "^[_a-zA-Z]" ident)
                                    (concat "\\<" (regexp-quote ident) "\\> ?" "\\("(regexp-quote "(..)") "\\)?")
                                  (concat "(" (regexp-quote ident) ")")))
                              (plist-get suggestion :idents)
@@ -3009,8 +3009,8 @@ suggestions are available."
 
 (defun intero-skip-shebangs ()
   "Skip #! and -- shebangs used in Haskell scripts."
-  (when (looking-at "#!") (forward-line 1))
-  (when (looking-at "-- stack ") (forward-line 1)))
+  (when (looking-at-p "#!") (forward-line 1))
+  (when (looking-at-p "-- stack ") (forward-line 1)))
 
 (defun intero--warn (message &rest args)
   "Display a warning message made from (format MESSAGE ARGS...).
