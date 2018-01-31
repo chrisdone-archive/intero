@@ -1542,7 +1542,7 @@ The path returned is canonicalized and stripped of any text properties."
                                       (host (tramp-file-name-host dissection))
                                       (localname (tramp-file-name-localname dissection)))
                                  (concat host ":" localname))
-                             path))))
+                             (expand-file-name path)))))
     (string= (funcall simplify-path path-1) (funcall simplify-path path-2))))
 
 (defun intero-buffer-host (&optional buffer)
