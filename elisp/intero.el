@@ -921,6 +921,8 @@ If specified, MINLEN is the shortest completion which will be
 considered."
   (when (intero-completions-can-grab-prefix)
     (let ((prefix (cond
+                   ((and (eq 'intero-repl-mode major-mode)
+                         (intero-completions-grab-ghci-command)))
                    ((intero-completions-grab-pragma-prefix))
                    ((intero-completions-grab-identifier-prefix)))))
       (cond ((and minlen prefix)
@@ -936,6 +938,23 @@ considered."
         (save-excursion
           (backward-char)
           (not (looking-at-p (rx (| space line-end)))))))))
+
+(defun intero-completions-grab-ghci-command ()
+  "Grapb prefix for a ghci command like :set.
+Returns (prefix-start-position prefix-end-position prefix-value prefix-type)"
+  (save-excursion
+    (let ((end (point)))
+      (when (save-excursion
+              (beginning-of-line)
+              (looking-at-p (rx (* " ")
+                                ":set"
+                                (* " "))))
+        (skip-syntax-backward "^ >")
+        (let ((start (point)))
+          (list start
+                end
+                (concat ":set " (buffer-substring-no-properties start end))
+                'haskell-completions-repl-command))))))
 
 (defun intero-completions-grab-identifier-prefix ()
   "Grab identifier prefix."
