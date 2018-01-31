@@ -2330,7 +2330,7 @@ a list is returned instead of failing with a nil result."
   (let* ((cabal-files
           (cl-remove-if 'file-directory-p
                         (cl-remove-if-not 'file-exists-p
-                                          (directory-files dir t ".\\.cabal\\'")))))
+                                          (directory-files dir t ".\\.cabal\\'" t)))))
     (cond
      ((= (length cabal-files) 1) (car cabal-files)) ;; exactly one candidate found
      (allow-multiple cabal-files) ;; pass-thru multiple candidates
