@@ -812,19 +812,20 @@ CHECKER and BUFFER are added to each item parsed from STRING."
 
 (defun intero-parse-error (string)
   "Parse the line number from the error in STRING."
-  (let ((span nil))
-    (cl-loop for regex
-             in intero-error-regexp-alist
-             do (when (string-match (car regex) string)
-                  (setq span
-                        (list :file (match-string 1 string)
-                              :line (string-to-number (match-string 2 string))
-                              :col (string-to-number (match-string 4 string))
-                              :line2 (when (match-string 3 string)
-                                       (string-to-number (match-string 3 string)))
-                              :col2 (when (match-string 5 string)
-                                      (string-to-number (match-string 5 string)))))))
-    span))
+  (save-match-data
+    (let ((span nil))
+      (cl-loop for regex
+               in intero-error-regexp-alist
+               do (when (string-match (car regex) string)
+                    (setq span
+                          (list :file (match-string 1 string)
+                                :line (string-to-number (match-string 2 string))
+                                :col (string-to-number (match-string 4 string))
+                                :line2 (when (match-string 3 string)
+                                         (string-to-number (match-string 3 string)))
+                                :col2 (when (match-string 5 string)
+                                        (string-to-number (match-string 5 string)))))))
+      span)))
 
 (defun intero-call-in-buffer (buffer func &rest args)
   "In BUFFER, call FUNC with ARGS."
