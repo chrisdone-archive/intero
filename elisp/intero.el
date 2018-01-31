@@ -135,6 +135,22 @@ To use this, use the following mode hook:
   :group 'intero
   :type 'boolean)
 
+(defcustom intero-extra-ghc-options nil
+  "Extra GHC options to pass to intero executable.
+
+For example, this variable can be used to run intero with extra
+warnings and perform more checks via flycheck error reporting."
+  :group 'intero
+  :type '(repeat string))
+
+(defcustom intero-extra-ghci-options nil
+  "Extra options to pass to GHCi when running `intero-repl'.
+
+For example, this variable can be used to enable some ghci extensions
+by default."
+  :group 'intero
+  :type '(repeat string))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
 
@@ -1284,7 +1300,8 @@ stack's default)."
                      (append arguments
                              (list "--verbosity" "silent")
                              (list "--ghci-options"
-                                   (concat "-ghci-script=" script)))))))
+                                   (concat "-ghci-script=" script))
+                             (mapcan (lambda (x) (list "--ghci-options" x)) intero-extra-ghci-options))))))
         (when (process-live-p process)
           (set-process-query-on-exit-flag process nil)
           (message "Started Intero process for REPL.")
@@ -2046,6 +2063,7 @@ default when nil)."
             (list "--no-load"))
           (when ignore-dot-ghci
             (list "--ghci-options" "-ignore-dot-ghci"))
+          (mapcan (lambda (x) (list "--ghci-options" x)) intero-extra-ghc-options)
           (let ((dir (intero-localize-path (intero-make-temp-file "intero" t))))
             (list "--ghci-options"
                   (concat "-odir=" dir)
