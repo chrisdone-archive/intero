@@ -2377,6 +2377,13 @@ a list is returned instead of failing with a nil result."
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Multiselection
 
+(defvar intero-multiswitch-keymap
+  (let ((map (copy-keymap widget-keymap)))
+    (define-key map (kbd "C-c C-c") 'exit-recursive-edit)
+    (define-key map (kbd "C-c C-k") 'abort-recursive-edit)
+    (define-key map (kbd "C-g")     'abort-recursive-edit)
+    map))
+
 (defun intero-multiswitch (title options)
   "Displaying TITLE, read multiple flags from a list of OPTIONS.
 Each option is a plist of (:key :default :title) wherein:
@@ -2423,12 +2430,7 @@ Each option is a plist of (:key :default :title) wherein:
             (select-window (split-window-below))
             (switch-to-buffer me)
             (goto-char (point-min)))
-          (use-local-map
-           (let ((map (copy-keymap widget-keymap)))
-             (define-key map (kbd "C-c C-c") 'exit-recursive-edit)
-             (define-key map (kbd "C-c C-k") 'abort-recursive-edit)
-             (define-key map (kbd "C-g") 'abort-recursive-edit)
-             map))
+          (use-local-map intero-multiswitch-keymap)
           (widget-setup)
           (recursive-edit)
           (kill-buffer me)
