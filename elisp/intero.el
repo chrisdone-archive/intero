@@ -940,7 +940,7 @@ considered."
           (not (looking-at-p (rx (| space line-end)))))))))
 
 (defun intero-completions-grab-ghci-command ()
-  "Grapb prefix for a ghci command like :set.
+  "Grab prefix for a ghci command like :set.
 Returns (prefix-start-position prefix-end-position prefix-value prefix-type)"
   (save-excursion
     (let ((end (point)))
