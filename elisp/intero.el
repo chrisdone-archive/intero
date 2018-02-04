@@ -135,6 +135,22 @@ To use this, use the following mode hook:
   :group 'intero
   :type 'boolean)
 
+(defcustom intero-extra-ghc-options nil
+  "Extra GHC options to pass to intero executable.
+
+For example, this variable can be used to run intero with extra
+warnings and perform more checks via flycheck error reporting."
+  :group 'intero
+  :type '(repeat string))
+
+(defcustom intero-extra-ghci-options nil
+  "Extra options to pass to GHCi when running `intero-repl'.
+
+For example, this variable can be used to enable some ghci extensions
+by default."
+  :group 'intero
+  :type '(repeat string))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
 
@@ -344,7 +360,7 @@ You can use this to kill them or look inside."
   (interactive)
   (let ((buffers (cl-remove-if-not
                   (lambda (buffer)
-                    (string-match " intero:" (buffer-name buffer)))
+                    (string-match-p " intero:" (buffer-name buffer)))
                   (buffer-list))))
     (if buffers
         (display-buffer
@@ -518,7 +534,7 @@ If the problem persists, please report this as a bug!")))
                           (forward-char 1)
                           (looking-back "$(" 1))
                         (+ 2 (current-column))
-                      (if (looking-at "$(")
+                      (if (looking-at-p "$(")
                           (+ 3 (current-column))
                         (1+ (current-column)))))
             (expansion-msg
@@ -632,7 +648,7 @@ running context across :load/:reloads in Intero."
          ":load DevelMain"
          (current-buffer)
          (lambda (buffer reply)
-           (if (string-match "^O[Kk], modules loaded" reply)
+           (if (string-match-p "^O[Kk], modules loaded" reply)
                (intero-async-call
                 'backend
                 "DevelMain.update"
@@ -747,14 +763,19 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                      (match-string 3))) ;; Replace gross bullet points.
                (type (cond ((string-match "^Warning:" msg)
                             (setq msg (replace-regexp-in-string "^Warning: *" "" msg))
-                            (if (or (string-match "^\\[-Wdeferred-type-errors\\]" msg)
-                                    (string-match "^\\[-Wdeferred-out-of-scope-variables\\]" msg)
-                                    (string-match "^\\[-Wtyped-holes\\]" msg))
+                            (if (string-match-p
+                                 (rx bol
+                                     "["
+                                     (or "-Wdeferred-type-errors"
+                                         "-Wdeferred-out-of-scope-variables"
+                                         "-Wtyped-holes")
+                                     "]")
+                                 msg)
                                 (progn (setq found-error-as-warning t)
                                        'error)
                               'warning))
-                           ((string-match "^Splicing " msg) 'splice)
-                           (t                               'error)))
+                           ((string-match-p "^Splicing " msg) 'splice)
+                           (t                                 'error)))
                (location (intero-parse-error
                           (concat local-file ":" location-raw ": x")))
                (line (plist-get location :line))
@@ -796,19 +817,18 @@ CHECKER and BUFFER are added to each item parsed from STRING."
 
 (defun intero-parse-error (string)
   "Parse the line number from the error in STRING."
-  (let ((span nil))
-    (cl-loop for regex
-             in intero-error-regexp-alist
-             do (when (string-match (car regex) string)
-                  (setq span
-                        (list :file (match-string 1 string)
-                              :line (string-to-number (match-string 2 string))
-                              :col (string-to-number (match-string 4 string))
-                              :line2 (when (match-string 3 string)
-                                       (string-to-number (match-string 3 string)))
-                              :col2 (when (match-string 5 string)
-                                      (string-to-number (match-string 5 string)))))))
-    span))
+  (save-match-data
+    (when (string-match (mapconcat #'car intero-error-regexp-alist "\\|")
+                        string)
+      (let ((string3 (match-string 3 string))
+            (string5 (match-string 5 string)))
+        (list :file (match-string 1 string)
+              :line (string-to-number (match-string 2 string))
+              :col (string-to-number (match-string 4 string))
+              :line2 (when string3
+                       (string-to-number string3))
+              :col2 (when string5
+                      (string-to-number string5)))))))
 
 (defun intero-call-in-buffer (buffer func &rest args)
   "In BUFFER, call FUNC with ARGS."
@@ -893,7 +913,7 @@ Other arguments are IGNORED."
                 (funcall cont
                          (cl-remove-if-not
                           (lambda (candidate)
-                            (string-match (concat "^" prefix) candidate))
+                            (string-prefix-p prefix candidate))
                           intero-pragmas))
                 t)))
         (intero-get-repl-completions source-buffer prefix cont))))
@@ -904,6 +924,7 @@ If specified, MINLEN is the shortest completion which will be
 considered."
   (when (intero-completions-can-grab-prefix)
     (let ((prefix (cond
+                   ((intero-completions-grab-ghci-command))
                    ((intero-completions-grab-pragma-prefix))
                    ((intero-completions-grab-identifier-prefix)))))
       (cond ((and minlen prefix)
@@ -919,6 +940,24 @@ considered."
         (save-excursion
           (backward-char)
           (not (looking-at-p (rx (| space line-end)))))))))
+
+(defun intero-completions-grab-ghci-command ()
+  "Grab prefix for a ghci command like :set.
+Returns (prefix-start-position prefix-end-position prefix-value prefix-type)"
+  (when (derived-mode-p 'intero-repl-mode)
+    (save-excursion
+      (let ((end (point)))
+        (when (save-excursion
+                (beginning-of-line)
+                (looking-at-p (rx (* " ")
+                                  ":set"
+                                  (* " "))))
+          (skip-syntax-backward "^ >")
+          (let ((start (point)))
+            (list start
+                  end
+                  (concat ":set " (buffer-substring-no-properties start end))
+                  'haskell-completions-repl-command)))))))
 
 (defun intero-completions-grab-identifier-prefix ()
   "Grab identifier prefix."
@@ -1284,7 +1323,8 @@ stack's default)."
                      (append arguments
                              (list "--verbosity" "silent")
                              (list "--ghci-options"
-                                   (concat "-ghci-script=" script)))))))
+                                   (concat "-ghci-script=" script))
+                             (mapcan (lambda (x) (list "--ghci-options" x)) intero-extra-ghci-options))))))
         (when (process-live-p process)
           (set-process-query-on-exit-flag process nil)
           (message "Started Intero process for REPL.")
@@ -1388,7 +1428,7 @@ comment.  May return a qualified name."
         ;; First, skip whitespace if we're on it, moving point to last
         ;; identifier char.  That way, if we're at "map ", we'll see the word
         ;; "map".
-        (when (and (looking-at (rx eol))
+        (when (and (looking-at-p (rx eol))
                    (not (bolp)))
           (backward-char))
         (when (and (not (eobp))
@@ -1428,7 +1468,7 @@ comment.  May return a qualified name."
           ;; Try to slurp qualification part first.
           (skip-syntax-forward "w_")
           (setq end (point))
-          (while (and (looking-at (rx "." upper))
+          (while (and (looking-at-p (rx "." upper))
                       (not (zerop (progn (forward-char)
                                          (skip-syntax-forward "w_")))))
             (setq end (point)))
@@ -1452,14 +1492,14 @@ comment.  May return a qualified name."
 Expects point stands *after* delimiting dot.
 Returns beginning position of qualified part or nil if no qualified part found."
   (when (not (and (bobp)
-                  (looking-at (rx bol))))
+                  (looking-at-p (rx bol))))
     (let ((case-fold-search nil)
           pos)
       (while (and (eq (char-before) ?.)
                   (progn (backward-char)
                          (not (zerop (skip-syntax-backward "w'"))))
                   (skip-syntax-forward "'")
-                  (looking-at "[[:upper:]]"))
+                  (looking-at-p "[[:upper:]]"))
         (setq pos (point)))
       pos)))
 
@@ -1505,7 +1545,7 @@ The path returned is canonicalized and stripped of any text properties."
                                       (host (tramp-file-name-host dissection))
                                       (localname (tramp-file-name-localname dissection)))
                                  (concat host ":" localname))
-                             path))))
+                             (expand-file-name path)))))
     (string= (funcall simplify-path path-1) (funcall simplify-path path-2))))
 
 (defun intero-buffer-host (&optional buffer)
@@ -1685,7 +1725,7 @@ type as arguments."
           (intero-blocking-call
            'backend
            (format ":info %s" thing)))))
-    (if (string-match "^<interactive>" optimistic-result)
+    (if (string-match-p "^<interactive>" optimistic-result)
         ;; Load the module Interpreted so that we get information,
         ;; then restore bytecode.
         (progn (intero-async-call
@@ -1770,7 +1810,7 @@ passed to CONT in SOURCE-BUFFER."
 
 (defun intero-completion-response-to-list (reply)
   "Convert the REPLY from a backend completion to a list."
-  (if (string-match "^*** Exception" reply)
+  (if (string-match-p "^*** Exception" reply)
       (list)
     (mapcar
      (lambda (x)
@@ -2007,7 +2047,7 @@ Uses the default stack config file, or STACK-YAML file if given."
                (let ((last-line (buffer-substring-no-properties
                                  (line-beginning-position)
                                  (line-end-position))))
-                 (if (string-match "^Progress" last-line)
+                 (if (string-match-p "^Progress" last-line)
                      (message "Booting up intero (building dependencies: %s)"
                               (downcase
                                (or (car (split-string (replace-regexp-in-string
@@ -2046,6 +2086,7 @@ default when nil)."
             (list "--no-load"))
           (when ignore-dot-ghci
             (list "--ghci-options" "-ignore-dot-ghci"))
+          (mapcan (lambda (x) (list "--ghci-options" x)) intero-extra-ghc-options)
           (let ((dir (intero-localize-path (intero-make-temp-file "intero" t))))
             (list "--ghci-options"
                   (concat "-odir=" dir)
@@ -2275,7 +2316,7 @@ For debugging purposes, try running the following in your terminal:
         (0
          (cl-remove-if-not
           (lambda (line)
-            (string-match "^[A-Za-z0-9-:_]+$" line))
+            (string-match-p "^[A-Za-z0-9-:_]+$" line))
           (split-string (buffer-string) "[\r\n]" t)))
         (1 nil)))))
 
@@ -2328,9 +2369,10 @@ a list is returned instead of failing with a nil result."
   ;;  http://hackage.haskell.org/packages/archive/Cabal/1.16.0.3/doc/html/Distribution-Simple-Utils.html
   ;; but without the exception throwing.
   (let* ((cabal-files
-          (cl-remove-if 'file-directory-p
-                        (cl-remove-if-not 'file-exists-p
-                                          (directory-files dir t ".\\.cabal\\'")))))
+          (cl-remove-if (lambda (path)
+                          (or (file-directory-p path)
+                              (not (file-exists-p path))))
+                        (directory-files dir t ".\\.cabal\\'" t))))
     (cond
      ((= (length cabal-files) 1) (car cabal-files)) ;; exactly one candidate found
      (allow-multiple cabal-files) ;; pass-thru multiple candidates
@@ -2338,6 +2380,13 @@ a list is returned instead of failing with a nil result."
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Multiselection
+
+(defvar intero-multiswitch-keymap
+  (let ((map (copy-keymap widget-keymap)))
+    (define-key map (kbd "C-c C-c") 'exit-recursive-edit)
+    (define-key map (kbd "C-c C-k") 'abort-recursive-edit)
+    (define-key map (kbd "C-g")     'abort-recursive-edit)
+    map))
 
 (defun intero-multiswitch (title options)
   "Displaying TITLE, read multiple flags from a list of OPTIONS.
@@ -2385,12 +2434,7 @@ Each option is a plist of (:key :default :title) wherein:
             (select-window (split-window-below))
             (switch-to-buffer me)
             (goto-char (point-min)))
-          (use-local-map
-           (let ((map (copy-keymap widget-keymap)))
-             (define-key map (kbd "C-c C-c") 'exit-recursive-edit)
-             (define-key map (kbd "C-c C-k") 'abort-recursive-edit)
-             (define-key map (kbd "C-g") 'abort-recursive-edit)
-             map))
+          (use-local-map intero-multiswitch-keymap)
           (widget-setup)
           (recursive-edit)
           (kill-buffer me)
@@ -2850,10 +2894,10 @@ suggestions are available."
                    (forward-line (1- (plist-get suggestion :line)))
                    (when (and (search-forward (plist-get suggestion :module) nil t 1)
                               (search-forward "(" nil t 1))
-                     (insert (if (string-match "^[_a-zA-Z]" (plist-get suggestion :ident))
+                     (insert (if (string-match-p "^[_a-zA-Z]" (plist-get suggestion :ident))
                                  (plist-get suggestion :ident)
                                (concat "(" (plist-get suggestion :ident) ")")))
-                     (unless (looking-at "[:space:]*)")
+                     (unless (looking-at-p "[:space:]*)")
                        (insert ", ")))))
                 (redundant-import-item
                  (save-excursion
@@ -2870,7 +2914,7 @@ suggestions are available."
                             "\\("
                             (mapconcat
                              (lambda (ident)
-                               (if (string-match "^[_a-zA-Z]" ident)
+                               (if (string-match-p "^[_a-zA-Z]" ident)
                                    (concat "\\<" (regexp-quote ident) "\\> ?" "\\("(regexp-quote "(..)") "\\)?")
                                  (concat "(" (regexp-quote ident) ")")))
                              (plist-get suggestion :idents)
@@ -2969,8 +3013,8 @@ suggestions are available."
 
 (defun intero-skip-shebangs ()
   "Skip #! and -- shebangs used in Haskell scripts."
-  (when (looking-at "#!") (forward-line 1))
-  (when (looking-at "-- stack ") (forward-line 1)))
+  (when (looking-at-p "#!") (forward-line 1))
+  (when (looking-at-p "-- stack ") (forward-line 1)))
 
 (defun intero--warn (message &rest args)
   "Display a warning message made from (format MESSAGE ARGS...).
