@@ -910,7 +910,7 @@ Other arguments are IGNORED."
                 (funcall cont
                          (cl-remove-if-not
                           (lambda (candidate)
-                            (string-match-p (concat "^" prefix) candidate))
+                            (string-prefix-p prefix candidate))
                           intero-pragmas))
                 t)))
         (intero-get-repl-completions source-buffer prefix cont))))
