@@ -2366,9 +2366,10 @@ a list is returned instead of failing with a nil result."
   ;;  http://hackage.haskell.org/packages/archive/Cabal/1.16.0.3/doc/html/Distribution-Simple-Utils.html
   ;; but without the exception throwing.
   (let* ((cabal-files
-          (cl-remove-if 'file-directory-p
-                        (cl-remove-if-not 'file-exists-p
-                                          (directory-files dir t ".\\.cabal\\'" t)))))
+          (cl-remove-if (lambda (path)
+                          (or (file-directory-p path)
+                              (not (file-exists-p path))))
+                        (directory-files dir t ".\\.cabal\\'" t))))
     (cond
      ((= (length cabal-files) 1) (car cabal-files)) ;; exactly one candidate found
      (allow-multiple cabal-files) ;; pass-thru multiple candidates
