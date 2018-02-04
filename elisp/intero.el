@@ -763,9 +763,14 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                      (match-string 3))) ;; Replace gross bullet points.
                (type (cond ((string-match "^Warning:" msg)
                             (setq msg (replace-regexp-in-string "^Warning: *" "" msg))
-                            (if (or (string-match-p "^\\[-Wdeferred-type-errors\\]" msg)
-                                    (string-match-p "^\\[-Wdeferred-out-of-scope-variables\\]" msg)
-                                    (string-match-p "^\\[-Wtyped-holes\\]" msg))
+                            (if (string-match-p
+                                 (rx bol
+                                     "["
+                                     (or "-Wdeferred-type-errors"
+                                         "-Wdeferred-out-of-scope-variables"
+                                         "-Wtyped-holes")
+                                     "]")
+                                 msg)
                                 (progn (setq found-error-as-warning t)
                                        'error)
                               'warning))
@@ -813,19 +818,17 @@ CHECKER and BUFFER are added to each item parsed from STRING."
 (defun intero-parse-error (string)
   "Parse the line number from the error in STRING."
   (save-match-data
-    (let ((span nil))
-      (cl-loop for regex
-               in intero-error-regexp-alist
-               do (when (string-match (car regex) string)
-                    (setq span
-                          (list :file (match-string 1 string)
-                                :line (string-to-number (match-string 2 string))
-                                :col (string-to-number (match-string 4 string))
-                                :line2 (when (match-string 3 string)
-                                         (string-to-number (match-string 3 string)))
-                                :col2 (when (match-string 5 string)
-                                        (string-to-number (match-string 5 string)))))))
-      span)))
+    (when (string-match (mapconcat #'car intero-error-regexp-alist "\\|")
+                        string)
+      (let ((string3 (match-string 3 string))
+            (string5 (match-string 5 string)))
+        (list :file (match-string 1 string)
+              :line (string-to-number (match-string 2 string))
+              :col (string-to-number (match-string 4 string))
+              :line2 (when string3
+                       (string-to-number string3))
+              :col2 (when string5
+                      (string-to-number string5)))))))
 
 (defun intero-call-in-buffer (buffer func &rest args)
   "In BUFFER, call FUNC with ARGS."
