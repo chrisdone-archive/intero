@@ -1324,7 +1324,7 @@ stack's default)."
                              (list "--verbosity" "silent")
                              (list "--ghci-options"
                                    (concat "-ghci-script=" script))
-                             (mapcan (lambda (x) (list "--ghci-options" x)) intero-extra-ghci-options))))))
+                             (cl-mapcan (lambda (x) (list "--ghci-options" x)) intero-extra-ghci-options))))))
         (when (process-live-p process)
           (set-process-query-on-exit-flag process nil)
           (message "Started Intero process for REPL.")
@@ -2086,7 +2086,7 @@ default when nil)."
             (list "--no-load"))
           (when ignore-dot-ghci
             (list "--ghci-options" "-ignore-dot-ghci"))
-          (mapcan (lambda (x) (list "--ghci-options" x)) intero-extra-ghc-options)
+          (cl-mapcan (lambda (x) (list "--ghci-options" x)) intero-extra-ghc-options)
           (let ((dir (intero-localize-path (intero-make-temp-file "intero" t))))
             (list "--ghci-options"
                   (concat "-odir=" dir)
