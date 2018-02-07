@@ -1679,6 +1679,15 @@ x:\\foo\\bar (i.e., Windows)."
 
 (defun intero-get-type-at (beg end)
   "Get the type at the given region denoted by BEG and END."
+  (let ((result (intero-get-type-at-helper beg end)))
+    (if (string-match (regexp-quote "Couldn't guess that module name. Does it exist?")
+                      result)
+        (progn (flycheck-buffer)
+               (message "No type information yet, compiling module ...")
+               (intero-get-type-at-helper beg end))
+      result)))
+
+(defun intero-get-type-at-helper (beg end)
   (replace-regexp-in-string
    "\n$" ""
    (intero-blocking-call
@@ -1747,8 +1756,20 @@ type as arguments."
                  (format ":info %s" thing))))
       optimistic-result)))
 
+(defconst intero-unloaded-module-string "Couldn't guess that module name. Does it exist?")
+
 (defun intero-get-loc-at (beg end)
   "Get the location of the identifier denoted by BEG and END."
+  (let ((result (intero-get-loc-at-helper beg end)))
+    (if (string-match (regexp-quote intero-unloaded-module-string)
+                      result)
+        (progn (flycheck-buffer)
+               (message "No location information yet, compiling module ...")
+               (intero-get-loc-at-helper beg end))
+      result)))
+
+(defun intero-get-loc-at-helper (beg end)
+  "Make the blocking call to the process."
   (replace-regexp-in-string
    "\n$" ""
    (intero-blocking-call
@@ -1766,6 +1787,16 @@ type as arguments."
             (buffer-substring-no-properties beg end)))))
 
 (defun intero-get-uses-at (beg end)
+  "Return usage list for identifier denoted by BEG and END."
+  (let ((result (intero-get-uses-at-helper beg end)))
+    (if (string-match (regexp-quote intero-unloaded-module-string)
+                      result)
+        (progn (flycheck-buffer)
+               (message "No use information yet, compiling module ...")
+               (intero-get-uses-at-helper beg end))
+      result)))
+
+(defun intero-get-uses-at-helper (beg end)
   "Return usage list for identifier denoted by BEG and END."
   (replace-regexp-in-string
    "\n$" ""
