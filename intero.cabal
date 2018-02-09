@@ -80,7 +80,9 @@ executable intero
     transformers,
     syb,
     containers,
-    time
+    time,
+    network,
+    random
 
   if impl(ghc>=8.0.1)
     build-depends:
