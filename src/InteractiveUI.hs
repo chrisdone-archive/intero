@@ -678,10 +678,6 @@ listenOnLoopback = do
     close
     (\sock -> do
        setSocketOption sock ReuseAddr 1
-       if isSupportedSocketOption UseLoopBack then
-         setSocketOption sock UseLoopBack 1
-       else
-         return ()
        address <- getHostByName "127.0.0.1"
        bind sock (SockAddrInet aNY_PORT (hostAddress address))
        listen sock maxListenQueue
