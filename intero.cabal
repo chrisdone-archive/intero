@@ -1,7 +1,7 @@
 name:
   intero
 version:
-  0.1.24
+  0.1.25
 synopsis:
   Complete interactive development program for Haskell
 license:
@@ -80,7 +80,9 @@ executable intero
     transformers,
     syb,
     containers,
-    time
+    time,
+    network,
+    random
 
   if impl(ghc>=8.0.1)
     build-depends:

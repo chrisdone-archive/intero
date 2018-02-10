@@ -21,6 +21,7 @@ module GhciMonad (
         BreakLocation(..),
         TickArray,
         getDynFlags,
+        reifyGHCi,reflectGHCi,
 
         runStmt, runDecls, resume, timeIt, recordBreak, revertCAFs,
         printForUserNeverQualify, printForUserModInfo,
@@ -195,8 +196,8 @@ reifyGHCi f = GHCi f'
     -- f'' :: IORef GHCiState -> Session -> IO a
     f'' gs s = f (s, gs)
 
-startGHCi :: GHCi a -> GHCiState -> Ghc a
-startGHCi g state = do ref <- liftIO $ newIORef state; unGHCi g ref
+startGHCi :: GHCi a -> IORef GHCiState -> Ghc a
+startGHCi g ref = unGHCi g ref
 
 instance Functor GHCi where
     fmap = liftM
@@ -279,18 +280,18 @@ printForUserNeverQualify doc = do
   dflags <- getDynFlags
   liftIO $ Outputable.printForUser dflags stdout neverQualify doc
 
-printForUserModInfo :: GhcMonad m => GHC.ModuleInfo -> SDoc -> m ()
-printForUserModInfo info doc = do
+printForUserModInfo :: GhcMonad m => Handle -> GHC.ModuleInfo -> SDoc -> m ()
+printForUserModInfo h info doc = do
   dflags <- getDynFlags
   mUnqual <- GHC.mkPrintUnqualifiedForModule info
   unqual <- maybe GHC.getPrintUnqual return mUnqual
-  liftIO $ Outputable.printForUser dflags stdout unqual doc
+  liftIO $ Outputable.printForUser dflags h unqual doc
 
-printForUser :: GhcMonad m => SDoc -> m ()
-printForUser doc = do
+printForUser :: GhcMonad m => Handle -> SDoc -> m ()
+printForUser h doc = do
   unqual <- GHC.getPrintUnqual
   dflags <- getDynFlags
-  liftIO $ Outputable.printForUser dflags stdout unqual doc
+  liftIO $ Outputable.printForUser dflags h unqual doc
 
 printForUserPartWay :: SDoc -> GHCi ()
 printForUserPartWay doc = do
