@@ -2015,15 +2015,22 @@ as (CALLBACK STATE REPLY)."
       (error "Intero process is not running: run M-x intero-restart to start it"))))
 
 (defun intero-network-call-sentinel (process event)
-  (with-current-buffer (process-buffer process)
+  (let* ((buf (process-buffer process))
+         (cleanup
+          (lambda ()
+            (delete-process process)
+            (kill-buffer buf))))
     (if (string= "open\n" event)
-        (progn
-          (when intero-debug (message "Connected to service, sending %S" intero-async-network-cmd))
-          (setq intero-async-network-connected t)
-          (if intero-async-network-cmd
-              (process-send-string process (concat intero-async-network-cmd "\n"))
-            (delete-process process)))
-      (progn
+        (let ((cmd
+               (with-current-buffer buf
+                 (when intero-debug (message "Connected to service, sending %S" intero-async-network-cmd))
+                 (setq intero-async-network-connected t)
+                 (and intero-async-network-cmd
+                      (concat intero-async-network-cmd "\n")))))
+          (if cmd
+              (process-send-string process cmd)
+            (funcall cleanup)))
+      (with-current-buffer buf
         (if intero-async-network-connected
             (when intero-async-network-callback
               (when intero-debug (message "Calling callback with %S" (buffer-string)))
@@ -2039,9 +2046,9 @@ as (CALLBACK STATE REPLY)."
              intero-async-network-worker
              intero-async-network-cmd
              intero-async-network-state
-             intero-async-network-callback)))
-        ;; In any case we clean up the connection.
-        (delete-process process)))))
+             intero-async-network-callback))))
+      ;; In any case we clean up the connection.
+      (funcall cleanup))))
 
 (defun intero-async-call (worker cmd &optional state callback)
   "Send WORKER the command string CMD.
