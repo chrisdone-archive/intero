@@ -2479,17 +2479,29 @@ Uses the directory of the current buffer for context."
             root)))
 
 (defvar intero--project-root-cache (make-hash-table :test 'equal)
-  "Cache for `intero--get-project-root'. Maps pairs of `default-directory' and
-optional stack-yaml file to resolved project roots.")
+  "Cache for `intero--get-project-root'. Maps cons cells of
+`default-directory' and optional stack-yaml file to list resolved
+project root and modification time of project's stack.yaml for
+cache invalidation purposes.")
 
 (defun intero--get-project-root (stack-yaml)
   (let* ((stack-yaml-norm (and stack-yaml
                                (expand-file-name stack-yaml)))
+         (stack-yaml-file (or stack-yaml-norm
+                              (locate-dominating-file
+                               default-directory
+                               (lambda (dir)
+                                 (directory-files dir t "stack.*\\.yaml\\'" t)))))
+         (stack-yaml-file-attributes
+          (file-attributes stack-yaml-file 'integer))
+         (stack-yaml-mod-time
+          (nth 5 stack-yaml-file-attributes))
          (key (cons default-directory stack-yaml-norm))
          (cached (gethash key intero--project-root-cache)))
-    (if cached
-        cached
-      (let ((value
+    (if (and cached
+             (equal stack-yaml-mod-time (cl-second cached)))
+        (cl-first cached)
+      (let ((stack-path
              (intero-with-temp-buffer
               (cl-case (save-excursion
                          (intero-call-stack nil (current-buffer) nil stack-yaml
@@ -2510,8 +2522,10 @@ For debugging purposes, try running the following in your terminal:
 
 %s path --project-root" intero-stack-executable)
                    nil)))))
-        (puthash key value intero--project-root-cache)
-        value))))
+        (puthash key
+                 (list stack-path stack-yaml-mod-time)
+                 intero--project-root-cache)
+        stack-path))))
 
 (defun intero-project-root ()
   "Get the current stack config directory.
