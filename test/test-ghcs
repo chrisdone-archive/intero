@@ -39,6 +39,8 @@ stack build --resolver lts-3.0  --test  --ghc-options=-Werror --force-dirty --gh
 
 if [[ $TRAVIS_OS_NAME != 'linux' ]]; then
 
+echo "Skipping GHC 7.8.4 on OS X"
+
 else
 
 echo GHC 7.8.4 ...
