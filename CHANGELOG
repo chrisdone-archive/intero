@@ -1,3 +1,6 @@
+0.1.27:
+	* Add experimental :fill command.
+
 0.1.23:
 	* :cd handles quoted filepaths properly
 

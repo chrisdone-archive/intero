@@ -70,7 +70,7 @@
   :group 'haskell)
 
 (defcustom intero-package-version
-  "0.1.26"
+  "0.1.27"
   "Package version to auto-install.
 
 This version does not necessarily have to be the latest version
@@ -888,19 +888,29 @@ Other arguments are IGNORED."
     (interactive (company-begin-backend 'intero-company))
     (prefix
      (unless (intero-gave-up 'backend)
-       (let ((prefix-info (intero-completions-grab-prefix)))
-         (when prefix-info
-           (cl-destructuring-bind
-               (beg end prefix _type) prefix-info
-             prefix)))))
+       (or (let ((hole (intero-grab-hole)))
+             (when hole
+               (goto-char (cdr hole))
+               (buffer-substring (car hole) (cdr hole))))
+           (let ((prefix-info (intero-completions-grab-prefix)))
+             (when prefix-info
+               (cl-destructuring-bind
+                   (beg end prefix _type) prefix-info
+                 prefix))))))
     (candidates
      (unless (intero-gave-up 'backend)
-       (let ((prefix-info (intero-completions-grab-prefix)))
-         (when prefix-info
-           (cons :async
-                 (-partial 'intero-company-callback
-                           (current-buffer)
-                           prefix-info))))))))
+       (let ((beg-end (intero-grab-hole)))
+         (if beg-end
+             (cons :async
+                   (-partial 'intero-async-fill-at
+                             (current-buffer)
+                             (car beg-end)))
+           (let ((prefix-info (intero-completions-grab-prefix)))
+             (when prefix-info
+               (cons :async
+                     (-partial 'intero-company-callback
+                               (current-buffer)
+                               prefix-info))))))))))
 
 (define-obsolete-function-alias 'company-intero 'intero-company)
 
@@ -1081,6 +1091,42 @@ pragma is supported also."
                                )))))))))))))
       (when prefix-value
         (list prefix-start prefix-end prefix-value prefix-type)))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Hole filling
+
+(defun intero-async-fill-at (buffer beg cont)
+  "Make the blocking call to the process."
+  (with-current-buffer buffer
+    (intero-async-call
+     'backend
+     (format
+      ":fill %S %d %d"
+      (intero-localize-path (intero-temp-file-name))
+      (save-excursion (goto-char beg)
+                      (line-number-at-pos))
+      (save-excursion (goto-char beg)
+                      (1+ (current-column))))
+     (list :buffer (current-buffer) :cont cont)
+     (lambda (state reply)
+       (unless (or (string-match "^Couldn't guess" reply)
+                   (string-match "^Unable to " reply))
+         (with-current-buffer (plist-get state :buffer)
+           (let ((candidates (split-string
+                              (replace-regexp-in-string
+                               "\n$" ""
+                               reply)
+                              "[\r\n]")))
+             (funcall (plist-get state :cont) candidates))))))))
+
+(defun intero-grab-hole ()
+  "When user is at a hole _ or _foo, return the starting point of
+that hole."
+  (let ((beg-end (intero-ident-pos-at-point)))
+    (when beg-end
+      (let ((string (buffer-substring-no-properties (car beg-end) (cdr beg-end))))
+        (when (string-match "^_" string)
+          beg-end)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ELDoc integration
