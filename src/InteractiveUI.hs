@@ -123,7 +123,7 @@ import           Data.Array
 import qualified Data.ByteString.Char8 as BS
 import           Data.Char
 import           Data.Function
-import           Data.IORef ( IORef, readIORef, writeIORef )
+
 import Data.List ( find, group, intercalate, intersperse, isPrefixOf, nub,
                    partition, sort, sortBy)
 import           Data.Maybe
