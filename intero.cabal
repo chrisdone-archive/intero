@@ -65,7 +65,6 @@ executable intero
     GhciTypes
     GhciInfo
     GhciFind
-    Completion
     Paths_intero
   build-depends:
     base < 5,
@@ -85,6 +84,10 @@ executable intero
     network,
     random,
     mtl
+
+  if impl(ghc>=8.2.2)
+    other-modules:
+      Completion
 
   if impl(ghc>=8.0.1)
     build-depends:

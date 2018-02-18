@@ -51,7 +51,9 @@ import qualified GhciMonad ( args, runStmt )
 import           GhciMonad hiding ( args, runStmt )
 import           GhciTags
 import           Debugger
+#if __GLASGOW_HASKELL__ >= 802
 import qualified Completion
+#endif
 
 -- The GHC interface
 import Data.IORef
@@ -301,6 +303,7 @@ ghciCommands = [
   where lifted m = \str -> lift (m stdout str)
 
 fillCmd :: Handle -> String -> GHCi ()
+#if __GLASGOW_HASKELL__ >= 802
 fillCmd h =
   withFillInput
     (\fp line col -> do
@@ -338,6 +341,9 @@ fillCmd h =
                             liftIO
                               (hPutStrLn h (Completion.substitutionString sub)))
                          subs)
+#else
+fillCmd _ = withFillInput (\_ _ _ -> pure ())
+#endif
 
 withFillInput :: (FilePath -> Int -> Int -> GHCi ()) -> String -> GHCi ()
 withFillInput cont input =
@@ -352,7 +358,6 @@ readOnlyCommands =
   , ("uses", findAllUses)
   , ("loc-at", locationAt)
   , ("complete-at", completeAt)
-  , ("fill",fillCmd)
   ]
 
 -- We initialize readline (in the interactiveUI function) to use
