@@ -37,7 +37,13 @@ stack build --resolver lts-3.0  --test  --ghc-options=-Werror --force-dirty --gh
 
 # Test GHC 7.8.4
 
+if [[ $TRAVIS_OS_NAME != 'linux' ]]; then
+
+else
+
 echo GHC 7.8.4 ...
 stack clean
 stack setup --resolver lts-1.0
 stack build --resolver lts-1.0  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+
+fi
