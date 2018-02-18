@@ -15,7 +15,36 @@ environment:
     STACK_ROOT: "c:\\sr"
 
 test_script:
-- stack setup > nul
+
 # The ugly echo "" hack is to avoid complaints about 0 being an invalid file
 # descriptor
-- echo "" | stack --no-terminal build
+
+- echo "GHC 8.2.2"
+- echo "" | stack --no-terminal clean
+- echo "" | stack --no-terminal setup --verbosity error --resolver lts-10.0
+- echo "" | stack --no-terminal test . --verbosity error --resolver lts-10.0 --test --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+
+- echo "GHC 8.0.2"
+- echo "" | stack --no-terminal clean
+- echo "" | stack --no-terminal setup --verbosity error --resolver lts-9.20
+- echo "" | stack --no-terminal test . --verbosity error --resolver lts-9.20 --test --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+
+- echo "GHC 8.0.1"
+- echo "" | stack --no-terminal clean
+- echo "" | stack --no-terminal setup --verbosity error --resolver nightly-2016-05-27
+- echo "" | stack --no-terminal test --verbosity error --resolver nightly-2016-05-27  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+
+- echo "GHC 7.10.3"
+- echo "" | stack --no-terminal clean
+- echo "" | stack --no-terminal setup --verbosity error --resolver lts-4.1
+- echo "" | stack --no-terminal test --verbosity error --resolver lts-4.1  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+
+- echo "GHC 7.10.2"
+- echo "" | stack --no-terminal clean
+- echo "" | stack --no-terminal setup --verbosity error --resolver lts-3.0
+- echo "" | stack --no-terminal test --verbosity error --resolver lts-3.0  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+
+- echo "GHC 7.8.4"
+- echo "" | stack --no-terminal clean
+- echo "" | stack --no-terminal setup --verbosity error --resolver lts-1.0
+- echo "" | stack --no-terminal test --verbosity error --resolver lts-1.0  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp

@@ -57,7 +57,7 @@ argsparser =
           "https://github.com/commercialhaskell/intero/issues/28"
           (eval
              ":type-at"
-             "\n<no location info>: Expected a span: \"<module-name/filepath>\" <start line> <start column> <end line> <end column> \"<sample string>\"\n"))
+             "<no location info>: Expected a span: \"<module-name/filepath>\" <start line> <start column> <end line> <end column> \"<sample string>\"\n"))
 
 -- | Basic commands that should work out of the box.
 basics :: Spec
@@ -521,7 +521,7 @@ eval :: String -- ^ Input.
          -> Expectation
 eval send recv = do
   reply <- withIntero [] (\_ repl -> repl send)
-  shouldBe reply recv
+  shouldBe (unlines (filter (not . null) (lines reply))) recv
 
 -- | Launch an interactive intero process. Creates a temporary
 -- directory in which the computation can work.

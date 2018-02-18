@@ -5,39 +5,47 @@ set -e
 echo GHC 8.2.2 ...
 stack clean
 stack setup --resolver lts-10.0
-stack build . --resolver lts-10.0 --test --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp --verbosity silent
+stack build . --resolver lts-10.0 --test --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
 
 # Test GHC 8.0.2
 
 echo GHC 8.0.2 ...
 stack clean
-stack setup --resolver lts-9.20 --verbosity silent
-stack build . --resolver lts-9.20 --test --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp --verbosity silent
+stack setup --resolver lts-9.20
+stack build . --resolver lts-9.20 --test --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
 
 # Test GHC 8.0.1
 
 echo GHC 8.0.1 ...
 stack clean
-stack setup --resolver nightly-2016-05-27 --verbosity silent
-stack build --resolver nightly-2016-05-27  --test --verbosity silent --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+stack setup --resolver nightly-2016-05-27
+stack build --resolver nightly-2016-05-27  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
 
 # Test GHC 7.10.3
 
 echo GHC 7.10.3 ...
 stack clean
-stack setup --resolver lts-4.1 --verbosity silent
-stack build --resolver lts-4.1  --test --verbosity silent --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+stack setup --resolver lts-4.1
+stack build --resolver lts-4.1  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
 
 # Test GHC 7.10.2
 
 echo GHC 7.10.2 ...
 stack clean
-stack setup --resolver lts-3.0 --verbosity silent
-stack build --resolver lts-3.0  --test --verbosity silent --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+stack setup --resolver lts-3.0
+stack build --resolver lts-3.0  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
 
 # Test GHC 7.8.4
 
+if [[ $TRAVIS_OS_NAME != 'linux' ]]; then
+
+echo "Skipping GHC 7.8.4 on OS X"
+
+else
+
 echo GHC 7.8.4 ...
 stack clean
-stack setup --resolver lts-1.0 --verbosity silent
-stack build --resolver lts-1.0  --test --verbosity silent --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+stack setup --resolver lts-1.0
+stack build --resolver lts-1.0  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+
+fi
