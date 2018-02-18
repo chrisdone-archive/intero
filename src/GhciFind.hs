@@ -6,7 +6,7 @@
 -- | Find type/location information.
 
 module GhciFind
-  (findType,FindType(..),findLoc,findNameUses,findCompletions)
+  (findType,FindType(..),findLoc,findNameUses,findCompletions,guessModule)
   where
 
 #if __GLASGOW_HASKELL__ >= 800
@@ -385,7 +385,7 @@ findType infos fp string sl sc el ec =
 #if __GLASGOW_HASKELL__ >= 802
                          (exprType TM_Inst string)
 #else
-                         (exprType string) 
+                         (exprType string)
 #endif
 
 -- | Try to resolve the type display from the given span.
