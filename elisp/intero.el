@@ -1112,12 +1112,15 @@ pragma is supported also."
        (unless (or (string-match "^Couldn't guess" reply)
                    (string-match "^Unable to " reply))
          (with-current-buffer (plist-get state :buffer)
-           (let ((candidates (split-string
-                              (replace-regexp-in-string
-                               "\n$" ""
-                               reply)
-                              "[\r\n]")))
-             (funcall (plist-get state :cont) candidates))))))))
+           (let ((candidates
+                  (split-string
+                   (replace-regexp-in-string
+                    "\n$" ""
+                    reply)
+                   "[\r\n]"
+                   t)))
+             (when candidates
+               (funcall (plist-get state :cont) candidates)))))))))
 
 (defun intero-grab-hole ()
   "When user is at a hole _ or _foo, return the starting point of
