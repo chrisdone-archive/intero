@@ -1110,8 +1110,10 @@ pragma is supported also."
                       (1+ (current-column))))
      (list :buffer (current-buffer) :cont cont)
      (lambda (state reply)
-       (unless (or (string-match "^Couldn't guess" reply)
-                   (string-match "^Unable to " reply))
+       (if (or (string-match "^Couldn't guess" reply)
+                   (string-match "^Unable to " reply)
+                   (intero-parse-error reply))
+           (funcall (plist-get state :cont) (list))
          (with-current-buffer (plist-get state :buffer)
            (let ((candidates
                   (split-string
