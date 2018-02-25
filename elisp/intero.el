@@ -871,6 +871,30 @@ CHECKER and BUFFER are added to each item parsed from STRING."
           (when completions
             (list beg end completions)))))))
 
+(defun intero-repl-completion-at-point ()
+  "A (blocking) function suitable for use in `completion-at-point-functions'.
+Should only be used in the repl"
+  (let* ((beg (save-excursion (intero-repl-beginning-of-line) (point)))
+         (end (point))
+         (str (buffer-substring-no-properties beg end))
+         (repl-buffer (current-buffer))
+         (proc (get-buffer-process (current-buffer))))
+    (with-temp-buffer
+      (comint-redirect-send-command-to-process
+       (format ":complete repl %S" str) ;; command
+       (current-buffer) ;; output buffer
+       proc ;; target process
+       nil  ;; echo
+       t)   ;; no-display
+      (while (not (with-current-buffer repl-buffer
+                    comint-redirect-completed))
+        (sleep-for 0.01))
+      (let* ((completions (intero-completion-response-to-list (buffer-string)))
+             (first-line (car completions)))
+        (when (string-match "[^ ]* [^ ]* " first-line) ;; "2 2 :load src/"
+          (setq first-line (replace-match "" nil nil first-line))
+          (list (+ beg (length first-line)) end (cdr completions)))))))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Company integration (auto-completion)
 
@@ -953,7 +977,6 @@ If specified, MINLEN is the shortest completion which will be
 considered."
   (when (intero-completions-can-grab-prefix)
     (let ((prefix (cond
-                   ((intero-completions-grab-ghci-command))
                    ((intero-completions-grab-pragma-prefix))
                    ((intero-completions-grab-identifier-prefix)))))
       (cond ((and minlen prefix)
@@ -969,24 +992,6 @@ considered."
         (save-excursion
           (backward-char)
           (not (looking-at-p (rx (| space line-end)))))))))
-
-(defun intero-completions-grab-ghci-command ()
-  "Grab prefix for a ghci command like :set.
-Returns (prefix-start-position prefix-end-position prefix-value prefix-type)"
-  (when (derived-mode-p 'intero-repl-mode)
-    (save-excursion
-      (let ((end (point)))
-        (when (save-excursion
-                (beginning-of-line)
-                (looking-at-p (rx (* " ")
-                                  ":set"
-                                  (* " "))))
-          (skip-syntax-backward "^ >")
-          (let ((start (point)))
-            (list start
-                  end
-                  (concat ":set " (buffer-substring-no-properties start end))
-                  'haskell-completions-repl-command)))))))
 
 (defun intero-completions-grab-identifier-prefix ()
   "Grab identifier prefix."
@@ -1339,8 +1344,7 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
   (setq-local comint-prompt-regexp intero-prompt-regexp)
   (setq-local warning-suppress-types (cons '(undo discard-info) warning-suppress-types))
   (setq-local comint-prompt-read-only t)
-  (add-hook 'completion-at-point-functions 'intero-completion-at-point nil t)
-  (add-to-list (make-local-variable 'company-backends) 'intero-company)
+  (add-hook 'completion-at-point-functions 'intero-repl-completion-at-point nil t)
   (company-mode))
 
 (defun intero-repl-mode-start (backend-buffer targets prompt-options stack-yaml)
