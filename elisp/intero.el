@@ -888,16 +888,17 @@ Other arguments are IGNORED."
   (cl-case command
     (interactive (company-begin-backend 'intero-company))
     (prefix
-     (unless (intero-gave-up 'backend)
-       (or (let ((hole (intero-grab-hole)))
-             (when hole
-               (goto-char (cdr hole))
-               (buffer-substring (car hole) (cdr hole))))
-           (let ((prefix-info (intero-completions-grab-prefix)))
-             (when prefix-info
-               (cl-destructuring-bind
-                   (beg end prefix _type) prefix-info
-                 prefix))))))
+     ((unless (intero-gave-up 'backend)
+        (or (let ((hole (intero-grab-hole)))
+              (when hole
+                (save-excursion
+                  (goto-char (cdr hole))
+                  (buffer-substring (car hole) (cdr hole)))))
+            (let ((prefix-info (intero-completions-grab-prefix)))
+              (when prefix-info
+                (cl-destructuring-bind
+                    (beg end prefix _type) prefix-info
+                  prefix)))))))
     (candidates
      (unless (intero-gave-up 'backend)
        (let ((beg-end (intero-grab-hole)))
@@ -1131,7 +1132,7 @@ that hole."
   (let ((beg-end (intero-ident-pos-at-point)))
     (when beg-end
       (let ((string (buffer-substring-no-properties (car beg-end) (cdr beg-end))))
-        (when (string-match "^_" string)
+        (when (string-match-p "^_" string)
           beg-end)))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
