@@ -25,6 +25,12 @@ From source:
     $ cd intero
     $ stack build intero
 
+If your project's `stack.yaml` has `extra-deps` that include upgraded versions of any of the packages that GHC depends on, then intero will not build there. Instead, build intero in a different directory:
+
+    $ pushd /tmp
+    $ stack --resolver lts-10.7 build --copy-compiler-tool intero
+    $ popd
+
 # Running
 
 To run it plainly use:
