@@ -2478,23 +2478,37 @@ Uses the directory of the current buffer for context."
             " "
             root)))
 
-(defun intero-project-root ()
-  "Get the current stack config directory.
-This is the directory where the file specified in
-`intero-stack-yaml' is located, or if nil then the directory
-where stack.yaml is placed for this project, or the global one if
-no such project-specific config exists."
-  (if intero-project-root
-      intero-project-root
-    (let ((stack-yaml intero-stack-yaml))
-      (setq intero-project-root
-            (intero-with-temp-buffer
+(defvar intero--project-root-cache (make-hash-table :test 'equal)
+  "Cache for `intero--get-project-root'. Maps cons cells of
+`default-directory' and optional stack-yaml file to list resolved
+project root and modification time of project's stack.yaml for
+cache invalidation purposes.")
+
+(defun intero--get-project-root (stack-yaml)
+  (let* ((stack-yaml-norm (and stack-yaml
+                               (expand-file-name stack-yaml)))
+         (stack-yaml-file (or stack-yaml-norm
+                              (locate-dominating-file
+                               default-directory
+                               (lambda (dir)
+                                 (directory-files dir t "stack.*\\.yaml\\'" t)))))
+         (stack-yaml-file-attributes
+          (file-attributes stack-yaml-file 'integer))
+         (stack-yaml-mod-time
+          (nth 5 stack-yaml-file-attributes))
+         (key (cons default-directory stack-yaml-norm))
+         (cached (gethash key intero--project-root-cache)))
+    (if (and cached
+             (equal stack-yaml-mod-time (cl-second cached)))
+        (cl-first cached)
+      (let ((stack-path
+             (intero-with-temp-buffer
               (cl-case (save-excursion
                          (intero-call-stack nil (current-buffer) nil stack-yaml
                                             "path"
                                             "--project-root"
                                             "--verbosity" "silent"))
-                (0 (buffer-substring (line-beginning-position) (line-end-position)))
+                (0 (buffer-substring-no-properties (line-beginning-position) (line-end-position)))
                 (t (intero--warn "Couldn't get the Stack project root.
 
 This can be caused by a syntax error in your stack.yaml file. Check that out.
@@ -2507,7 +2521,22 @@ Otherwise, please report this as a bug!
 For debugging purposes, try running the following in your terminal:
 
 %s path --project-root" intero-stack-executable)
-                   nil)))))))
+                   nil)))))
+        (puthash key
+                 (list stack-path stack-yaml-mod-time)
+                 intero--project-root-cache)
+        stack-path))))
+
+(defun intero-project-root ()
+  "Get the current stack config directory.
+This is the directory where the file specified in
+`intero-stack-yaml' is located, or if nil then the directory
+where stack.yaml is placed for this project, or the global one if
+no such project-specific config exists."
+  (if intero-project-root
+      intero-project-root
+    (setq intero-project-root
+          (intero--get-project-root intero-stack-yaml))))
 
 (defun intero-ghc-version ()
   "Get the GHC version used by the project."
