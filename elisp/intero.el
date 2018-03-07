@@ -2789,7 +2789,8 @@ suggestions are available."
           ;;       Try GeneralizedNewtypeDeriving for GHC's newtype-deriving extension
           ;;       In the newtype declaration for ‘X’
           (let ((start 0))
-            (while (string-match extension-regex text start)
+            (while (let ((case-fold-search nil))
+                     (string-match extension-regex text start))
               (setq note t)
               (add-to-list 'intero-suggestions
                            (list :type 'add-extension
