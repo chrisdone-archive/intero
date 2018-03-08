@@ -1112,8 +1112,8 @@ pragma is supported also."
      (list :buffer (current-buffer) :cont cont)
      (lambda (state reply)
        (if (or (string-match "^Couldn't guess" reply)
-                   (string-match "^Unable to " reply)
-                   (intero-parse-error reply))
+               (string-match "^Unable to " reply)
+               (intero-parse-error reply))
            (funcall (plist-get state :cont) (list))
          (with-current-buffer (plist-get state :buffer)
            (let ((candidates
@@ -1697,8 +1697,8 @@ path."
                       (intero-make-temp-file
                        "intero" nil
                        (concat "-TEMP." (if (buffer-file-name)
-                                       (file-name-extension (buffer-file-name))
-                                     "hs")))))
+                                            (file-name-extension (buffer-file-name))
+                                          "hs")))))
                (puthash intero-temp-file-name
                         (current-buffer)
                         intero-temp-file-buffer-mapping)
@@ -1712,8 +1712,8 @@ path."
                    (intero-make-temp-file
                     "intero" nil
                     (concat "-STAGING." (if (buffer-file-name)
-                                    (file-name-extension (buffer-file-name))
-                                  "hs"))))))
+                                            (file-name-extension (buffer-file-name))
+                                          "hs"))))))
       (with-temp-file fname
         (insert contents))
       fname)))
@@ -2784,6 +2784,42 @@ suggestions are available."
               (note nil))
           ;; Messages of this format:
           ;;
+          ;;     • Constructor ‘Assert’ does not have the required strict field(s): assertName,
+          ;; assertDoc, assertExpression,
+          ;; assertSection
+          (let ((start 0))
+            (while (or
+                    (string-match "does not have the required strict field.*?:[\n\t\r ]" text start)
+                    (string-match "Fields of .*? not initialised:[\n\t\r ]" text start))
+              (let* ((match-end (match-end 0))
+                     (fields
+                      (let ((reached-end nil))
+                        (mapcar
+                         (lambda (field)
+                           (with-temp-buffer
+                             (insert field)
+                             (goto-char (point-min))
+                             (intero-ident-at-point)))
+                         (cl-remove-if
+                          (lambda (field)
+                            (or reached-end
+                                (when (string-match "[\r\n]" field)
+                                  (setq reached-end t)
+                                  nil)))
+                          (split-string
+                           (substring text match-end)
+                           "[\n\t\r ]*,[\n\t\r ]*" t))))))
+                (setq note t)
+                (add-to-list
+                 'intero-suggestions
+                 (list :type 'add-missing-fields
+                       :fields fields
+                       :line (flycheck-error-line msg)
+                       :column (flycheck-error-column msg)))
+                (setq start (min (length text) (1+ match-end))))))
+
+          ;; Messages of this format:
+          ;;
           ;; Can't make a derived instance of ‘Functor X’:
           ;;       You need DeriveFunctor to derive an instance for this class
           ;;       Try GeneralizedNewtypeDeriving for GHC's newtype-deriving extension
@@ -3027,6 +3063,15 @@ suggestions are available."
                                         (plist-get suggestion :ident)
                                         (plist-get suggestion :module))
                          :default t))
+                  (add-missing-fields
+                   (list :key suggestion
+                         :default t
+                         :title
+                         (format "Add missing fields to record: %s"
+                                 (mapconcat (lambda (ident)
+                                              (concat "‘" ident "’"))
+                                            (plist-get suggestion :fields)
+                                            ", "))))
                   (redundant-import-item
                    (list :key suggestion
                          :title
@@ -3159,7 +3204,18 @@ suggestions are available."
                    (forward-line (1- (plist-get suggestion :line)))
                    (move-to-column (- (plist-get suggestion :column) 1))
                    (delete-char (length (plist-get suggestion :typo)))
-                   (insert (plist-get suggestion :replacement))))))
+                   (insert (plist-get suggestion :replacement))))
+                (add-missing-fields
+                 (save-excursion
+                   (goto-char (point-min))
+                   (forward-line (1- (plist-get suggestion :line)))
+                   (move-to-column (- (plist-get suggestion :column) 1))
+                   (search-forward "{")
+                   (let ((first t))
+                     (mapc (lambda (field)
+                             (insert (if first "" ", ") field " = _" )
+                             (setq first nil))
+                           (plist-get suggestion :fields)))))))
           ;; # Changes that do increase/decrease line numbers
           ;;
           ;; Remove redundant constraints
