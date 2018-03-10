@@ -3225,11 +3225,9 @@ suggestions are available."
                    (forward-line (1- (plist-get suggestion :line)))
                    (move-to-column (- (plist-get suggestion :column) 1))
                    (search-forward "{")
-                   (let ((first t))
-                     (mapc (lambda (field)
-                             (insert (if first "" ", ") field " = _" )
-                             (setq first nil))
-                           (plist-get suggestion :fields)))))))
+                   (insert (mapconcat (lambda (field) (concat field " = _"))
+                                      (plist-get suggestion :fields)
+                                      ", "))))))
           ;; # Changes that do increase/decrease line numbers
           ;;
           ;; Remove redundant constraints
