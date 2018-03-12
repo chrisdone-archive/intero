@@ -33,14 +33,14 @@ import           DynFlags
 import           GHC
 
 ghc_tyConFlavour :: TyCon -> String
-#if __GLASGOW_HASKELL__ <= 802
-ghc_tyConFlavour = tyConFlavour
-#else
-#if __GLASGOW_HASKELL__ > 800
+#if __GLASGOW_HASKELL__ > 802
 ghc_tyConFlavour n =
   if tyConFlavour n == ClassFlavour
     then "class"
     else ""
+#else
+#if __GLASGOW_HASKELL__ > 800
+ghc_tyConFlavour = tyConFlavour
 #else
 ghc_tyConFlavour _ = ""
 #endif
