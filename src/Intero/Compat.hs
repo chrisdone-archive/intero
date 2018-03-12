@@ -17,7 +17,9 @@ module Intero.Compat
   , StageReaderId
   ) where
 
+#if __GLASGOW_HASKELL__ > 800
 import           TyCoRep
+#endif
 import           TyCon
 #if __GLASGOW_HASKELL__ > 802
 import           CmdLineParser
@@ -34,10 +36,14 @@ ghc_tyConFlavour :: TyCon -> String
 #if __GLASGOW_HASKELL__ <= 802
 ghc_tyConFlavour = tyConFlavour
 #else
+#if __GLASGOW_HASKELL__ > 800
 ghc_tyConFlavour n =
   if tyConFlavour n == ClassFlavour
     then "class"
     else ""
+#else
+ghc_tyConFlavour _ = ""
+#endif
 #endif
 
 ghc_defaultDynFlags :: Settings -> DynFlags
