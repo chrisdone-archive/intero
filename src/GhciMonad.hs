@@ -382,7 +382,7 @@ printTimes dflags allocs psecs
    = do let secs = (fromIntegral psecs / (10^(12::Integer))) :: Float
             secs_str = showFFloat (Just 2) secs
         putStrLn (showSDoc dflags (
-                 parens (text (secs_str "") <+> text "secs" <> comma <+>
+                 parens (text (secs_str "") <+> text "secs" Outputable.<> comma <+>
                          text (show allocs) <+> text "bytes")))
 
 -----------------------------------------------------------------------------
