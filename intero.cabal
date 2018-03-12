@@ -85,7 +85,7 @@ executable intero
     random,
     mtl
 
-  if impl(ghc>=8.2.2)
+  if impl(ghc==8.2.2)
     other-modules:
       Completion
 
