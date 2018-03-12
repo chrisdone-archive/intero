@@ -136,8 +136,8 @@ main = do
     let flagWarnings = modeFlagWarnings
 #else
     (argv2, staticFlagWarnings) <- GHC.parseStaticFlags argv1'
-    (mode, argv3, modeFlagWarnings) <- parseModeFlags argv2 
-    let flagWarnings = staticFlagWarnings ++ modeFlagWarnings 
+    (mode, argv3, modeFlagWarnings) <- parseModeFlags argv2
+    let flagWarnings = staticFlagWarnings ++ modeFlagWarnings
 #endif
 
     -- If all we want to do is something like showing the version number
@@ -266,8 +266,8 @@ main' postLoadMode dflags0 args flagWarnings = do
         liftIO $ dumpPackages dflags6
 
 # if __GLASGOW_HASKELL__ < 802
-  when (verbosity dflags6 >= 3) $ do 
-        liftIO $ hPutStrLn stderr ("Hsc static flags: " ++ unwords staticFlags) 
+  when (verbosity dflags6 >= 3) $ do
+        liftIO $ hPutStrLn stderr ("Hsc static flags: " ++ unwords staticFlags)
 #endif
 
         ---------------- Final sanity checking -----------
@@ -777,13 +777,13 @@ showOptions = putStr (unlines availableOptions)
 #else
       availableOptions     = map ((:) '-') $
                              getFlagNames mode_flags   ++
-                             getFlagNames flagsDynamic ++ 
-                             (filterUnwantedStatic . getFlagNames $ flagsStatic) ++ 
-                             flagsStaticNames 
-      -- this is a hack to get rid of two unwanted entries that get listed 
-      -- as static flags. Hopefully this hack will disappear one day together 
-      -- with static flags 
-      filterUnwantedStatic      = filter (\x -> not (x `elem` ["f", "fno-"])) 
+                             getFlagNames flagsDynamic ++
+                             (filterUnwantedStatic . getFlagNames $ flagsStatic) ++
+                             flagsStaticNames
+      -- this is a hack to get rid of two unwanted entries that get listed
+      -- as static flags. Hopefully this hack will disappear one day together
+      -- with static flags
+      filterUnwantedStatic      = filter (\x -> not (x `elem` ["f", "fno-"]))
 #endif
       getFlagNames opts         = map getFlagName opts
 #if __GLASGOW_HASKELL__ >= 710
@@ -830,7 +830,7 @@ dumpFastStringStats dflags = do
         -- the "z-encoded" total.
   putMsg dflags msg
   where
-   x `pcntOf` y = int ((x * 100) `quot` y) <> char '%'
+   x `pcntOf` y = int ((x * 100) `quot` y) Outputable.<> char '%'
 
 countFS :: Int -> Int -> Int -> [[FastString]] -> (Int, Int, Int)
 countFS entries longest has_z [] = (entries, longest, has_z)
