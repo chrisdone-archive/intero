@@ -10,24 +10,28 @@ import           ConLike
 import           Control.Exception
 import           Control.Monad
 import qualified CoreUtils
-import           DataCon
 import           Data.Data
-import           Data.Generics (GenericQ, mkQ, extQ)
+import qualified Data.Generics
 import           Data.List
 import           Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
 import           Data.Maybe
 import           Data.Time
+import           DataCon
 import           Desugar
 import           GHC
 import           GhcMonad
 import           GhciTypes
-import           NameSet
+import           Intero.Compat
 import           Outputable
 import           Prelude hiding (mod)
 import           System.Directory
 import           TcHsSyn
 import           Var
+
+#if __GLASGOW_HASKELL__ <= 802
+import           NameSet
+#endif
 
 #if MIN_VERSION_ghc(7,8,3)
 #else
@@ -95,9 +99,9 @@ processAllTypeCheckedModule :: GhcMonad m
                             => TypecheckedModule -> m [SpanInfo]
 processAllTypeCheckedModule tcm =
   do let tcs = tm_typechecked_source tcm
-         bs = listifyAllSpans tcs :: [LHsBind Id]
-         es = listifyAllSpans tcs :: [LHsExpr Id]
-         ps = listifyAllSpans tcs :: [LPat Id]
+         bs = listifyAllSpans tcs :: [LHsBind StageReaderId]
+         es = listifyAllSpans tcs :: [LHsExpr StageReaderId]
+         ps = listifyAllSpans tcs :: [LPat StageReaderId]
      bts <- mapM (getTypeLHsBind tcm) bs
      ets <- mapM (getTypeLHsExpr tcm) es
      pts <- mapM (getTypeLPat tcm) ps
@@ -109,7 +113,7 @@ processAllTypeCheckedModule tcm =
 
 getTypeLHsBind :: (GhcMonad m)
                => TypecheckedModule
-               -> LHsBind Id
+               -> LHsBind StageReaderId
                -> m [(Maybe Id,SrcSpan,Type)]
 #if MIN_VERSION_ghc(7,8,3)
 getTypeLHsBind _ (L _spn FunBind{fun_id = pid,fun_matches = MG _ _ _typ _}) =
@@ -133,7 +137,7 @@ getTypeLHsBind _ _ = return []
 
 getTypeLHsExpr :: (GhcMonad m)
                => TypecheckedModule
-               -> LHsExpr Id
+               -> LHsExpr StageReaderId
                -> m (Maybe (Maybe Id,SrcSpan,Type))
 getTypeLHsExpr _ e =
   do hs_env <- getSession
@@ -155,7 +159,7 @@ getTypeLHsExpr _ e =
 
 -- | Get id and type for patterns.
 getTypeLPat :: (GhcMonad m)
-            => TypecheckedModule -> LPat Id -> m (Maybe (Maybe Id,SrcSpan,Type))
+            => TypecheckedModule -> LPat StageReaderId -> m (Maybe (Maybe Id,SrcSpan,Type))
 getTypeLPat _ (L spn pat) =
   return (Just (getMaybeId pat,spn,getPatType pat))
   where
@@ -177,14 +181,18 @@ listifyAllSpans tcs =
   where p (L spn _) = isGoodSrcSpan spn
 
 listifyStaged :: Typeable r
-              => Stage -> (r -> Bool) -> GenericQ [r]
+              => Stage -> (r -> Bool) -> Data.Generics.GenericQ [r]
+#if __GLASGOW_HASKELL__ <= 802
 listifyStaged s p =
   everythingStaged
     s
     (++)
     []
-    ([] `mkQ`
+    ([] `Data.Generics.mkQ`
      (\x -> [x | p x]))
+#else
+listifyStaged _ p = Data.Generics.listify p
+#endif
 
 ------------------------------------------------------------------------------
 -- The following was taken from 'ghc-syb-utils'
@@ -203,9 +211,10 @@ data Stage
 
 -- | Like 'everything', but avoid known potholes, based on the 'Stage' that
 --   generated the Ast.
-everythingStaged :: Stage -> (r -> r -> r) -> r -> GenericQ r -> GenericQ r
+#if __GLASGOW_HASKELL__ <= 802
+everythingStaged :: Stage -> (r -> r -> r) -> r -> Data.Generics.GenericQ r -> Data.Generics.GenericQ r
 everythingStaged stage k z f x
-  | (const False `extQ` postTcType `extQ` fixity `extQ` nameSet) x = z
+  | (const False `Data.Generics.extQ` postTcType `Data.Generics.extQ` fixity `Data.Generics.extQ` nameSet) x = z
   | otherwise = foldl k (f x) (gmapQ (everythingStaged stage k z f) x)
   where nameSet    = const (stage `elem` [Parser,TypeChecker]) :: NameSet -> Bool
 #if __GLASGOW_HASKELL__ >= 709
@@ -214,6 +223,8 @@ everythingStaged stage k z f x
         postTcType = const (stage<TypeChecker)                 :: PostTcType -> Bool
 #endif
         fixity     = const (stage<Renamer)                     :: GHC.Fixity -> Bool
+#endif
+
 
 -- | Pretty print the types into a 'SpanInfo'.
 toSpanInfo :: (Maybe Id,SrcSpan,Type) -> Maybe SpanInfo

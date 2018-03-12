@@ -26,7 +26,9 @@ module InteractiveUI (
 
 #include "HsVersions.h"
 
+
 -- Intero
+import Intero.Compat
 #if __GLASGOW_HASKELL__ >= 800
 import           GHCi
 import           GHCi.RemoteTypes
@@ -40,7 +42,6 @@ import qualified Data.Map as M
 import           GhciInfo
 import           GhciTypes
 import           GhciFind
-import           GHC (getModuleGraph)
 
 -- GHCi
 #if __GLASGOW_HASKELL__ >= 800
@@ -51,7 +52,7 @@ import qualified GhciMonad ( args, runStmt )
 import           GhciMonad hiding ( args, runStmt )
 import           GhciTags
 import           Debugger
-#if __GLASGOW_HASKELL__ == 802
+#if __GLASGOW_HASKELL__ >= 802
 import qualified Completion
 #endif
 
@@ -303,7 +304,7 @@ ghciCommands = [
   where lifted m = \str -> lift (m stdout str)
 
 fillCmd :: Handle -> String -> GHCi ()
-#if __GLASGOW_HASKELL__ == 802
+#if __GLASGOW_HASKELL__ >= 802
 fillCmd h =
   withFillInput
     (\fp line col -> do
@@ -1463,7 +1464,7 @@ info allInfo s  = handleSourceError GHC.printException $ do
 infoThing :: GHC.GhcMonad m => Bool -> String -> m SDoc
 infoThing allInfo str = do
     names     <- GHC.parseName str
-    mb_stuffs <- mapM (GHC.getInfo allInfo) names
+    mb_stuffs <- mapM (ghc_getInfo allInfo) names
     let filtered = filterOutChildren (\(t,_f,_ci,_fi) -> t) (catMaybes mb_stuffs)
     return $ vcat (intersperse (text "") $ map pprInfo filtered)
 
@@ -1557,7 +1558,7 @@ changeDirectory [] = do
      Left _e -> return ()
      Right dir -> changeDirectory [dir]
 changeDirectory (dir:_) = do
-  graph <- GHC.getModuleGraph
+  graph <- ghc_getModuleGraph
   when (not (null graph)) $
         liftIO $ putStrLn "Warning: changing directory causes all loaded modules to be unloaded,\nbecause the search path has changed."
   GHC.setTargets []
@@ -1619,9 +1620,9 @@ chooseEditFile :: GHCi String
 chooseEditFile =
   do let hasFailed x = fmap not $ GHC.isLoaded $ GHC.ms_mod_name x
 
-     graph <- GHC.getModuleGraph
+     graph <- ghc_getModuleGraph
      failed_graph <- filterM hasFailed graph
-     let order g  = flattenSCCs $ GHC.topSortModuleGraph True g Nothing
+     let order g  = flattenSCCs $ ghc_topSortModuleGraph True g Nothing
          pick xs  = case xs of
                       x : _ -> GHC.ml_hs_file (GHC.ms_location x)
                       _     -> Nothing
@@ -1809,7 +1810,7 @@ doLoad retain_context howmuch = do
   case wasok of
     Succeeded -> do
       names <- GHC.getRdrNamesInScope
-      loaded <- getModuleGraph >>= filterM GHC.isLoaded . map GHC.ms_mod_name
+      loaded <- ghc_getModuleGraph >>= filterM GHC.isLoaded . map GHC.ms_mod_name
       v <- lift (fmap mod_infos getGHCiState)
       !newInfos <- collectInfo v loaded
       lift (modifyGHCiState (\s -> s { mod_infos = newInfos, rdrNamesInScope = names }))
@@ -1837,7 +1838,7 @@ setContextAfterLoad keep_ctxt ms = do
   targets <- GHC.getTargets
   case [ m | Just m <- map (findTarget ms) targets ] of
         []    ->
-          let graph' = flattenSCCs (GHC.topSortModuleGraph True ms Nothing) in
+          let graph' = flattenSCCs (ghc_topSortModuleGraph True ms Nothing) in
           load_this (last graph')
         (m:_) ->
           load_this m
@@ -2714,7 +2715,7 @@ showDynFlags show_all dflags = do
           where is_on = test f dflags
                 quiet = not show_all && test f default_dflags == is_on
 
-        default_dflags = defaultDynFlags (settings dflags)
+        default_dflags = ghc_defaultDynFlags (settings dflags)
 
         fstr   str = text "-f"    Outputable.<> text str
         fnostr str = text "-fno-" Outputable.<> text str
@@ -2987,7 +2988,7 @@ showModules = do
 
 getLoadedModules :: GHC.GhcMonad m => m [GHC.ModSummary]
 getLoadedModules = do
-  graph <- GHC.getModuleGraph
+  graph <- ghc_getModuleGraph
   filterM (GHC.isLoaded . GHC.ms_mod_name) graph
 
 showBindings :: GHCi ()
@@ -3002,7 +3003,7 @@ showBindings = do
   where
     makeDoc (AnId i) = pprTypeAndContents i
     makeDoc tt = do
-        mb_stuff <- GHC.getInfo False (getName tt)
+        mb_stuff <- ghc_getInfo False (getName tt)
         return $ maybe (text "") pprTT mb_stuff
 
     pprTT :: (TyThing, Fixity, [GHC.ClsInst], [GHC.FamInst]) -> SDoc
@@ -3109,7 +3110,7 @@ showLanguages' show_all dflags =
                 quiet = not show_all && test f default_dflags == is_on
 
    default_dflags =
-       defaultDynFlags (settings dflags) `lang_set`
+       ghc_defaultDynFlags (settings dflags) `lang_set`
          case language dflags of
            Nothing -> Just Haskell2010
            other   -> other
@@ -3223,7 +3224,7 @@ completeHomeModule = wrapIdentCompleter listHomeModules
 
 listHomeModules :: String -> GHCi [String]
 listHomeModules w = do
-    g <- GHC.getModuleGraph
+    g <- ghc_getModuleGraph
     let home_mods = map GHC.ms_mod_name g
     dflags <- getDynFlags
     return $ sort $ filter (w `isPrefixOf`)
@@ -3679,7 +3680,7 @@ list2  _other =
 
 listModuleLine :: Module -> Int -> InputT GHCi ()
 listModuleLine modl line = do
-   graph <- GHC.getModuleGraph
+   graph <- ghc_getModuleGraph
    let this = filter ((== modl) . GHC.ms_mod) graph
    case this of
      [] -> panic "listModuleLine"

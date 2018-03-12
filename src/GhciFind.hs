@@ -9,8 +9,9 @@ module GhciFind
   (findType,FindType(..),findLoc,findNameUses,findCompletions,guessModule)
   where
 
+import           Intero.Compat
 #if __GLASGOW_HASKELL__ >= 800
-import Module
+import           Module
 #endif
 import           Control.Exception
 #if __GLASGOW_HASKELL__ < 710
@@ -374,7 +375,7 @@ findType infos fp string sl sc el ec =
                         Just name ->
                           case find (reliableNameEquality name) names of
                             Just nameWithBetterType ->
-                              do result <- getInfo True nameWithBetterType
+                              do result <- ghc_getInfo True nameWithBetterType
                                  case result of
                                    Just (thing,_,_,_) ->
                                      return (FindTyThing minfo thing)

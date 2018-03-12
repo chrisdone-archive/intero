@@ -25,6 +25,7 @@ import qualified Paths_intero
 
 -- ghci-ng
 import qualified GHC.Paths
+import Intero.Compat
 
 -- Implementations of the various modes (--show-iface, mkdependHS. etc.)
 import           LoadIface ( showIface )
@@ -225,7 +226,7 @@ main' postLoadMode dflags0 args flagWarnings = do
 
   GHC.prettyPrintGhcErrors dflags4 $ do
 
-  let flagWarnings' = flagWarnings ++ dynamicFlagWarnings
+  let flagWarnings' = (map ghc_mkWarn flagWarnings) ++ dynamicFlagWarnings
 
   handleSourceError (\e -> do
        GHC.printException e
@@ -561,14 +562,14 @@ parseModeFlags args = do
       mode = case mModeFlag of
              Nothing     -> doMakeMode
              Just (m, _) -> m
-      errs = errs1 ++ map (mkGeneralLocated "on the commandline") errs2
+      errs = errs1 ++ map ghc_mkErr (map (mkGeneralLocated "on the commandline") errs2)
   when (not (null errs)) $ throwGhcException
 #if __GLASGOW_HASKELL__ < 709
                              $ errorsToGhcException errs
 #else
-                             $ errorsToGhcException $ map (\(L sp e) -> (show sp, e)) errs
+                             $ errorsToGhcException $ map (\(L sp e) -> (show sp, e)) (map ghc_errMsg errs)
 #endif
-  return (mode, flags' ++ leftover, warns)
+  return (mode, flags' ++ leftover, map ghc_warnMsg warns)
 
 type ModeM = CmdLineP (Maybe (Mode, String), [String], [Located String])
   -- mode flags sometimes give rise to new DynFlags (eg. -C, see below)
