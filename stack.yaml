@@ -6,3 +6,35 @@ flags: {}
 extra-package-dbs: []
 nix:
   packages: [ ncurses clang ]
+
+
+setup-info:
+  ghc:
+    windows32:
+      8.4.1:
+        url: https://downloads.haskell.org/~ghc/8.4.1/ghc-8.4.1-i386-unknown-mingw32.tar.xz
+        sha256: c543330f9c89f670682541e0ed24e5ec38c53ddffda48367c6e1364367045b0d
+    linux64-nopie:
+      8.4.1:
+        url: https://downloads.haskell.org/~ghc/8.4.1/ghc-8.4.1-x86_64-deb8-linux.tar.xz
+        sha256: 427c77a934b30c3f1de992c38c072afb4323fe6fb30dbac919ca8cb6ae98fbd9
+    linux32-nopie:
+      8.4.1:
+        url: https://downloads.haskell.org/~ghc/8.4.1/ghc-8.4.1-i386-deb8-linux.tar.xz
+        sha256: c56c589c76c7ddcb77cdbef885a811761e669d3e76868b723d5be56dedcd4f69
+    linux64-tinfo:
+      8.4.1:
+        url: https://downloads.haskell.org/~ghc/8.4.1/ghc-8.4.1-x86_64-fedora27-linux.tar.xz
+        sha256: 89328a013e64b9b56825a9071fea5616ddd623d37fd41e8fb913dfebc609e7ea
+    linux64-tinfo-nopie:
+      8.4.1:
+        url: https://downloads.haskell.org/~ghc/8.4.1/ghc-8.4.1-x86_64-fedora27-linux.tar.xz
+        sha256: 89328a013e64b9b56825a9071fea5616ddd623d37fd41e8fb913dfebc609e7ea
+    windows64:
+      8.4.1:
+        url: https://downloads.haskell.org/~ghc/8.4.1/ghc-8.4.1-x86_64-unknown-mingw32.tar.xz
+        sha256: 328b013fc651d34e075019107e58bb6c8a578f0155cf3ad4557e6f2661b03131
+    macosx:
+      8.4.1:
+        url: https://downloads.haskell.org/~ghc/8.4.1/ghc-8.4.1-x86_64-apple-darwin.tar.xz
+        sha256: d774e39f3a0105843efd06709b214ee332c30203e6c5902dd6ed45e36285f9b7

@@ -25,6 +25,7 @@ import qualified Paths_intero
 
 -- ghci-ng
 import qualified GHC.Paths
+import Intero.Compat
 
 -- Implementations of the various modes (--show-iface, mkdependHS. etc.)
 import           LoadIface ( showIface )
@@ -136,8 +137,8 @@ main = do
     let flagWarnings = modeFlagWarnings
 #else
     (argv2, staticFlagWarnings) <- GHC.parseStaticFlags argv1'
-    (mode, argv3, modeFlagWarnings) <- parseModeFlags argv2 
-    let flagWarnings = staticFlagWarnings ++ modeFlagWarnings 
+    (mode, argv3, modeFlagWarnings) <- parseModeFlags argv2
+    let flagWarnings = staticFlagWarnings ++ modeFlagWarnings
 #endif
 
     -- If all we want to do is something like showing the version number
@@ -225,7 +226,7 @@ main' postLoadMode dflags0 args flagWarnings = do
 
   GHC.prettyPrintGhcErrors dflags4 $ do
 
-  let flagWarnings' = flagWarnings ++ dynamicFlagWarnings
+  let flagWarnings' = (map ghc_mkWarn flagWarnings) ++ dynamicFlagWarnings
 
   handleSourceError (\e -> do
        GHC.printException e
@@ -266,8 +267,8 @@ main' postLoadMode dflags0 args flagWarnings = do
         liftIO $ dumpPackages dflags6
 
 # if __GLASGOW_HASKELL__ < 802
-  when (verbosity dflags6 >= 3) $ do 
-        liftIO $ hPutStrLn stderr ("Hsc static flags: " ++ unwords staticFlags) 
+  when (verbosity dflags6 >= 3) $ do
+        liftIO $ hPutStrLn stderr ("Hsc static flags: " ++ unwords staticFlags)
 #endif
 
         ---------------- Final sanity checking -----------
@@ -561,14 +562,14 @@ parseModeFlags args = do
       mode = case mModeFlag of
              Nothing     -> doMakeMode
              Just (m, _) -> m
-      errs = errs1 ++ map (mkGeneralLocated "on the commandline") errs2
+      errs = errs1 ++ map ghc_mkErr (map (mkGeneralLocated "on the commandline") errs2)
   when (not (null errs)) $ throwGhcException
 #if __GLASGOW_HASKELL__ < 709
                              $ errorsToGhcException errs
 #else
-                             $ errorsToGhcException $ map (\(L sp e) -> (show sp, e)) errs
+                             $ errorsToGhcException $ map (\(L sp e) -> (show sp, e)) (map ghc_errMsg errs)
 #endif
-  return (mode, flags' ++ leftover, warns)
+  return (mode, flags' ++ leftover, map ghc_warnMsg warns)
 
 type ModeM = CmdLineP (Maybe (Mode, String), [String], [Located String])
   -- mode flags sometimes give rise to new DynFlags (eg. -C, see below)
@@ -777,13 +778,13 @@ showOptions = putStr (unlines availableOptions)
 #else
       availableOptions     = map ((:) '-') $
                              getFlagNames mode_flags   ++
-                             getFlagNames flagsDynamic ++ 
-                             (filterUnwantedStatic . getFlagNames $ flagsStatic) ++ 
-                             flagsStaticNames 
-      -- this is a hack to get rid of two unwanted entries that get listed 
-      -- as static flags. Hopefully this hack will disappear one day together 
-      -- with static flags 
-      filterUnwantedStatic      = filter (\x -> not (x `elem` ["f", "fno-"])) 
+                             getFlagNames flagsDynamic ++
+                             (filterUnwantedStatic . getFlagNames $ flagsStatic) ++
+                             flagsStaticNames
+      -- this is a hack to get rid of two unwanted entries that get listed
+      -- as static flags. Hopefully this hack will disappear one day together
+      -- with static flags
+      filterUnwantedStatic      = filter (\x -> not (x `elem` ["f", "fno-"]))
 #endif
       getFlagNames opts         = map getFlagName opts
 #if __GLASGOW_HASKELL__ >= 710
@@ -830,7 +831,7 @@ dumpFastStringStats dflags = do
         -- the "z-encoded" total.
   putMsg dflags msg
   where
-   x `pcntOf` y = int ((x * 100) `quot` y) <> char '%'
+   x `pcntOf` y = int ((x * 100) `quot` y) Outputable.<> char '%'
 
 countFS :: Int -> Int -> Int -> [[FastString]] -> (Int, Int, Int)
 countFS entries longest has_z [] = (entries, longest, has_z)

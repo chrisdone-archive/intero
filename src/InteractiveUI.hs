@@ -26,7 +26,9 @@ module InteractiveUI (
 
 #include "HsVersions.h"
 
+
 -- Intero
+import Intero.Compat
 #if __GLASGOW_HASKELL__ >= 800
 import           GHCi
 import           GHCi.RemoteTypes
@@ -40,7 +42,6 @@ import qualified Data.Map as M
 import           GhciInfo
 import           GhciTypes
 import           GhciFind
-import           GHC (getModuleGraph)
 
 -- GHCi
 #if __GLASGOW_HASKELL__ >= 800
@@ -943,19 +944,19 @@ mkPrompt = do
             r:_ -> do
                 let ix = GHC.resumeHistoryIx r
                 if ix == 0
-                   then return (brackets (ppr (GHC.resumeSpan r)) <> space)
+                   then return (brackets (ppr (GHC.resumeSpan r)) Outputable.<> space)
                    else do
                         let hist = GHC.resumeHistory r !! (ix-1)
                         pan <- GHC.getHistorySpan hist
-                        return (brackets (ppr (negate ix) <> char ':'
-                                          <+> ppr pan) <> space)
+                        return (brackets (ppr (negate ix) Outputable.<> char ':'
+                                          <+> ppr pan) Outputable.<> space)
   let
         dots | _:rs <- resumes, not (null rs) = text "... "
              | otherwise = empty
 
         rev_imports = reverse imports -- rightmost are the most recent
         modules_bit =
-             hsep [ char '*' <> ppr m | IIModule m <- rev_imports ] <+>
+             hsep [ char '*' Outputable.<> ppr m | IIModule m <- rev_imports ] <+>
              hsep (map ppr [ myIdeclName d | IIDecl d <- rev_imports ])
 
          --  use the 'as' name if there is one
@@ -966,12 +967,12 @@ mkPrompt = do
                       | otherwise           = unLoc (ideclName d)
 #endif
 
-        deflt_prompt = dots <> context_bit <> modules_bit
+        deflt_prompt = dots Outputable.<> context_bit Outputable.<> modules_bit
 
-        f ('%':'l':xs) = ppr (1 + line_number st) <> f xs
-        f ('%':'s':xs) = deflt_prompt <> f xs
-        f ('%':'%':xs) = char '%' <> f xs
-        f (x:xs) = char x <> f xs
+        f ('%':'l':xs) = ppr (1 + line_number st) Outputable.<> f xs
+        f ('%':'s':xs) = deflt_prompt Outputable.<> f xs
+        f ('%':'%':xs) = char '%' Outputable.<> f xs
+        f (x:xs) = char x Outputable.<> f xs
         f [] = empty
 
   dflags <- getDynFlags
@@ -1463,7 +1464,7 @@ info allInfo s  = handleSourceError GHC.printException $ do
 infoThing :: GHC.GhcMonad m => Bool -> String -> m SDoc
 infoThing allInfo str = do
     names     <- GHC.parseName str
-    mb_stuffs <- mapM (GHC.getInfo allInfo) names
+    mb_stuffs <- mapM (ghc_getInfo allInfo) names
     let filtered = filterOutChildren (\(t,_f,_ci,_fi) -> t) (catMaybes mb_stuffs)
     return $ vcat (intersperse (text "") $ map pprInfo filtered)
 
@@ -1557,7 +1558,7 @@ changeDirectory [] = do
      Left _e -> return ()
      Right dir -> changeDirectory [dir]
 changeDirectory (dir:_) = do
-  graph <- GHC.getModuleGraph
+  graph <- ghc_getModuleGraph
   when (not (null graph)) $
         liftIO $ putStrLn "Warning: changing directory causes all loaded modules to be unloaded,\nbecause the search path has changed."
   GHC.setTargets []
@@ -1619,9 +1620,9 @@ chooseEditFile :: GHCi String
 chooseEditFile =
   do let hasFailed x = fmap not $ GHC.isLoaded $ GHC.ms_mod_name x
 
-     graph <- GHC.getModuleGraph
+     graph <- ghc_getModuleGraph
      failed_graph <- filterM hasFailed graph
-     let order g  = flattenSCCs $ GHC.topSortModuleGraph True g Nothing
+     let order g  = flattenSCCs $ ghc_topSortModuleGraph True g Nothing
          pick xs  = case xs of
                       x : _ -> GHC.ml_hs_file (GHC.ms_location x)
                       _     -> Nothing
@@ -1809,7 +1810,7 @@ doLoad retain_context howmuch = do
   case wasok of
     Succeeded -> do
       names <- GHC.getRdrNamesInScope
-      loaded <- getModuleGraph >>= filterM GHC.isLoaded . map GHC.ms_mod_name
+      loaded <- ghc_getModuleGraph >>= filterM GHC.isLoaded . map GHC.ms_mod_name
       v <- lift (fmap mod_infos getGHCiState)
       !newInfos <- collectInfo v loaded
       lift (modifyGHCiState (\s -> s { mod_infos = newInfos, rdrNamesInScope = names }))
@@ -1837,7 +1838,7 @@ setContextAfterLoad keep_ctxt ms = do
   targets <- GHC.getTargets
   case [ m | Just m <- map (findTarget ms) targets ] of
         []    ->
-          let graph' = flattenSCCs (GHC.topSortModuleGraph True ms Nothing) in
+          let graph' = flattenSCCs (ghc_topSortModuleGraph True ms Nothing) in
           load_this (last graph')
         (m:_) ->
           load_this m
@@ -1917,12 +1918,12 @@ modulesLoadedMsg ok mods = do
   let mod_commas
         | null mods = text "none."
         | otherwise = hsep (
-            punctuate comma (map ppr mods)) <> text "."
+            punctuate comma (map ppr mods)) Outputable.<> text "."
       status = case ok of
                    Failed    -> text "Failed"
                    Succeeded -> text "Ok"
 
-      msg = status <> text ", modules loaded:" <+> mod_commas
+      msg = status Outputable.<> text ", modules loaded:" <+> mod_commas
 
   when (verbosity dflags > 0) $
      liftIO $ putStrLn $ showSDocForUser dflags unqual msg
@@ -2682,10 +2683,10 @@ showOptions show_all
        dflags <- getDynFlags
        let opts = options st
        liftIO $ putStrLn (showSDoc dflags (
-              text "options currently set: " <>
+              text "options currently set: " Outputable.<>
               if null opts
                    then text "none."
-                   else hsep (map (\o -> char '+' <> text (optToStr o)) opts)
+                   else hsep (map (\o -> char '+' Outputable.<> text (optToStr o)) opts)
            ))
        getDynFlags >>= liftIO . showDynFlags show_all
 
@@ -2714,10 +2715,10 @@ showDynFlags show_all dflags = do
           where is_on = test f dflags
                 quiet = not show_all && test f default_dflags == is_on
 
-        default_dflags = defaultDynFlags (settings dflags)
+        default_dflags = ghc_defaultDynFlags (settings dflags)
 
-        fstr   str = text "-f"    <> text str
-        fnostr str = text "-fno-" <> text str
+        fstr   str = text "-f"    Outputable.<> text str
+        fnostr str = text "-fno-" Outputable.<> text str
 
 #if __GLASGOW_HASKELL__ < 709
         (ghciFlags,others)  = partition (\(_, f, _) -> f `elem` flgs)
@@ -2987,7 +2988,7 @@ showModules = do
 
 getLoadedModules :: GHC.GhcMonad m => m [GHC.ModSummary]
 getLoadedModules = do
-  graph <- GHC.getModuleGraph
+  graph <- ghc_getModuleGraph
   filterM (GHC.isLoaded . GHC.ms_mod_name) graph
 
 showBindings :: GHCi ()
@@ -3002,7 +3003,7 @@ showBindings = do
   where
     makeDoc (AnId i) = pprTypeAndContents i
     makeDoc tt = do
-        mb_stuff <- GHC.getInfo False (getName tt)
+        mb_stuff <- ghc_getInfo False (getName tt)
         return $ maybe (text "") pprTT mb_stuff
 
     pprTT :: (TyThing, Fixity, [GHC.ClsInst], [GHC.FamInst]) -> SDoc
@@ -3029,7 +3030,7 @@ showContext = do
    printForUser stdout $ vcat (map pp_resume (reverse resumes))
   where
    pp_resume res =
-        ptext (sLit "--> ") <> text (GHC.resumeStmt res)
+        ptext (sLit "--> ") Outputable.<> text (GHC.resumeStmt res)
         $$ nest 2 (ptext (sLit "Stopped at") <+> ppr (GHC.resumeSpan res))
 
 showPackages :: GHCi ()
@@ -3087,7 +3088,7 @@ showiLanguages = GHC.getInteractiveDynFlags >>= liftIO . showLanguages' False
 showLanguages' :: Bool -> DynFlags -> IO ()
 showLanguages' show_all dflags =
   putStrLn $ showSDoc dflags $ vcat
-     [ text "base language is: " <>
+     [ text "base language is: " Outputable.<>
          case language dflags of
            Nothing          -> text "Haskell2010"
            Just Haskell98   -> text "Haskell98"
@@ -3103,13 +3104,13 @@ showLanguages' show_all dflags =
    setting test (FlagSpec str f _ _)
 #endif
           | quiet     = empty
-          | is_on     = text "-X" <> text str
-          | otherwise = text "-XNo" <> text str
+          | is_on     = text "-X" Outputable.<> text str
+          | otherwise = text "-XNo" Outputable.<> text str
           where is_on = test f dflags
                 quiet = not show_all && test f default_dflags == is_on
 
    default_dflags =
-       defaultDynFlags (settings dflags) `lang_set`
+       ghc_defaultDynFlags (settings dflags) `lang_set`
          case language dflags of
            Nothing -> Just Haskell2010
            other   -> other
@@ -3223,7 +3224,7 @@ completeHomeModule = wrapIdentCompleter listHomeModules
 
 listHomeModules :: String -> GHCi [String]
 listHomeModules w = do
-    g <- GHC.getModuleGraph
+    g <- ghc_getModuleGraph
     let home_mods = map GHC.ms_mod_name g
     dflags <- getDynFlags
     return $ sort $ filter (w `isPrefixOf`)
@@ -3439,7 +3440,7 @@ historyCmd arg
                  liftIO $ putStrLn $ if null rest then "<end of history>" else "..."
 
 bold :: SDoc -> SDoc
-bold c | do_bold   = text start_bold <> c <> text end_bold
+bold c | do_bold   = text start_bold Outputable.<> c Outputable.<> text end_bold
        | otherwise = c
 
 backCmd :: String -> GHCi ()
@@ -3500,10 +3501,10 @@ breakSwitch (arg1:rest)
                                           (GHC.srcLocLine l,
                                            GHC.srcLocCol l)
             UnhelpfulLoc _ ->
-                noCanDo name $ text "can't find its location: " <> ppr loc
+                noCanDo name $ text "can't find its location: " Outputable.<> ppr loc
        where
           noCanDo n why = printForUser stdout $
-                text "cannot set breakpoint on " <> ppr n <> text ": " <> why
+                text "cannot set breakpoint on " Outputable.<> ppr n Outputable.<> text ": " Outputable.<> why
 
 breakByModule :: Module -> [String] -> GHCi ()
 breakByModule md (arg1:rest)
@@ -3541,10 +3542,10 @@ findBreakAndSet md lookupTickTree = do
                              , onBreakCmd = ""
                              }
                printForUser stdout $
-                  text "Breakpoint " <> ppr nm <>
+                  text "Breakpoint " Outputable.<> ppr nm Outputable.<>
                   if alreadySet
-                     then text " was already set at " <> ppr pan
-                     else text " activated at " <> ppr pan
+                     then text " was already set at " Outputable.<> ppr pan
+                     else text " activated at " Outputable.<> ppr pan
             else do
             printForUser stdout $ text "Breakpoint could not be activated at"
                                         <+> ppr pan
@@ -3669,17 +3670,17 @@ list2 [arg] = do
                     Just (_, UnhelpfulSpan _) -> panic "list2 UnhelpfulSpan"
                     Just (_, RealSrcSpan pan) -> listAround pan False
             UnhelpfulLoc _ ->
-                  noCanDo name $ text "can't find its location: " <>
+                  noCanDo name $ text "can't find its location: " Outputable.<>
                                  ppr loc
     where
         noCanDo n why = printForUser stdout $
-            text "cannot list source code for " <> ppr n <> text ": " <> why
+            text "cannot list source code for " Outputable.<> ppr n Outputable.<> text ": " Outputable.<> why
 list2  _other =
         liftIO $ putStrLn "syntax:  :list [<line> | <module> <line> | <identifier>]"
 
 listModuleLine :: Module -> Int -> InputT GHCi ()
 listModuleLine modl line = do
-   graph <- GHC.getModuleGraph
+   graph <- ghc_getModuleGraph
    let this = filter ((== modl) . GHC.ms_mod) graph
    case this of
      [] -> panic "listModuleLine"
@@ -3965,12 +3966,12 @@ wantNameFromInterpretedModule noCanDo str and_then =
       (n:_) -> do
             let modl = ASSERT( isExternalName n ) GHC.nameModule n
             if not (GHC.isExternalName n)
-               then noCanDo n $ ppr n <>
+               then noCanDo n $ ppr n Outputable.<>
                                 text " is not defined in an interpreted module"
                else do
             is_interpreted <- GHC.moduleIsInterpreted modl
             if not is_interpreted
-               then noCanDo n $ text "module " <> ppr modl <>
+               then noCanDo n $ text "module " Outputable.<> ppr modl Outputable.<>
                                 text " is not interpreted"
                else and_then n
 

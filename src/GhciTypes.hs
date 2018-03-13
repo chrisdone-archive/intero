@@ -4,6 +4,7 @@ module GhciTypes where
 
 import Data.Time
 import GHC
+import Intero.Compat
 import Outputable
 
 -- | Info about a module. This information is generated every time a
@@ -21,7 +22,7 @@ data ModInfo =
            -- (exports, instances, scope) from a module.
           ,modinfoLastUpdate :: !UTCTime
            -- ^ Last time the module was updated.
-          ,modinfoImports :: ![LImportDecl Name]
+          ,modinfoImports :: ![LImportDecl StageReaderName]
            -- ^ Import declarations within this module.
           ,modinfoLocation :: !SrcSpan
            -- ^ The location of the module
@@ -49,14 +50,14 @@ data SpanInfo =
 
 instance Outputable SpanInfo where
   ppr (SpanInfo sl sc el ec ty v) =
-    (int sl <>
-     text ":" <>
-     int sc <>
-     text "-") <>
-    (int el <>
-     text ":" <>
-     int ec <>
-     text ": ") <>
-    (ppr v <>
-     text " :: " <>
+    (int sl Outputable.<>
+     text ":" Outputable.<>
+     int sc Outputable.<>
+     text "-") Outputable.<>
+    (int el Outputable.<>
+     text ":" Outputable.<>
+     int ec Outputable.<>
+     text ": ") Outputable.<>
+    (ppr v Outputable.<>
+     text " :: " Outputable.<>
      ppr ty)

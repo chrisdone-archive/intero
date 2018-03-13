@@ -16,6 +16,7 @@ module GhciTags (
 import Exception
 import GHC
 import GhciMonad
+import Intero.Compat
 import Outputable
 
 -- ToDo: figure out whether we need these, and put something appropriate
@@ -59,7 +60,7 @@ ghciCreateTagsFile :: TagsKind -> FilePath -> GHCi ()
 ghciCreateTagsFile kind file = do
   createTagsFile kind file
 
--- ToDo: 
+-- ToDo:
 --      - remove restriction that all modules must be interpreted
 --        (problem: we don't know source locations for entities unless
 --        we compiled the module.
@@ -69,7 +70,7 @@ ghciCreateTagsFile kind file = do
 --
 createTagsFile :: TagsKind -> FilePath -> GHCi ()
 createTagsFile tagskind tagsFile = do
-  graph <- GHC.getModuleGraph
+  graph <- ghc_getModuleGraph
   mtags <- mapM listModuleTags (map GHC.ms_mod graph)
   either_res <- liftIO $ collateAndWriteTags tagskind tagsFile $ concat mtags
   case either_res of
@@ -203,4 +204,3 @@ showETag TagInfo{ tagName = tag, tagLine = lineNo, tagCol = colNo,
     ++ "\x01" ++ show lineNo
     ++ "," ++ show charPos
 showETag _ = throwGhcException (CmdLineError "missing source file info in showETag")
-

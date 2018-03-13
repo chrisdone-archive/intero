@@ -9,5 +9,6 @@ language: bash
 before_install:
   - if [[ $TRAVIS_OS_NAME == 'linux' ]]; then sudo apt-get update; fi
   - if [[ $TRAVIS_OS_NAME == 'linux' ]]; then sudo apt-get install -yq --no-install-suggests --no-install-recommends --force-yes -y netbase git ca-certificates xz-utils build-essential curl; fi
+  - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then brew install xz; fi
   - curl -sSL https://get.haskellstack.org/ | sh
   - time sh test/test-ghcs
