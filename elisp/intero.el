@@ -3220,6 +3220,8 @@ suggestions are available."
                    (forward-line (1- (plist-get suggestion :line)))
                    (move-to-column (- (plist-get suggestion :column) 1))
                    (search-forward "{")
+                   (unless (looking-at "}")
+                     (save-excursion (insert ", ")))
                    (insert (mapconcat (lambda (field) (concat field " = _"))
                                       (plist-get suggestion :fields)
                                       ", "))))))
