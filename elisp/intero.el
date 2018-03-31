@@ -546,7 +546,7 @@ If the problem persists, please report this as a bug!")))
     (intero-with-dump-splices
      (let* ((output (intero-blocking-call
                      'backend
-                     (concat ":load " (intero-localize-path (intero-temp-file-name)))))
+                     (concat ":load " (intero-path-for-ghci (intero-temp-file-name)))))
             (msgs (intero-parse-errors-warnings-splices nil (current-buffer) output))
             (line (line-number-at-pos))
             (column (if (save-excursion
@@ -699,22 +699,13 @@ running context across :load/:reloads in Intero."
                       cont
                       'interrupted)
     (let* ((file-buffer (current-buffer))
-           (staging-file (intero-localize-path (intero-staging-file-name)))
-           (temp-file (intero-localize-path (intero-temp-file-name))))
+           (staging-file (intero-path-for-ghci (intero-staging-file-name)))
+           (temp-file (intero-path-for-ghci (intero-temp-file-name))))
       ;; We queue up to :move the staging file to the target temp
       ;; file, which also updates its modified time.
       (intero-async-call
        'backend
-       (format ":move \"%s\" \"%s\""
-               ;; TODO: This is a temporary fix. I don't want to use
-               ;; %S as that may escape things that Haskell doesn't
-               ;; consider escapable; Intero's function reads with
-               ;; 'read' (not my implementation!). Instead, I should
-               ;; implement an alternative reading function for Intero
-               ;; which would consume only "strings" and treat any
-               ;; non-double-quote characters as-is.
-               (replace-regexp-in-string "\\\\" "\\\\\\\\" staging-file)
-               (replace-regexp-in-string "\\\\" "\\\\\\\\" temp-file)))
+       (format ":move %s %s" staging-file temp-file))
       ;; We load up the target temp file, which has only been updated
       ;; by the copy above.
       (intero-async-call
@@ -1109,8 +1100,8 @@ pragma is supported also."
     (intero-async-call
      'backend
      (format
-      ":fill %S %d %d"
-      (intero-localize-path (intero-temp-file-name))
+      ":fill %s %d %d"
+      (intero-path-for-ghci (intero-temp-file-name))
       (save-excursion (goto-char beg)
                       (line-number-at-pos))
       (save-excursion (goto-char beg)
@@ -1250,7 +1241,7 @@ be activated after evaluation.  PROMPT-OPTIONS are passed to
 If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (interactive "P")
   (save-buffer)
-  (let ((file (intero-localize-path (intero-buffer-file-name))))
+  (let ((file (intero-path-for-ghci (intero-buffer-file-name))))
     (intero-with-repl-buffer prompt-options
       (comint-simple-send
        (get-buffer-process (current-buffer))
@@ -1721,6 +1712,14 @@ path."
         (insert contents))
       fname)))
 
+(defun intero-quote-path-for-ghci (path)
+  "Quote PATH as necessary so that it can be passed to a GHCi :command."
+  (concat "\"" (replace-regexp-in-string "\\([\\\"]\\)" "\\\\\\1" path nil nil) "\""))
+
+(defun intero-path-for-ghci (path)
+  "Turn a possibly-remote PATH into one that can be passed to a GHCi :command."
+  (intero-quote-path-for-ghci (intero-localize-path path)))
+
 (defun intero-localize-path (path)
   "Turn a possibly-remote PATH to a purely local one.
 This is used to create paths which a remote intero process can load."
@@ -1795,8 +1794,8 @@ type as arguments."
 
 (defun intero-format-get-type-at (beg end)
   "Compose a request for getting types in region from BEG to END."
-  (format ":type-at %S %d %d %d %d %S"
-          (intero-localize-path (intero-temp-file-name))
+  (format ":type-at %s %d %d %d %d %S"
+          (intero-path-for-ghci (intero-temp-file-name))
           (save-excursion (goto-char beg)
                           (line-number-at-pos))
           (save-excursion (goto-char beg)
@@ -1826,7 +1825,7 @@ type as arguments."
                (unless (member 'save flycheck-check-syntax-automatically)
                  (intero-async-call
                   'backend
-                  (concat ":load " (intero-localize-path (intero-temp-file-name)))))
+                  (concat ":load " (intero-path-for-ghci (intero-temp-file-name)))))
                (intero-async-call
                 'backend
                 ":set -fobject-code")
@@ -1855,8 +1854,8 @@ type as arguments."
    "\n$" ""
    (intero-blocking-network-call
     'backend
-    (format ":loc-at %S %d %d %d %d %S"
-            (intero-localize-path (intero-temp-file-name))
+    (format ":loc-at %s %d %d %d %d %S"
+            (intero-path-for-ghci (intero-temp-file-name))
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
@@ -1873,8 +1872,8 @@ type as arguments."
    "\n$" ""
    (intero-blocking-call
     'backend
-    (format ":loc-at %S %d %d %d %d %S"
-            (intero-localize-path (intero-temp-file-name))
+    (format ":loc-at %s %d %d %d %d %S"
+            (intero-path-for-ghci (intero-temp-file-name))
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
@@ -1901,8 +1900,8 @@ type as arguments."
    "\n$" ""
    (intero-blocking-network-call
     'backend
-    (format ":uses %S %d %d %d %d %S"
-            (intero-localize-path (intero-temp-file-name))
+    (format ":uses %s %d %d %d %d %S"
+            (intero-path-for-ghci (intero-temp-file-name))
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
@@ -1919,8 +1918,8 @@ type as arguments."
    "\n$" ""
    (intero-blocking-call
     'backend
-    (format ":uses %S %d %d %d %d %S"
-            (intero-localize-path (intero-temp-file-name))
+    (format ":uses %s %d %d %d %d %S"
+            (intero-path-for-ghci (intero-temp-file-name))
             (save-excursion (goto-char beg)
                             (line-number-at-pos))
             (save-excursion (goto-char beg)
@@ -1937,8 +1936,8 @@ Prefix is marked by positions BEG and END.  Completions are
 passed to CONT in SOURCE-BUFFER."
   (intero-async-network-call
    'backend
-   (format ":complete-at %S %d %d %d %d %S"
-           (intero-localize-path (intero-temp-file-name))
+   (format ":complete-at %s %d %d %d %d %S"
+           (intero-path-for-ghci (intero-temp-file-name))
            (save-excursion (goto-char beg)
                            (line-number-at-pos))
            (save-excursion (goto-char beg)
