@@ -550,7 +550,7 @@ If the problem persists, please report this as a bug!")))
     (intero-with-dump-splices
      (let* ((output (intero-blocking-call
                      'backend
-                     (concat ":load " (intero-localize-path (intero-temp-file-name)))))
+                     (format ":load %S" (intero-localize-path (intero-temp-file-name)))))
             (msgs (intero-parse-errors-warnings-splices nil (current-buffer) output))
             (line (line-number-at-pos))
             (column (if (save-excursion
@@ -1258,7 +1258,7 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
     (intero-with-repl-buffer prompt-options
       (comint-simple-send
        (get-buffer-process (current-buffer))
-       (concat ":load " file))
+       (format ":load %S" file))
       (setq intero-repl-last-loaded file))))
 
 (defun intero-repl-eval-region (begin end &optional prompt-options)
@@ -1832,7 +1832,7 @@ type as arguments."
                (unless (member 'save flycheck-check-syntax-automatically)
                  (intero-async-call
                   'backend
-                  (concat ":load " (intero-localize-path (intero-temp-file-name)))))
+                  (format ":load %S" (intero-localize-path (intero-temp-file-name)))))
                (intero-async-call
                 'backend
                 ":set -fobject-code")
@@ -2315,9 +2315,9 @@ default when nil)."
           (cl-mapcan (lambda (x) (list "--ghci-options" x)) intero-extra-ghc-options)
           (let ((dir (intero-localize-path (intero-make-temp-file "intero" t))))
             (list "--ghci-options"
-                  (concat "-odir=" dir)
+                  (format "-odir=%S" dir)
                   "--ghci-options"
-                  (concat "-hidir=" dir)))
+                  (format "-hidir=%S" dir)))
           targets))
 
 (defun intero-sentinel (process change)
