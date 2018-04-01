@@ -38,3 +38,7 @@ setup-info:
       8.4.1:
         url: https://downloads.haskell.org/~ghc/8.4.1/ghc-8.4.1-x86_64-apple-darwin.tar.xz
         sha256: d774e39f3a0105843efd06709b214ee332c30203e6c5902dd6ed45e36285f9b7
+      8.4.1.20180329:
+        url: https://downloads.haskell.org/~ghc/8.4.2-rc1/ghc-8.4.1.20180329-x86_64-apple-darwin.tar.xz
+        content-length: 137578760
+        sha1: 1b6d47ee30ddfe98bf7580434cfc8b025951392b
