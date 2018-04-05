@@ -2077,7 +2077,9 @@ as (CALLBACK STATE REPLY)."
           (setq intero-async-network-connected t)
           (if intero-async-network-cmd
               (process-send-string process (concat intero-async-network-cmd "\n"))
-            (delete-process process)))
+            (progn
+              (delete-process process)
+              (kill-buffer (process-buffer process)))))
       (progn
         (if intero-async-network-connected
             (when intero-async-network-callback
@@ -2095,8 +2097,10 @@ as (CALLBACK STATE REPLY)."
              intero-async-network-cmd
              intero-async-network-state
              intero-async-network-callback)))
-        ;; In any case we clean up the connection.
-        (delete-process process)))))
+        ;; In any case we clean up the connection, and kill the buffer.
+        (progn
+          (delete-process process)
+          (kill-buffer (process-buffer process)))))))
 
 (defun intero-async-call (worker cmd &optional state callback)
   "Send WORKER the command string CMD.
