@@ -2070,37 +2070,35 @@ as (CALLBACK STATE REPLY)."
       (error "Intero process is not running: run M-x intero-restart to start it"))))
 
 (defun intero-network-call-sentinel (process event)
-  (with-current-buffer (process-buffer process)
-    (if (string= "open\n" event)
-        (progn
-          (when intero-debug (message "Connected to service, sending %S" intero-async-network-cmd))
-          (setq intero-async-network-connected t)
-          (if intero-async-network-cmd
-              (process-send-string process (concat intero-async-network-cmd "\n"))
-            (progn
-              (delete-process process)
-              (kill-buffer (process-buffer process)))))
-      (progn
-        (if intero-async-network-connected
-            (when intero-async-network-callback
-              (when intero-debug (message "Calling callback with %S" (buffer-string)))
-              (funcall intero-async-network-callback
-                       intero-async-network-state
-                       (buffer-string)))
-          ;; We didn't successfully connect, so let's fallback to the
-          ;; process pipe.
-          (when intero-async-network-callback
-            (when intero-debug (message "Failed to connect, falling back ... "))
-            (setq intero-async-network-callback nil)
-            (intero-async-call
-             intero-async-network-worker
-             intero-async-network-cmd
-             intero-async-network-state
-             intero-async-network-callback)))
-        ;; In any case we clean up the connection, and kill the buffer.
-        (progn
-          (delete-process process)
-          (kill-buffer (process-buffer process)))))))
+  (pcase event
+    ("deleted\n"
+     (kill-buffer (process-buffer process)))
+    ("open\n"
+     (with-current-buffer (process-buffer process)
+       (when intero-debug (message "Connected to service, sending %S" intero-async-network-cmd))
+       (setq intero-async-network-connected t)
+       (if intero-async-network-cmd
+           (process-send-string process (concat intero-async-network-cmd "\n"))
+         (delete-process process))))
+    (_
+     (with-current-buffer (process-buffer process)
+       (if intero-async-network-connected
+           (when intero-async-network-callback
+             (when intero-debug (message "Calling callback with %S" (buffer-string)))
+             (funcall intero-async-network-callback
+                      intero-async-network-state
+                      (buffer-string)))
+         ;; We didn't successfully connect, so let's fallback to the
+         ;; process pipe.
+         (when intero-async-network-callback
+           (when intero-debug (message "Failed to connect, falling back ... "))
+           (setq intero-async-network-callback nil)
+           (intero-async-call
+            intero-async-network-worker
+            intero-async-network-cmd
+            intero-async-network-state
+            intero-async-network-callback))))
+     (delete-process process))))
 
 (defun intero-async-call (worker cmd &optional state callback)
   "Send WORKER the command string CMD.
