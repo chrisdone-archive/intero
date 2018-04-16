@@ -2071,15 +2071,19 @@ as (CALLBACK STATE REPLY)."
 
 (defun intero-network-call-sentinel (process event)
   (pcase event
-    ("deleted\n"
-     (kill-buffer (process-buffer process)))
+    ;; This event sometimes gets sent when (delete-process) is called, but
+    ;; inconsistently. We can't rely on it for killing buffers, but we need to
+    ;; handle the possibility.
+    ("deleted\n")
+
     ("open\n"
      (with-current-buffer (process-buffer process)
        (when intero-debug (message "Connected to service, sending %S" intero-async-network-cmd))
        (setq intero-async-network-connected t)
        (if intero-async-network-cmd
            (process-send-string process (concat intero-async-network-cmd "\n"))
-         (delete-process process))))
+         (delete-process process)
+         (kill-buffer (process-buffer process)))))
     (_
      (with-current-buffer (process-buffer process)
        (if intero-async-network-connected
@@ -2098,7 +2102,8 @@ as (CALLBACK STATE REPLY)."
             intero-async-network-cmd
             intero-async-network-state
             intero-async-network-callback))))
-     (delete-process process))))
+     (delete-process process)
+     (kill-buffer (process-buffer process)))))
 
 (defun intero-async-call (worker cmd &optional state callback)
   "Send WORKER the command string CMD.
