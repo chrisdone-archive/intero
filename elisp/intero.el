@@ -289,6 +289,9 @@ LIST is a FIFO.")
 (defvar-local intero-repl-last-loaded nil
   "Last loaded module in the REPL.")
 
+(defvar-local intero-repl-send-after-load nil
+  "Send a command after every load.")
+
 (defvar-local intero-start-time nil
   "Start time of the stack process.")
 
@@ -1239,6 +1242,18 @@ be activated after evaluation.  PROMPT-OPTIONS are passed to
        (when intero-pop-to-repl
          (pop-to-buffer ,repl-buffer)))))
 
+(defun intero-repl-after-load ()
+  "Set the command to run after load."
+  (interactive)
+  (if (eq major-mode 'intero-repl-mode)
+      (setq intero-repl-send-after-load
+            (read-from-minibuffer
+             "Command to run: "
+             (or intero-repl-send-after-load
+                 (car (ring-elements comint-input-ring))
+                 "")))
+    (error "Run this in the REPL.")))
+
 (defun intero-repl-load (&optional prompt-options)
   "Load the current file in the REPL.
 If PROMPT-OPTIONS is non-nil, prompt with an options list."
@@ -1246,16 +1261,25 @@ If PROMPT-OPTIONS is non-nil, prompt with an options list."
   (save-buffer)
   (let ((file (intero-path-for-ghci (intero-buffer-file-name))))
     (intero-with-repl-buffer prompt-options
-      (if (or (not intero-repl-last-loaded)
-	      (not (equal file intero-repl-last-loaded)))
-	  (progn
-	    (comint-simple-send
-	     (get-buffer-process (current-buffer))
-	     (concat ":load " file))
-	    (setq intero-repl-last-loaded file))
-	(comint-simple-send
-	 (get-buffer-process (current-buffer))
-	 ":reload")))))
+      (comint-simple-send
+         (get-buffer-process (current-buffer))
+         ":set prompt \"\\n\"")
+        (if (or (not intero-repl-last-loaded)
+                (not (equal file intero-repl-last-loaded)))
+            (progn
+              (comint-simple-send
+               (get-buffer-process (current-buffer))
+               (concat ":load " file))
+              (setq intero-repl-last-loaded file))
+          (comint-simple-send
+           (get-buffer-process (current-buffer))
+           ":reload"))
+        (when intero-repl-send-after-load
+          (comint-simple-send
+           (get-buffer-process (current-buffer))
+           intero-repl-send-after-load))
+        (comint-simple-send (get-buffer-process (current-buffer))
+                            ":set prompt \"\\4 \""))))
 
 (defun intero-repl-eval-region (begin end &optional prompt-options)
   "Evaluate the code in region from BEGIN to END in the REPL.
