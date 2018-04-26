@@ -1,3 +1,6 @@
+0.1.31:
+	* Collecting type info no longer prints messages
+
 0.1.29:
 	* Support GHC 8.4
 
