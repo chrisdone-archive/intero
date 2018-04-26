@@ -19,9 +19,11 @@ import           Data.Maybe
 import           Data.Time
 import           DataCon
 import           Desugar
+import           DynFlags
 import           GHC
 import           GhcMonad
 import           GhciTypes
+import           HscTypes
 import           Intero.Compat
 import           Outputable
 import           Prelude hiding (mod)
@@ -82,12 +84,42 @@ getModInfo name =
   do m <- getModSummary name
      p <- parseModule m
      let location = getModuleLocation (parsedSource p)
-     typechecked <- typecheckModule p
+     typechecked <- typecheckModuleSilent p
      let Just (_, imports, _, _) = renamedSource typechecked
      allTypes <- processAllTypeCheckedModule typechecked
      let i = tm_checked_module_info typechecked
      now <- liftIO getCurrentTime
      return (ModInfo m allTypes i now imports location)
+
+-- | Type-check the module without logging messages.
+typecheckModuleSilent :: GhcMonad m => ParsedModule -> m TypecheckedModule
+#if MIN_VERSION_ghc(8,0,1)
+typecheckModuleSilent parsed = do
+  typecheckModule
+    parsed
+    { GHC.pm_mod_summary =
+        (GHC.pm_mod_summary parsed)
+        { HscTypes.ms_hspp_opts =
+            (HscTypes.ms_hspp_opts (GHC.pm_mod_summary parsed))
+            {log_action = nullLogAction}
+        }
+    }
+  where
+    nullLogAction _df _reason _sev _span _style _msgdoc = pure ()
+#else
+typecheckModuleSilent parsed = do
+  typecheckModule
+    parsed
+    { GHC.pm_mod_summary =
+        (GHC.pm_mod_summary parsed)
+        { HscTypes.ms_hspp_opts =
+            (HscTypes.ms_hspp_opts (GHC.pm_mod_summary parsed))
+            {log_action = nullLogAction}
+        }
+    }
+  where
+    nullLogAction _df _reason _sev _span _style = pure ()
+#endif
 
 getModuleLocation :: ParsedSource -> SrcSpan
 getModuleLocation pSource = case hsmodName (unLoc pSource) of
