@@ -112,7 +112,8 @@ This causes it to skip building the target."
 It should be a list of directories.
 
 To use this, use the following mode hook:
-  (add-hook 'haskell-mode-hook 'intero-mode-whitelist)"
+  (add-hook 'haskell-mode-hook 'intero-mode-whitelist)
+or use `intero-global-mode' and add \"/\" to `intero-blacklist'."
   :group 'intero
   :type 'string)
 
@@ -123,7 +124,8 @@ To use this, use the following mode hook:
 It should be a list of directories.
 
 To use this, use the following mode hook:
-  (add-hook 'haskell-mode-hook 'intero-mode-blacklist)"
+  (add-hook 'haskell-mode-hook 'intero-mode-blacklist)
+or use `intero-global-mode'."
   :group 'intero
   :type 'string)
 
