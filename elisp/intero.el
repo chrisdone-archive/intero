@@ -2554,18 +2554,22 @@ For debugging purposes, try running the following in your terminal:
                    nil)))))))
 
 (defun intero-ghc-version ()
-  "Get the GHC version used by the project."
+  "Get the GHC version used by the project, calls only once per backend."
   (with-current-buffer (intero-buffer 'backend)
     (or intero-ghc-version
         (setq intero-ghc-version
-              (intero-with-temp-buffer
-                (cl-case (save-excursion
-                           (intero-call-stack
-                            nil (current-buffer) t intero-stack-yaml
-                            "ghc" "--" "--numeric-version"))
-                  (0
-                   (buffer-substring (line-beginning-position) (line-end-position)))
-                  (1 nil)))))))
+              (intero-ghc-version-raw)))))
+
+(defun intero-ghc-version-raw ()
+  "Get the GHC version used by the project."
+  (intero-with-temp-buffer
+    (cl-case (save-excursion
+               (intero-call-stack
+                nil (current-buffer) t intero-stack-yaml
+                "ghc" "--" "--numeric-version"))
+      (0
+       (buffer-substring (line-beginning-position) (line-end-position)))
+      (1 nil))))
 
 (defun intero-get-targets ()
   "Get all available targets."
