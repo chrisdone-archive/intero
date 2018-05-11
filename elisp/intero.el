@@ -2571,6 +2571,22 @@ For debugging purposes, try running the following in your terminal:
        (buffer-substring (line-beginning-position) (line-end-position)))
       (1 nil))))
 
+(defun intero-stack-version ()
+  "Get the version components of stack."
+  (let* ((str (intero-stack-version-raw))
+         (parts (mapcar #'string-to-number (split-string str "\\."))))
+    parts))
+
+(defun intero-stack-version-raw ()
+  "Get the Stack version in PATH."
+  (intero-with-temp-buffer
+    (cl-case (save-excursion
+               (intero-call-stack
+                nil (current-buffer) t intero-stack-yaml "--numeric-version"))
+      (0
+       (buffer-substring (line-beginning-position) (line-end-position)))
+      (1 nil))))
+
 (defun intero-get-targets ()
   "Get all available targets."
   (with-current-buffer (intero-buffer 'backend)
