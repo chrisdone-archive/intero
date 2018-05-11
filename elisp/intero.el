@@ -2198,28 +2198,33 @@ If supplied, use the given TARGETS, SOURCE-BUFFER and STACK-YAML."
 Installing intero-%s automatically ...
 
 " intero-package-version))
-      (redisplay)
-      (cl-case (intero-call-stack
-                nil (current-buffer) t stack-yaml
-                "build"
-                (with-current-buffer buffer
-                  (let* ((cabal-file (intero-cabal-find-file))
-                         (package-name (intero-package-name cabal-file)))
-                    ;; For local development. Most users'll
-                    ;; never hit this behaviour.
-                    (if (string= package-name "intero")
-                        "intero"
-                      (concat "intero-" intero-package-version))))
-                "ghc-paths" "syb"
-                "--flag" "haskeline:-terminfo")
-        (0
-         (message "Installed successfully! Starting Intero in a moment ...")
-         (bury-buffer buffer)
-         (switch-to-buffer source-buffer)
-         (intero-start-process-in-buffer buffer targets source-buffer))
-        (1
-         (with-current-buffer buffer (setq-local intero-give-up t))
-         (insert (propertize "Could not install Intero!
+      (intero-old-auto-install source-buffer targets buffer stack-yaml))))
+
+(defun intero-old-auto-install (source-buffer targets buffer stack-yaml)
+  "Automatically install Intero appropriately for BUFFER.
+Use the given TARGETS, SOURCE-BUFFER and STACK-YAML."
+  (redisplay)
+  (cl-case (intero-call-stack
+            nil (current-buffer) t stack-yaml
+            "build"
+            (with-current-buffer buffer
+              (let* ((cabal-file (intero-cabal-find-file))
+                     (package-name (intero-package-name cabal-file)))
+                ;; For local development. Most users'll
+                ;; never hit this behaviour.
+                (if (string= package-name "intero")
+                    "intero"
+                  (concat "intero-" intero-package-version))))
+            "ghc-paths" "syb"
+            "--flag" "haskeline:-terminfo")
+    (0
+     (message "Installed successfully! Starting Intero in a moment ...")
+     (bury-buffer buffer)
+     (switch-to-buffer source-buffer)
+     (intero-start-process-in-buffer buffer targets source-buffer))
+    (1
+     (with-current-buffer buffer (setq-local intero-give-up t))
+     (insert (propertize "Could not install Intero!
 
 We don't know why it failed. Please read the above output and try
 installing manually. If that doesn't work, report this as a
@@ -2233,8 +2238,8 @@ this project, just keep this buffer around in your Emacs.
 If you'd like to try again next time you try use an Intero
 feature, kill this buffer.
 "
-                             'face 'compilation-error))
-         nil)))))
+                         'face 'compilation-error))
+     nil)))
 
 (defun intero-start-process-in-buffer (buffer &optional targets source-buffer stack-yaml)
   "Start an Intero worker in BUFFER.
