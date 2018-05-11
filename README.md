@@ -48,10 +48,14 @@ precedence. You can therefore blacklist `/` to disable `intero` in all
 projects unless they are whitelisted.
 
 
-## Intero for IDE writers
+## Intero support for other editors and IDEs
 
-Please see
-[the TOOLING.md file for how to use Intero to integrate your own editor.](https://github.com/commercialhaskell/intero/blob/master/TOOLING.md).
+Although not supported by the Intero maintainers, integrations with other editors exist:
+
+* [intero-neovim](https://github.com/parsonsmatt/intero-neovim)
+
+If you would like to build support into a new editor or IDE, please see
+[TOOLING.md](https://github.com/commercialhaskell/intero/blob/master/TOOLING.md).
 
 ## Issues
 
