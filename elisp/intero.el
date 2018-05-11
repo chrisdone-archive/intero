@@ -2571,6 +2571,18 @@ For debugging purposes, try running the following in your terminal:
        (buffer-substring (line-beginning-position) (line-end-position)))
       (1 nil))))
 
+(defun intero-version>= (new0 old0)
+  "Is the version NEW >= OLD?"
+  (or (and (null new0) (null old0))
+      (let ((new (or new0 (list 0)))
+            (old (or old0 (list 0))))
+        (or (> (car new)
+               (car old))
+            (and (= (car new)
+                    (car old))
+                 (intero-version>= (cdr new)
+                                   (cdr old)))))))
+
 (defun intero-stack-version ()
   "Get the version components of stack."
   (let* ((str (intero-stack-version-raw))
