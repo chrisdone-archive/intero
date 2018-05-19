@@ -53,6 +53,9 @@ projects unless they are whitelisted.
 Although not supported by the Intero maintainers, integrations with other editors exist:
 
 * [intero-neovim](https://github.com/parsonsmatt/intero-neovim)
+* [haskero](https://gitlab.com/vannnns/haskero) (vscode)
+* [Haskelly](https://github.com/haskelly-dev/Haskelly) (vscode)
+* [sublime-intero](https://github.com/dariusf/sublime-intero)
 
 If you would like to build support into a new editor or IDE, please see
 [TOOLING.md](https://github.com/commercialhaskell/intero/blob/master/TOOLING.md).
