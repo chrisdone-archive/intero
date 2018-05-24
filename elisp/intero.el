@@ -2400,11 +2400,6 @@ default when nil)."
           (when ignore-dot-ghci
             (list "--ghci-options" "-ignore-dot-ghci"))
           (cl-mapcan (lambda (x) (list "--ghci-options" x)) intero-extra-ghc-options)
-          (let ((dir (intero-localize-path (intero-make-temp-file "intero" t))))
-            (list "--ghci-options"
-                  (concat "-odir=" dir)
-                  "--ghci-options"
-                  (concat "-hidir=" dir)))
           targets))
 
 (defun intero-sentinel (process change)
