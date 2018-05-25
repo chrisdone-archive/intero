@@ -105,7 +105,7 @@ typecheckModuleSilent parsed = do
         }
     }
   where
-    nullLogAction _df _reason _sev _span _style _msgdoc = pure ()
+    nullLogAction _df _reason _sev _span _style _msgdoc = return ()
 #else
 typecheckModuleSilent parsed = do
   typecheckModule
@@ -118,7 +118,7 @@ typecheckModuleSilent parsed = do
         }
     }
   where
-    nullLogAction _df _reason _sev _span _style = pure ()
+    nullLogAction _df _reason _sev _span _style = return ()
 #endif
 
 getModuleLocation :: ParsedSource -> SrcSpan
