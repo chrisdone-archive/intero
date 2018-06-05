@@ -516,8 +516,10 @@ line as a type signature."
 Returns nil when unable to find definition."
   (interactive)
   (let ((result (apply #'intero-get-loc-at (intero-thing-at-point))))
-    (when (string-match "\\(.*?\\):(\\([0-9]+\\),\\([0-9]+\\))-(\\([0-9]+\\),\\([0-9]+\\))$"
-                        result)
+
+    (if (not (string-match "\\(.*?\\):(\\([0-9]+\\),\\([0-9]+\\))-(\\([0-9]+\\),\\([0-9]+\\))$"
+                       result))
+        (message "%s" result)
       (if (fboundp 'xref-push-marker-stack) ;; Emacs 25
           (xref-push-marker-stack)
         (with-no-warnings
@@ -1667,10 +1669,11 @@ The path returned is canonicalized and stripped of any text properties."
   (with-current-buffer (or buffer (current-buffer))
     (if (or (eq nil (intero-buffer-host)) (eq "" (intero-buffer-host)))
         path
-      (concat "/"
-              (intero-buffer-host)
-              ":"
-              path))))
+      (expand-file-name
+       (concat "/"
+               (intero-buffer-host)
+               ":"
+               path)))))
 
 (defvar-local intero-temp-file-name nil
   "The name of a temporary file to which the current buffer's content is copied.")
