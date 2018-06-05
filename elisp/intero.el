@@ -534,7 +534,10 @@ Returns nil when unable to find definition."
                   (switch-to-buffer original-buffer)
                 (error "Attempted to load temp file.  Try restarting Intero.
 If the problem persists, please report this as a bug!")))
-          (find-file loaded-file))
+          (find-file
+           (expand-file-name
+            returned-file
+            (intero-extend-path-by-buffer-host (intero-project-root)))))
         (pop-mark)
         (goto-char (point-min))
         (forward-line (1- line))
@@ -2085,29 +2088,31 @@ yaml config to use, or stack's default when nil."
   "Send WORKER the command string CMD, via a network connection.
 The result, along with the given STATE, is passed to CALLBACK
 as (CALLBACK STATE REPLY)."
-  (let ((buffer (intero-buffer worker)))
-    (if (and buffer (process-live-p (get-buffer-process buffer)))
-        (with-current-buffer buffer
-          (if intero-service-port
-              (let* ((buffer (generate-new-buffer (format " intero-network:%S" worker)))
-                     (process
-                      (make-network-process
-                       :name (format "%S" worker)
-                       :buffer buffer
-                       :host 'local
-                       :service intero-service-port
-                       :family 'ipv4
-                       :nowait t
-                       :noquery t
-                       :sentinel 'intero-network-call-sentinel)))
-                (with-current-buffer buffer
-                  (setq intero-async-network-cmd cmd)
-                  (setq intero-async-network-state state)
-                  (setq intero-async-network-worker worker)
-                  (setq intero-async-network-callback callback)))
-            (progn (when intero-debug (message "No `intero-service-port', falling back ..."))
-                   (intero-async-call worker cmd state callback))))
-      (error "Intero process is not running: run M-x intero-restart to start it"))))
+  (if (file-remote-p default-directory)
+      (intero-async-call worker cmd state callback)
+      (let ((buffer (intero-buffer worker)))
+        (if (and buffer (process-live-p (get-buffer-process buffer)))
+            (with-current-buffer buffer
+              (if intero-service-port
+                  (let* ((buffer (generate-new-buffer (format " intero-network:%S" worker)))
+                         (process
+                          (make-network-process
+                           :name (format "%S" worker)
+                           :buffer buffer
+                           :host 'local
+                           :service intero-service-port
+                           :family 'ipv4
+                           :nowait t
+                           :noquery t
+                           :sentinel 'intero-network-call-sentinel)))
+                    (with-current-buffer buffer
+                      (setq intero-async-network-cmd cmd)
+                      (setq intero-async-network-state state)
+                      (setq intero-async-network-worker worker)
+                      (setq intero-async-network-callback callback)))
+                (progn (when intero-debug (message "No `intero-service-port', falling back ..."))
+                       (intero-async-call worker cmd state callback))))
+          (error "Intero process is not running: run M-x intero-restart to start it")))))
 
 (defun intero-network-call-sentinel (process event)
   (pcase event
