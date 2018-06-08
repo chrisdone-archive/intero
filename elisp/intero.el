@@ -431,7 +431,8 @@ You can use this to kill them or look inside."
          when (string-match
                "\\(.*?\\):(\\([0-9]+\\),\\([0-9]+\\))-(\\([0-9]+\\),\\([0-9]+\\))$"
                use)
-         do (let* ((fp (match-string 1 use))
+         do (let* ((returned-file (match-string 1 use))
+                   (loaded-file (intero-extend-path-by-buffer-host returned-file))
                    (sline (string-to-number (match-string 2 use)))
                    (scol (string-to-number (match-string 3 use)))
                    (eline (string-to-number (match-string 4 use)))
@@ -440,7 +441,7 @@ You can use this to kill them or look inside."
                                           (forward-line (1- sline))
                                           (forward-char (1- scol))
                                           (point))))
-              (when (string= fp (intero-temp-file-name))
+              (when (intero-temp-file-p loaded-file)
                 (unless highlighted
                   (intero-highlight-uses-mode))
                 (setq highlighted t)
