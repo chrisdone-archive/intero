@@ -3163,13 +3163,16 @@ suggestions are available."
   (with-current-buffer (intero-buffer 'backend)
     (or intero-extensions
         (setq intero-extensions
-              (split-string
-               (shell-command-to-string
-                (concat intero-stack-executable
-                        (if intero-stack-yaml
-                            (concat "--stack-yaml " intero-stack-yaml)
-                          "")
-                        " exec --verbosity silent -- ghc --supported-extensions")))))))
+              (cl-remove-if-not
+               (lambda (str) (let ((case-fold-search nil))
+                               (string-match "^[A-Z][A-Za-z0-9]+$" str)))
+               (split-string
+                (shell-command-to-string
+                 (concat intero-stack-executable
+                         (if intero-stack-yaml
+                             (concat "--stack-yaml " intero-stack-yaml)
+                           "")
+                         " exec --verbosity silent -- ghc --supported-extensions"))))))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Auto actions
