@@ -11,11 +11,12 @@ clone_folder: "c:\\stack"
 environment:
   global:
     STACK_ROOT: "c:\\sr"
+    TMP: "c:\\tmp"
 
   matrix:
   - ARGS: ""
-  - ARGS: "--resolver lts-2" # GHC 7.8.4
-  - ARGS: "--resolver lts-3" # GHC 7.10.2
+  #- ARGS: "--resolver lts-2" # GHC 7.8.4
+  #- ARGS: "--resolver lts-3" # GHC 7.10.2
   - ARGS: "--resolver lts-6" # GHC 7.10.3
   - ARGS: "--resolver lts-7" # GHC 8.0.1
   - ARGS: "--resolver lts-9" # GHC 8.0.2
