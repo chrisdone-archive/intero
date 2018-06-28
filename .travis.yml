@@ -1,14 +1,49 @@
-sudo: required
+language: generic
+sudo: false
 
-os:
-  - linux
-  - osx
+matrix:
+  include:
+    - env: ARGS="--resolver lts-2"
+      addons: {apt: {packages: [libgmp-dev]}}
+    - env: ARGS="--resolver lts-3"
+      addons: {apt: {packages: [libgmp-dev]}}
+    - env: ARGS="--resolver lts-6"
+      addons: {apt: {packages: [libgmp-dev]}}
+    - env: ARGS="--resolver lts-7"
+      addons: {apt: {packages: [libgmp-dev]}}
+    - env: ARGS="--resolver lts-9"
+      addons: {apt: {packages: [libgmp-dev]}}
+    - env: ARGS="--resolver lts-11"
+      addons: {apt: {packages: [libgmp-dev]}}
+    - env: ARGS="--resolver nightly-2018-06-27"
+      addons: {apt: {packages: [libgmp-dev]}}
 
-language: bash
+    # Broken on newer OS Xs
+    #- env: ARGS="--resolver lts-2"
+    #  os: osx
+    - env: ARGS="--resolver lts-3"
+      os: osx
+    - env: ARGS="--resolver lts-6"
+      os: osx
+    - env: ARGS="--resolver lts-7"
+      os: osx
+    - env: ARGS="--resolver lts-9"
+      os: osx
+    - env: ARGS="--resolver lts-11"
+      os: osx
+    - env: ARGS="--resolver nightly-2018-06-27"
+      os: osx
 
 before_install:
-  - if [[ $TRAVIS_OS_NAME == 'linux' ]]; then sudo apt-get update; fi
-  - if [[ $TRAVIS_OS_NAME == 'linux' ]]; then sudo apt-get install -yq --no-install-suggests --no-install-recommends --force-yes -y netbase git ca-certificates xz-utils build-essential curl; fi
-  - if [[ $TRAVIS_OS_NAME == 'osx' ]]; then brew install xz; fi
-  - curl -sSL https://get.haskellstack.org/ | sh
-  - time sh test/test-ghcs
+- export PATH=$HOME/.local/bin:$PATH
+- mkdir -p ~/.local/bin
+- |
+  if [ `uname` = "Darwin" ]
+  then
+    travis_retry curl --insecure -L https://get.haskellstack.org/stable/osx-x86_64.tar.gz | tar xz --strip-components=1 --include '*/stack' -C ~/.local/bin
+  else
+    travis_retry curl -L https://get.haskellstack.org/stable/linux-x86_64.tar.gz | tar xz --wildcards --strip-components=1 -C ~/.local/bin '*/stack'
+  fi
+
+script:
+- stack $ARGS --no-terminal test --ghc-options=-Werror

@@ -1,58 +1,33 @@
-# Disable standard build process with MSBuild
 build: off
 
-# In case of unreliable builds try disabling caching.
-cache:
-- "c:\\sr"
-
 before_test:
-- curl -sS -ostack.zip -L --insecure http://www.stackage.org/stack/windows-i386
+# http://help.appveyor.com/discussions/problems/6312-curl-command-not-found
+- set PATH=C:\Program Files\Git\mingw64\bin;%PATH%
+
+- curl -sS -ostack.zip -L --insecure https://get.haskellstack.org/stable/windows-x86_64.zip
 - 7z x stack.zip stack.exe
 
 clone_folder: "c:\\stack"
 environment:
   global:
     STACK_ROOT: "c:\\sr"
+    TMP: "c:\\tmp"
+
+  matrix:
+  - ARGS: ""
+  #- ARGS: "--resolver lts-2" # GHC 7.8.4
+  #- ARGS: "--resolver lts-3" # GHC 7.10.2
+  - ARGS: "--resolver lts-6" # GHC 7.10.3
+  - ARGS: "--resolver lts-7" # GHC 8.0.1
+  - ARGS: "--resolver lts-9" # GHC 8.0.2
+  - ARGS: "--resolver lts-11" # GHC 8.2.2
+  - ARGS: "--resolver nightly-2018-06-27" # GHC 8.4.3
 
 test_script:
 
+# Install toolchain, but do it silently due to lots of output
+- stack %ARGS% setup > nul
+
 # The ugly echo "" hack is to avoid complaints about 0 being an invalid file
 # descriptor
-
-# Uncomment when the network package is fixed: https://github.com/haskell/network/issues/313
-# AND REMEMBER TO CHANGE "network-2.6.3.4" BELOW TO THE FIXED VERSION.
-#
-# - echo "GHC 8.4.1 ..."
-# - echo "" | stack clean
-# - echo "" | stack setup --resolver ghc-8.4.1
-# - echo "" | stack build . --resolver ghc-8.4.1 --test --ghc-options=-Werror --force-dirty ghc-paths-0.1.0.9 network-2.6.3.4 random-1.1 syb-0.7 hspec-2.4.8 regex-compat-0.95.1 temporary-1.2.1.1 HUnit-1.6.0.0 QuickCheck-2.11.3 call-stack-0.1.0 exceptions-0.9.0 hspec-core-2.4.8 hspec-discover-2.4.8 hspec-expectations-0.8.2 regex-base-0.93.2 regex-posix-0.95.2 ansi-terminal-0.8.0.2 quickcheck-io-0.2.0 setenv-0.1.1.3 tf-random-0.5 transformers-compat-0.6.0.6 colour-2.3.4 primitive-0.6.3.0 base-compat-0.9.3
-
-- echo "GHC 8.2.2"
-- echo "" | stack --no-terminal clean
-- echo "" | stack --no-terminal setup --verbosity error --resolver lts-10.0
-- echo "" | stack --no-terminal test . --verbosity error --resolver lts-10.0 --test --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
-
-- echo "GHC 8.0.2"
-- echo "" | stack --no-terminal clean
-- echo "" | stack --no-terminal setup --verbosity error --resolver lts-9.20
-- echo "" | stack --no-terminal test . --verbosity error --resolver lts-9.20 --test --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
-
-- echo "GHC 8.0.1"
-- echo "" | stack --no-terminal clean
-- echo "" | stack --no-terminal setup --verbosity error --resolver nightly-2016-05-27
-- echo "" | stack --no-terminal test --verbosity error --resolver nightly-2016-05-27  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
-
-- echo "GHC 7.10.3"
-- echo "" | stack --no-terminal clean
-- echo "" | stack --no-terminal setup --verbosity error --resolver lts-4.1
-- echo "" | stack --no-terminal test --verbosity error --resolver lts-4.1  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
-
-- echo "GHC 7.10.2"
-- echo "" | stack --no-terminal clean
-- echo "" | stack --no-terminal setup --verbosity error --resolver lts-3.0
-- echo "" | stack --no-terminal test --verbosity error --resolver lts-3.0  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
-
-- echo "GHC 7.8.4"
-- echo "" | stack --no-terminal clean
-- echo "" | stack --no-terminal setup --verbosity error --resolver lts-1.0
-- echo "" | stack --no-terminal test --verbosity error --resolver lts-1.0  --test  --ghc-options=-Werror --force-dirty --ghc-options=-fforce-recomp
+- echo "" | stack %ARGS% --no-terminal test --verbosity=error --ghc-options=-Werror
