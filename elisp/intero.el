@@ -157,6 +157,11 @@ by default."
   :group 'intero
   :type '(repeat string))
 
+(defcustom intero-show-warnings-when-errors-exist nil
+  "Show GHC warnings even when the file has errors"
+  :group 'intero
+  :type 'boolean)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
 
@@ -816,7 +821,7 @@ CHECKER and BUFFER are added to each item parsed from STRING."
                       messages)))
         (forward-line -1))
       (delete-dups
-       (if found-error-as-warning
+       (if (and intero-show-warnings-when-errors-exist found-error-as-warning)
            (cl-remove-if (lambda (msg) (eq 'warning (flycheck-error-level msg))) messages)
          messages)))))
 
