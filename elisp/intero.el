@@ -1342,8 +1342,8 @@ STORE-PREVIOUS is non-nil, note the caller's buffer in
          (backend-buffer (intero-buffer 'backend)))
     (with-current-buffer
         (or (let ((buf (get-buffer name)))
-              (and buf
-                   (get-buffer-process buf)))
+              (and (get-buffer-process buf)
+                   buf))
             (with-current-buffer
                 (get-buffer-create name)
               ;; The new buffer doesn't know if the initial buffer was hosted
