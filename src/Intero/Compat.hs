@@ -50,7 +50,7 @@ ghc_defaultDynFlags :: Settings -> DynFlags
 #if __GLASGOW_HASKELL__ <= 802
 ghc_defaultDynFlags = defaultDynFlags
 #else
-ghc_defaultDynFlags s = defaultDynFlags s []
+ghc_defaultDynFlags s = defaultDynFlags s mempty
 #endif
 
 ghc_getInfo :: GhcMonad m => Bool -> Name -> m (Maybe (TyThing, Fixity, [ClsInst], [FamInst]))
