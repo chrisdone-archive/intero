@@ -157,6 +157,11 @@ by default."
   :group 'intero
   :type '(repeat string))
 
+(defcustom intero-port-file
+  ".intero/port"
+  "File that stores the port number of a running service."
+  :group 'intero)
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Modes
 
@@ -322,9 +327,6 @@ This is slower, but will build required dependencies.")
 
 (defvar-local intero-starting nil
   "When non-nil, indicates that the intero process starting up.")
-
-(defvar-local intero-service-port nil
-  "Port that the intero process is listening on for asynchronous commands.")
 
 (defvar-local intero-hoogle-port nil
   "Port that hoogle server is listening on.")
@@ -1816,7 +1818,7 @@ x:\\foo\\bar (i.e., Windows)."
 (defun intero-get-type-at-helper-process (beg end)
   (replace-regexp-in-string
    "\n$" ""
-   (intero-blocking-call
+   (intero-blocking-network-call
     'backend
     (intero-format-get-type-at beg end))))
 
@@ -1916,7 +1918,7 @@ type as arguments."
   "Make the blocking call to the process."
   (replace-regexp-in-string
    "\n$" ""
-   (intero-blocking-call
+   (intero-blocking-network-call
     'backend
     (format ":loc-at %s %d %d %d %d %S"
             (intero-path-for-ghci (intero-temp-file-name))
@@ -1962,7 +1964,7 @@ type as arguments."
   "Return usage list for identifier denoted by BEG and END."
   (replace-regexp-in-string
    "\n$" ""
-   (intero-blocking-call
+   (intero-blocking-network-call
     'backend
     (format ":uses %s %d %d %d %d %S"
             (intero-path-for-ghci (intero-temp-file-name))
@@ -2096,25 +2098,25 @@ as (CALLBACK STATE REPLY)."
       (let ((buffer (intero-buffer worker)))
         (if (and buffer (process-live-p (get-buffer-process buffer)))
             (with-current-buffer buffer
-              (if intero-service-port
-                  (let* ((buffer (generate-new-buffer (format " intero-network:%S" worker)))
-                         (process
-                          (make-network-process
-                           :name (format "%S" worker)
-                           :buffer buffer
-                           :host 'local
-                           :service intero-service-port
-                           :family 'ipv4
-                           :nowait t
-                           :noquery t
-                           :sentinel 'intero-network-call-sentinel)))
-                    (with-current-buffer buffer
-                      (setq intero-async-network-cmd cmd)
-                      (setq intero-async-network-state state)
-                      (setq intero-async-network-worker worker)
-                      (setq intero-async-network-callback callback)))
-                (progn (when intero-debug (message "No `intero-service-port', falling back ..."))
-                       (intero-async-call worker cmd state callback))))
+              (let ((port (intero-read-port default-directory)))
+                (if port
+                    (let* ((buffer (generate-new-buffer (format " intero-network:%S" worker)))
+                           (process
+                            (make-network-process
+                             :name (format "%S" worker)
+                             :buffer buffer
+                             :host 'local
+                             :service port
+                             :family 'ipv4
+                             :nowait t
+                             :noquery t
+                             :sentinel 'intero-network-call-sentinel)))
+                      (with-current-buffer buffer
+                        (setq intero-async-network-cmd cmd)
+                        (setq intero-async-network-state state)
+                        (setq intero-async-network-worker worker)
+                        (setq intero-async-network-callback callback)))
+                  (error "Intero is not running (no .intero/port file): run M-x intero-restart to start it"))))
           (error "Intero process is not running: run M-x intero-restart to start it")))))
 
 (defun intero-network-call-sentinel (process event)
@@ -2139,17 +2141,8 @@ as (CALLBACK STATE REPLY)."
              (when intero-debug (message "Calling callback with %S" (buffer-string)))
              (funcall intero-async-network-callback
                       intero-async-network-state
-                      (buffer-string)))
-         ;; We didn't successfully connect, so let's fallback to the
-         ;; process pipe.
-         (when intero-async-network-callback
-           (when intero-debug (message "Failed to connect, falling back ... "))
-           (setq intero-async-network-callback nil)
-           (intero-async-call
-            intero-async-network-worker
-            intero-async-network-cmd
-            intero-async-network-state
-            intero-async-network-callback))))
+                      (replace-regexp-in-string "^\4" "" (buffer-string))))
+         (error "Failed to connect to intero for an async command!")))
      (delete-process process)
      (kill-buffer (process-buffer process)))))
 
@@ -2190,10 +2183,24 @@ If provided, use the specified TARGETS, SOURCE-BUFFER and STACK-YAML."
   (let* ((buffer (intero-get-buffer-create worker)))
     (if (get-buffer-process buffer)
         buffer
-      (let ((install-status (intero-installed-p)))
-        (if (eq install-status 'installed)
-            (intero-start-process-in-buffer buffer targets source-buffer stack-yaml)
-          (intero-auto-install buffer install-status targets source-buffer stack-yaml))))))
+      (let ((port (intero-read-port
+                   (or (and stack-yaml (file-name-directory stack-yaml))
+                       (intero-project-root)))))
+        (if port
+            (intero-start-process-in-buffer buffer targets source-buffer stack-yaml port)
+          (let ((install-status (intero-installed-p)))
+            (if (eq install-status 'installed)
+                (intero-start-process-in-buffer buffer targets source-buffer stack-yaml)
+              (intero-auto-install buffer install-status targets source-buffer stack-yaml))))))))
+
+(defun intero-read-port (stack-dir)
+  "Read a port number from the file at `intero-port-file'."
+  (let ((fp (concat stack-dir "/" intero-port-file)))
+    (when (file-exists-p fp)
+      (with-temp-buffer
+        (insert-file-contents fp)
+        (string-to-number
+         (replace-regexp-in-string "[\r\n]" "" (buffer-string)))))))
 
 (defun intero-auto-install (buffer install-status &optional targets source-buffer stack-yaml)
   "Automatically install Intero appropriately for BUFFER.
@@ -2302,14 +2309,19 @@ feature, kill this buffer.
                          'face 'compilation-error))
      nil)))
 
-(defun intero-start-process-in-buffer (buffer &optional targets source-buffer stack-yaml)
+(defun intero-start-process-in-buffer (buffer &optional targets source-buffer stack-yaml port)
   "Start an Intero worker in BUFFER.
 Uses the specified TARGETS if supplied.
 Automatically performs initial actions in SOURCE-BUFFER, if specified.
-Uses the default stack config file, or STACK-YAML file if given."
+Uses the default stack config file, or STACK-YAML file if given.
+If PORT is provided, instead of launching a piped process, create
+a process via a TCP connection to that port at localhost."
   (if (buffer-local-value 'intero-give-up buffer)
       buffer
-    (let* ((process-info (intero-start-piped-process buffer targets stack-yaml))
+    (let* ((process-info
+            (if port
+                (intero-start-tcp-process buffer port)
+              (intero-start-piped-process buffer targets stack-yaml)))
            (arguments (plist-get process-info :arguments))
            (options (plist-get process-info :options))
            (process (plist-get process-info :process)))
@@ -2334,8 +2346,6 @@ Uses the default stack config file, or STACK-YAML file if given."
                             (let ((source-buffer (car buffers))
                                   (process-buffer (cdr buffers)))
                               (with-current-buffer process-buffer
-                                (when (string-match "^Intero-Service-Port: \\([0-9]+\\)\n" msg)
-                                  (setq intero-service-port (string-to-number (match-string 1 msg))))
                                 (setq-local intero-starting nil))
                               (when source-buffer
                                 (with-current-buffer source-buffer
@@ -2396,6 +2406,27 @@ Uses the default stack config file, or STACK-YAML file if given."
             (message "Booting up intero ...")
             (apply #'start-file-process intero-stack-executable buffer intero-stack-executable
                    arguments))))
+    (list :arguments arguments
+          :options options
+          :process process)))
+
+(defun intero-start-tcp-process (buffer port)
+  "Connect to the service on PORT that we control in BUFFER."
+  (let* ((options nil)
+         (arguments nil)
+         (process
+          (with-current-buffer buffer
+            (when intero-debug
+              (message "Intero port: %d" port))
+            (message "Connecting to intero ...")
+            (make-network-process
+             :name "tcp-worker"
+             :buffer buffer
+             :host 'local
+             :service port
+             :family 'ipv4
+             :nowait nil
+             :noquery t))))
     (list :arguments arguments
           :options options
           :process process)))

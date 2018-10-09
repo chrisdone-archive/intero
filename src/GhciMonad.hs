@@ -359,9 +359,9 @@ resume canLogSpan step = do
 -- --------------------------------------------------------------------------
 -- timing & statistics
 
-timeIt :: InputT GHCi a -> InputT GHCi a
+timeIt :: GHCi a -> GHCi a
 timeIt action
-  = do b <- lift $ isOptionSet ShowTiming
+  = do b <- isOptionSet ShowTiming
        if not b
           then action
           else do allocs1 <- liftIO $ getAllocations
