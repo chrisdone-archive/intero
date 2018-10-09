@@ -2192,13 +2192,24 @@ If provided, use the specified TARGETS, SOURCE-BUFFER and STACK-YAML."
               (intero-auto-install buffer install-status targets source-buffer stack-yaml))))))))
 
 (defun intero-read-port ()
-  "Read a port number from the file at `intero-port-file'."
-  (let ((fp (concat (intero-project-root) "/" intero-port-file)))
-    (when (file-exists-p fp)
-      (with-temp-buffer
-        (insert-file-contents fp)
-        (string-to-number
-         (replace-regexp-in-string "[\r\n]" "" (buffer-string)))))))
+  "Read a port number from the file at `intero-port-file' and check it's listening.
+Returns NIL if it's not there, or not listening."
+  (let ((port (let ((fp (concat (intero-project-root) "/" intero-port-file)))
+                (when (file-exists-p fp)
+                  (with-temp-buffer
+                    (insert-file-contents fp)
+                    (string-to-number
+                     (replace-regexp-in-string "[\r\n]" "" (buffer-string))))))))
+    (when port
+      (condition-case nil
+          (let ((p (make-network-process
+                    :name "port-checker"
+                    :host 'local
+                    :service port
+                    :family 'ipv4
+                    :nowait t)))
+            port)
+       (error nil)))))
 
 (defun intero-auto-install (buffer install-status &optional targets source-buffer stack-yaml)
   "Automatically install Intero appropriately for BUFFER.
