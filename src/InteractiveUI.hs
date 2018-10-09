@@ -895,11 +895,8 @@ defaultLogActionH h dflags reason severity srcSpan style msg
       printWarns = do
         hPutChar h '\n'
         caretDiagnostic <-
-            if gopt Opt_DiagnosticsShowCaret dflags
-            then getCaretDiagnostic severity srcSpan
-            else pure empty
-        printErrs (message $+$ caretDiagnostic)
-            (setStyleColoured True style)
+            pure empty
+        printErrs (message $+$ caretDiagnostic)style
         -- careful (#2302): printErrs prints in UTF-8,
         -- whereas converting to string first and using
         -- hPutStr would just emit the low 8 bits of
@@ -920,21 +917,21 @@ defaultLogActionH h dflags reason severity srcSpan style msg
           --     ", -Werror=" ++ flagSpecName spec
 
       warnFlagGrp flag
-          | gopt Opt_ShowWarnGroups dflags =
-                case smallestGroups flag of
-                    [] -> ""
-                    groups -> " (in " ++ intercalate ", " (map ("-W"++) groups) ++ ")"
+          -- | gopt Opt_ShowWarnGroups dflags =
+          --       case smallestGroups flag of
+          --           [] -> ""
+          --           groups -> " (in " ++ intercalate ", " (map ("-W"++) groups) ++ ")"
           | otherwise = ""
-        where smallestGroups :: WarningFlag -> [String]
-              smallestGroups fl = mapMaybe go warningHierarchies where
-                  -- Because each hierarchy is arranged from smallest to largest,
-                  -- the first group we find in a hierarchy which contains the flag
-                  -- is the smallest.
-                  go (gr:rest) = fromMaybe (go rest) $ do
-                      flags <- lookup gr warningGroups
-                      guard (fl `elem` flags)
-                      pure (Just gr)
-                  go [] = Nothing
+        -- where smallestGroups :: WarningFlag -> [String]
+        --       smallestGroups fl = mapMaybe go warningHierarchies where
+        --           -- Because each hierarchy is arranged from smallest to largest,
+        --           -- the first group we find in a hierarchy which contains the flag
+        --           -- is the smallest.
+        --           go (gr:rest) = fromMaybe (go rest) $ do
+        --               flags <- lookup gr warningGroups
+        --               guard (fl `elem` flags)
+        --               pure (Just gr)
+        --           go [] = Nothing
 
 -- | Find the 'FlagSpec' for a 'WarningFlag'.
 flagSpecOf :: WarningFlag -> Maybe (FlagSpec WarningFlag)
