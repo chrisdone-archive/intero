@@ -704,16 +704,21 @@ interactiveUI config srcs maybe_exprs = do
 
 listenOnLoopback :: IO Socket
 listenOnLoopback = do
-  proto <- getProtocolNumber "tcp"
-  bracketOnError
-    (socket AF_INET Stream proto)
-    close
-    (\sock -> do
-       setSocketOption sock ReuseAddr 1
-       address <- getHostByName "127.0.0.1"
-       bind sock (SockAddrInet aNY_PORT (hostAddress address))
-       listen sock maxListenQueue
-       return sock)
+  envr <- System.Environment.getEnvironment
+  case lookup "INTERO_SERVICE_PORT" envr of
+    Just prt -> Network.listenOn (Network.PortNumber (read prt))
+    Nothing -> do
+      proto <- getProtocolNumber "tcp"
+      bracketOnError
+        (socket AF_INET Stream proto)
+        close
+        (\sock -> do
+           setSocketOption sock ReuseAddr 1
+           address <- getHostByName "127.0.0.1"
+           bind sock (SockAddrInet aNY_PORT (hostAddress address))
+           listen sock maxListenQueue
+           return sock)
+
 
 withGhcAppData :: (FilePath -> IO a) -> IO a -> IO a
 withGhcAppData right left = do
@@ -916,7 +921,7 @@ defaultLogActionH h dflags reason severity srcSpan style msg
           --     "-W" ++ flagSpecName spec ++ warnFlagGrp wflag ++
           --     ", -Werror=" ++ flagSpecName spec
 
-      warnFlagGrp flag
+      warnFlagGrp _flag
           -- | gopt Opt_ShowWarnGroups dflags =
           --       case smallestGroups flag of
           --           [] -> ""
