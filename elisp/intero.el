@@ -2433,7 +2433,7 @@ default when nil)."
   "Handle when PROCESS reports a CHANGE.
 This is a standard process sentinel function."
   (when (buffer-live-p (process-buffer process))
-    (when (and (not (process-live-p process)))
+    (unless (process-live-p process)
       (let ((buffer (process-buffer process)))
         (if (with-current-buffer buffer intero-deleting)
             (message "Intero process deleted.")
