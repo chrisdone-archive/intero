@@ -2309,25 +2309,10 @@ Automatically performs initial actions in SOURCE-BUFFER, if specified.
 Uses the default stack config file, or STACK-YAML file if given."
   (if (buffer-local-value 'intero-give-up buffer)
       buffer
-    (let* ((options
-            (intero-make-options-list
-             (intero-executable-path stack-yaml)
-             (or targets
-                 (let ((package-name (buffer-local-value 'intero-package-name buffer)))
-                   (unless (equal "" package-name)
-                     (list package-name))))
-             (not (buffer-local-value 'intero-try-with-build buffer))
-             t ;; pass --no-load to stack
-             t ;; pass -ignore-dot-ghci to intero
-             stack-yaml ;; let stack choose a default when nil
-             ))
-           (arguments (cons "ghci" options))
-           (process (with-current-buffer buffer
-                      (when intero-debug
-                        (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
-                      (message "Booting up intero ...")
-                      (apply #'start-file-process intero-stack-executable buffer intero-stack-executable
-                             arguments))))
+    (let* ((process-info (intero-start-piped-process buffer targets stack-yaml))
+           (arguments (plist-get process-info :arguments))
+           (options (plist-get process-info :options))
+           (process (plist-get process-info :process)))
       (set-process-query-on-exit-flag process nil)
       (process-send-string process ":set -fobject-code\n")
       (process-send-string process ":set -fdefer-type-errors\n")
@@ -2386,6 +2371,34 @@ Uses the default stack config file, or STACK-YAML file if given."
              (intero-read-buffer)))))
       (set-process-sentinel process 'intero-sentinel)
       buffer)))
+
+(defun intero-start-piped-process (buffer targets stack-yaml)
+  "Start a piped process that we control in BUFFER.
+Uses the specified TARGETS if supplied.
+Uses the default stack config file, or STACK-YAML file if given."
+  (let* ((options
+          (intero-make-options-list
+           (intero-executable-path stack-yaml)
+           (or targets
+               (let ((package-name (buffer-local-value 'intero-package-name buffer)))
+                 (unless (equal "" package-name)
+                   (list package-name))))
+           (not (buffer-local-value 'intero-try-with-build buffer))
+           t          ;; pass --no-load to stack
+           t          ;; pass -ignore-dot-ghci to intero
+           stack-yaml ;; let stack choose a default when nil
+           ))
+         (arguments (cons "ghci" options))
+         (process
+          (with-current-buffer buffer
+            (when intero-debug
+              (message "Intero arguments: %s" (combine-and-quote-strings arguments)))
+            (message "Booting up intero ...")
+            (apply #'start-file-process intero-stack-executable buffer intero-stack-executable
+                   arguments))))
+    (list :arguments arguments
+          :options options
+          :process process)))
 
 (defun intero-flycheck-buffer ()
   "Run flycheck in the buffer.
