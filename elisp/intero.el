@@ -2098,7 +2098,7 @@ as (CALLBACK STATE REPLY)."
       (let ((buffer (intero-buffer worker)))
         (if (and buffer (process-live-p (get-buffer-process buffer)))
             (with-current-buffer buffer
-              (let ((port (intero-read-port default-directory)))
+              (let ((port (intero-read-port)))
                 (if port
                     (let* ((buffer (generate-new-buffer (format " intero-network:%S" worker)))
                            (process
@@ -2183,9 +2183,7 @@ If provided, use the specified TARGETS, SOURCE-BUFFER and STACK-YAML."
   (let* ((buffer (intero-get-buffer-create worker)))
     (if (get-buffer-process buffer)
         buffer
-      (let ((port (intero-read-port
-                   (or (and stack-yaml (file-name-directory stack-yaml))
-                       (intero-project-root)))))
+      (let ((port (intero-read-port)))
         (if port
             (intero-start-process-in-buffer buffer targets source-buffer stack-yaml port)
           (let ((install-status (intero-installed-p)))
@@ -2193,9 +2191,9 @@ If provided, use the specified TARGETS, SOURCE-BUFFER and STACK-YAML."
                 (intero-start-process-in-buffer buffer targets source-buffer stack-yaml)
               (intero-auto-install buffer install-status targets source-buffer stack-yaml))))))))
 
-(defun intero-read-port (stack-dir)
+(defun intero-read-port ()
   "Read a port number from the file at `intero-port-file'."
-  (let ((fp (concat stack-dir "/" intero-port-file)))
+  (let ((fp (concat (intero-project-root) "/" intero-port-file)))
     (when (file-exists-p fp)
       (with-temp-buffer
         (insert-file-contents fp)
