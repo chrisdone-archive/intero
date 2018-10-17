@@ -815,6 +815,7 @@ runServer state mutex =
   withSocketsDo
     (do sock <- listenOnLoopback
         port <- fmap fromIntegral (socketPort sock) :: IO Int
+        createDirectoryIfMissing ".intero" True
         writeFile ".intero/port" (show port)
         let loop = do
               (h, _, _) <- Network.accept sock
