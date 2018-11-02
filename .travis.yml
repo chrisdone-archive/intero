@@ -49,4 +49,5 @@ script:
 - stack $ARGS --no-terminal test --ghc-options=-Werror
 
 cache:
-- '~/.stack'
+  directories:
+    - '~/.stack'
