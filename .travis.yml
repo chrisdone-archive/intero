@@ -47,3 +47,6 @@ before_install:
 
 script:
 - stack $ARGS --no-terminal test --ghc-options=-Werror
+
+cache:
+- '~/.stack'
