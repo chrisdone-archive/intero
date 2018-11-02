@@ -148,7 +148,7 @@ getTypeLHsBind :: (GhcMonad m)
                -> LHsBind StageReaderId
                -> m [(Maybe Id,SrcSpan,Type)]
 #if MIN_VERSION_ghc(7,8,3)
-getTypeLHsBind _ (L _spn FunBind{fun_id = pid,fun_matches = MG _ _ _typ _}) =
+getTypeLHsBind _ (L _spn FunBind{fun_id = pid,fun_matches = MG{}}) =
   return (return (Just (unLoc pid),getLoc pid,varType (unLoc pid)))
 #else
 getTypeLHsBind _ (L _spn FunBind{fun_id = pid,fun_matches = MG _ _ _typ}) =
@@ -178,7 +178,9 @@ getTypeLHsExpr _ e =
        Nothing -> return Nothing
        Just expr ->
          return (Just (case unwrapVar (unLoc e) of
-#if __GLASGOW_HASKELL__ >= 800
+#if __GLASGOW_HASKELL__ >= 806
+                         HsVar _ (L _ i) -> Just i
+#elif __GLASGOW_HASKELL__ >= 800
                          HsVar (L _ i) -> Just i
 #else
                          HsVar i -> Just i
@@ -186,8 +188,13 @@ getTypeLHsExpr _ e =
                          _ -> Nothing
                       ,getLoc e
                       ,CoreUtils.exprType expr))
-  where unwrapVar (HsWrap _ var) = var
-        unwrapVar e' = e'
+  where
+#if __GLASGOW_HASKELL__ >= 806
+    unwrapVar (HsWrap _ _ var) = var
+#else
+    unwrapVar (HsWrap _ var) = var
+#endif
+    unwrapVar e' = e'
 
 -- | Get id and type for patterns.
 getTypeLPat :: (GhcMonad m)
@@ -198,7 +205,9 @@ getTypeLPat _ (L spn pat) =
     getPatType (ConPatOut (L _ (RealDataCon dc)) _ _ _ _ _ _) =
       dataConRepType dc
     getPatType pat' = hsPatType pat'
-#if __GLASGOW_HASKELL__ >= 800
+#if __GLASGOW_HASKELL__ >= 806
+    getMaybeId (VarPat _ (L _ vid)) = Just vid
+#elif __GLASGOW_HASKELL__ >= 800
     getMaybeId (VarPat (L _ vid)) = Just vid
 #else
     getMaybeId (VarPat vid) = Just vid
