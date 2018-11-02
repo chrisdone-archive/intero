@@ -50,4 +50,4 @@ script:
 
 cache:
   directories:
-    - '~/.stack'
+    - '$HOME/.stack'
