@@ -21,7 +21,7 @@ environment:
   - ARGS: "--resolver lts-7" # GHC 8.0.1
   - ARGS: "--resolver lts-9" # GHC 8.0.2
   - ARGS: "--resolver lts-11" # GHC 8.2.2
-  - ARGS: "--resolver nightly-2018-06-27" # GHC 8.4.3
+  - ARGS: "--resolver lts-12" # GHC 8.4.x
 
 test_script:
 
