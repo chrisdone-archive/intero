@@ -1,39 +1,26 @@
 language: generic
 sudo: false
 
+env:
+- RESOLVER=lts-2
+- RESOLVER=lts-3
+- RESOLVER=lts-6
+- RESOLVER=lts-7
+- RESOLVER=lts-9
+- RESOLVER=lts-11
+- RESOLVER=lts-12
+os:
+- linux
+- osx
+
+addons:
+  apt: 
+    packages: [libgmp-dev]
+
 matrix:
-  include:
-    - env: ARGS="--resolver lts-2"
-      addons: {apt: {packages: [libgmp-dev]}}
-    - env: ARGS="--resolver lts-3"
-      addons: {apt: {packages: [libgmp-dev]}}
-    - env: ARGS="--resolver lts-6"
-      addons: {apt: {packages: [libgmp-dev]}}
-    - env: ARGS="--resolver lts-7"
-      addons: {apt: {packages: [libgmp-dev]}}
-    - env: ARGS="--resolver lts-9"
-      addons: {apt: {packages: [libgmp-dev]}}
-    - env: ARGS="--resolver lts-11"
-      addons: {apt: {packages: [libgmp-dev]}}
-    - env: ARGS="--resolver lts-12"
-      addons: {apt: {packages: [libgmp-dev]}}
-
-    # Broken on newer OS Xs
-    #- env: ARGS="--resolver lts-2"
-    #  os: osx
-    - env: ARGS="--resolver lts-3"
-      os: osx
-    - env: ARGS="--resolver lts-6"
-      os: osx
-    - env: ARGS="--resolver lts-7"
-      os: osx
-    - env: ARGS="--resolver lts-9"
-      os: osx
-    - env: ARGS="--resolver lts-11"
-      os: osx
-    - env: ARGS="--resolver lts-12"
-      os: osx
-
+  exclude:
+  - env: RESOLVER=lts-2
+    os: osx
 before_install:
 - export PATH=$HOME/.local/bin:$PATH
 - mkdir -p ~/.local/bin
@@ -46,7 +33,7 @@ before_install:
   fi
 
 script:
-- stack $ARGS --no-terminal test --ghc-options=-Werror
+- stack --resolver=$RESOLVER --no-terminal test --ghc-options=-Werror
 
 cache:
   directories:
