@@ -19,6 +19,7 @@ addons:
 
 matrix:
   exclude:
+  # Broken on newer OS Xs
   - env: RESOLVER=lts-2
     os: osx
 before_install:
