@@ -9,6 +9,7 @@ env:
 - RESOLVER=lts-9
 - RESOLVER=lts-11
 - RESOLVER=lts-12
+- RESOLVER=nightly
 os:
 - linux
 - osx
@@ -22,6 +23,8 @@ matrix:
   # Broken on newer OS Xs
   - env: RESOLVER=lts-2
     os: osx
+  allow_failures:
+  - env: RESOLVER=nightly
 before_install:
 - export PATH=$HOME/.local/bin:$PATH
 - mkdir -p ~/.local/bin
