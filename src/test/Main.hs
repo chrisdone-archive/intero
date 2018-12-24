@@ -59,6 +59,13 @@ argsparser =
              ":type-at"
              "<no location info>: Expected a span: \"<module-name/filepath>\" <start line> <start column> <end line> <end column> \"<sample string>\"\n"))
 
+maybeModuleStr :: String
+#if __GLASGOW_HASKELL__ >= 806
+maybeModuleStr = "GHC.Maybe"
+#else
+maybeModuleStr = "GHC.Base"
+#endif
+
 -- | Basic commands that should work out of the box.
 basics :: Spec
 basics =
@@ -70,7 +77,7 @@ basics =
           (do reply <- withIntero [] (\_ repl -> repl ":i Nothing")
               shouldBe
                 (subRegex (mkRegex "Data.Maybe") reply "GHC.Base")
-                ("data Maybe a = Nothing | ... \t-- Defined in " ++ (quote "GHC.Base") ++ "\n"))
+                ("data Maybe a = Nothing | ... \t-- Defined in " ++ (quote maybeModuleStr) ++ "\n"))
         it ":k Just" (eval ":k Maybe" "Maybe :: * -> *\n"))
   where
     quote s = opQuote : s ++ [clQuote]
