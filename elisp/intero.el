@@ -72,9 +72,9 @@
 (defcustom intero-package-version
   (cl-case system-type
     ;; Until <https://github.com/haskell/network/issues/313> is fixed:
-    (windows-nt "0.1.34")
-    (cygwin "0.1.34")
-    (t "0.1.34"))
+    (windows-nt "0.1.35")
+    (cygwin "0.1.35")
+    (t "0.1.35"))
   "Package version to auto-install.
 
 This version does not necessarily have to be the latest version
