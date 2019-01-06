@@ -106,7 +106,8 @@ main = do
    hSetBuffering stderr LineBuffering
    GHC.defaultErrorHandler defaultFatalMessager defaultFlushOut $ do
     -- 1. extract the -B flag from the args
-    argv00 <- getArgs
+    argv00 <- fmap (filter (/= "-traditional"))
+                   getArgs
     if elem "--version" argv00
        then do putStrLn ("Intero " ++ Data.Version.showVersion Paths_intero.version)
                exitSuccess
