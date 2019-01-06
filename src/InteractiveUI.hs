@@ -894,16 +894,16 @@ checkPerms name =
     st <- getFileStatus name
     me <- getRealUserID
     if fileOwner st /= me then do
-        putStrLn $ "WARNING: " ++ name ++ " is owned by someone else, IGNORING!"
-        return False
+        putStrLn $ "WARNING: " ++ name ++ " is owned by someone else!"
+        return True
      else do
         let mode = System.Posix.fileMode st
         if (groupWriteMode == (mode `intersectFileModes` groupWriteMode))
             || (otherWriteMode == (mode `intersectFileModes` otherWriteMode))
             then do
                 putStrLn $ "*** WARNING: " ++ name ++
-                           " is writable by someone else, IGNORING!"
-                return False
+                           " is writable by someone else!"
+                return True
             else return True
 #endif
 
