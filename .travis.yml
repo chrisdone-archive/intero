@@ -38,7 +38,8 @@ before_install:
   fi
 
 script:
-- stack --resolver=$RESOLVER --no-terminal test --ghc-options=-Werror
+- stack --resolver=$RESOLVER --no-terminal test
+#--ghc-options=-Werror
 
 cache:
   directories:
