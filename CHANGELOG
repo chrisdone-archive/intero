@@ -1,3 +1,9 @@
+0.1.36:
+	* Fix handling of unicode for type/info queries
+
+0.1.35:
+	* Support for GHC 8.6.3
+
 0.1.34:
 	* Support for GHC 8.6.1
 
