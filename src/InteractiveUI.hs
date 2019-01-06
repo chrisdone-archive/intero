@@ -694,6 +694,8 @@ runServer = do
            (let loop = do
                   (h, _, _) <- Network.accept sock
                   hSetBuffering h NoBuffering
+                  mencoding <- hGetEncoding stdin
+                  hSetEncoding h (fromMaybe utf8 mencoding)
                   _ <-
                     forkIO
                       (Exception.finally
