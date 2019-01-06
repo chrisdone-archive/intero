@@ -21,6 +21,8 @@ A clear and concise description of what the problem is.
 
 A clear and concise description of what you want to happen.
 
+If you are able to implement said feature, **please say this**. Features that the maintainers don't feel like implementing **won't be implemented.**
+
 **Alternatives**
 
 A clear and concise description of any alternative solutions or features you've considered.

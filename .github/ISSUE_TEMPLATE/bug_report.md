@@ -34,3 +34,7 @@ Describe what you expected.
 ### Actual behavior
 
 What actually happened. Include any https://gist.github.com/ links of output logs. Don't fill the issue description with output. :+1+
+
+### Workarounds
+
+Feel free to include any workarounds that might help other people until the issue is fixed.
