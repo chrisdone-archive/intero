@@ -1416,9 +1416,12 @@ stack's default)."
              'face 'font-lock-comment-face))
     (let* ((script-buffer
             (with-current-buffer (find-file-noselect (intero-make-temp-file "intero-script"))
+              ;; Commented out this line due to this bug:
+              ;; https://github.com/chrisdone/intero/issues/569
+              ;; GHC 8.4.3 has some bug causing a panic on GHCi.
+              ;; :set -fdefer-type-errors
               (insert ":set prompt \"\"
 :set -fbyte-code
-:set -fdefer-type-errors
 :set -fdiagnostics-color=never
 :set prompt \"\\4 \"
 ")
