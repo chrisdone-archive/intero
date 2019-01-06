@@ -236,14 +236,22 @@ The buffer's filename (or working directory) is checked against
 `intero-whitelist' and `intero-blacklist'.  If both the whitelist
 and blacklist match, then the whitelist entry wins, and
 `intero-mode' is enabled."
-  (when (and (derived-mode-p 'haskell-mode)
-             (let* ((file (or (buffer-file-name) default-directory))
-                    (blacklisted (intero-directories-contain-file
-                                  file intero-blacklist))
-                    (whitelisted (intero-directories-contain-file
-                                  file intero-whitelist)))
-               (or whitelisted (not blacklisted))))
+  (when (intero-mode-should-start-p)
     (intero-mode 1)))
+
+(defun intero-mode-should-start-p ()
+  "Predicate whether intero should start given user config.
+The buffer's filename (or working directory) is checked against
+`intero-whitelist' and `intero-blacklist'.  If both the whitelist
+and blacklist match, then the whitelist entry wins, and
+`intero-mode' is enabled."
+  (and (derived-mode-p 'haskell-mode)
+       (let* ((file (or (buffer-file-name) default-directory))
+              (blacklisted (intero-directories-contain-file
+                            file intero-blacklist))
+              (whitelisted (intero-directories-contain-file
+                            file intero-whitelist)))
+         (or whitelisted (not blacklisted)))))
 
 ;;;###autoload
 (define-globalized-minor-mode intero-global-mode
