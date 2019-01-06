@@ -1,6 +1,6 @@
 ---
 name: Question
-about: Ask a question about hindent
+about: Ask a question about intero
 
 ---
 
@@ -8,4 +8,4 @@ about: Ask a question about hindent
 
 <your question here>
 
-Include any example project if relevant, and the hindent version you're talking about.
+Include any example project if relevant, and the intero version you're talking about.
