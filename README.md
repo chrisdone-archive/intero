@@ -1,11 +1,11 @@
-# intero [![Build Status](https://travis-ci.org/commercialhaskell/intero.svg)](https://travis-ci.org/commercialhaskell/intero) [![MELPA](https://melpa.org/packages/intero-badge.svg)](https://melpa.org/#/intero) [![MELPA Stable](https://stable.melpa.org/packages/intero-badge.svg)](https://stable.melpa.org/#/intero) [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/commercialhaskell/path?svg=true)](https://ci.appveyor.com/project/commercialhaskell/intero)
+# intero [![Build Status](https://travis-ci.org/chrisdone/intero.svg)](https://travis-ci.org/chrisdone/intero) [![MELPA](https://melpa.org/packages/intero-badge.svg)](https://melpa.org/#/intero) [![MELPA Stable](https://stable.melpa.org/packages/intero-badge.svg)](https://stable.melpa.org/#/intero) [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/chrisdone/path?svg=true)](https://ci.appveyor.com/project/chrisdone/intero)
 
 Complete interactive development program for Haskell
 
 ## Intero for Emacs
 
 Please see
-[the homepage for Intero for Emacs](http://commercialhaskell.github.io/intero).
+[the homepage for Intero for Emacs](http://chrisdone.github.io/intero).
 
 #### Default key bindings
 
