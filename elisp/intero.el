@@ -2244,6 +2244,8 @@ We don't know why it failed. Please read the above output and try
 installing manually. If that doesn't work, report this as a
 problem.
 
+Guess: You might need the \"tinfo\" package, e.g. libtinfo-dev.
+
 WHAT TO DO NEXT
 
 If you don't want to Intero to try installing itself again for

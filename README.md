@@ -21,6 +21,15 @@ Key binding | Description
 `C-c C-k` | Clear REPL
 `C-c C-z` | Switch to and from the REPL
 
+## Install requirements
+
+Make sure you have this package installed on Linux:
+
+    libtinfo-dev
+
+(People on other platforms please contribute the equivalent
+dependency.)
+
 ## Enabling intero
 
 To enable `intero` in all `haskell-mode` buffers by default, enable
@@ -46,7 +55,6 @@ unless a parent directory of that file is also listed in
 `intero-whitelist`. In other words, whitelist entries take
 precedence. You can therefore blacklist `/` to disable `intero` in all
 projects unless they are whitelisted.
-
 
 ## Intero support for other editors and IDEs
 
