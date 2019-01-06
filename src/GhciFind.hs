@@ -123,8 +123,13 @@ findLocalizedCompletions spans' prefix _sl _sc _el _ec =
           do var <- spaninfoVar si
              let str = showppr df var
              if isPrefixOf prefix str
-                then Just str
-                else Nothing
+               then case getSrcLoc (getName var) of
+                      RealSrcLoc {} -> Just str
+                      -- Probably an internally generated name. Ignore it:
+                      -- See here: https://github.com/chrisdone/intero/issues/531
+                      -- We ignore defered-scope-error names like foo_a8s76
+                      UnhelpfulLoc {} -> Nothing
+               else Nothing
 
 -- | Find any uses of the given identifier in the codebase.
 findNameUses :: (GhcMonad m)
