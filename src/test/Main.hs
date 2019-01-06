@@ -6,7 +6,7 @@ module Main where
 
 import Control.Exception
 import Control.Monad.IO.Class
-import Control.Monad (forM_)
+import Control.Monad (when, forM_)
 import Data.Char
 import System.IO
 import System.IO.Temp
@@ -411,18 +411,20 @@ completion = do
                 (["\"sort\"", "\"sortBy\""])))
   describe
     "Completion in module context"
-    (do issue
-          ":complete-at for defered scope names"
-          "https://github.com/chrisdone/intero/issues/531"
-          (atFile
-             ":complete-at"
-             "X.hs"
-             -- All these type annotations are required for GHC 8.6.3
-             -- to accept the input without error.
-             "{-# OPTIONS -fdefer-type-errors #-}\nmodule X where\ng a = fiiila (filu :: Char) a (fi :: Int)\n where fiiila _ _ _ = 123"
-             (2, 14, 2, 17, "fi")
-             lines
-             ["fiiila", "filter"])
+    (do when
+          ghc8_2
+          (issue
+             ":complete-at for defered scope names"
+             "https://github.com/chrisdone/intero/issues/531"
+             (atFile
+                ":complete-at"
+                "X.hs"
+                         -- All these type annotations are required for GHC 8.6.3
+                         -- to accept the input without error.
+                "{-# OPTIONS -fdefer-type-errors #-}\nmodule X where\ng a = fiiila (filu :: Char) a (fi :: Int)\n where fiiila _ _ _ = 123"
+                (2, 14, 2, 17, "fi")
+                lines
+                ["fiiila", "filter"]))
         it
           ":complete-at for put*"
           (atFile
