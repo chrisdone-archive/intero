@@ -1,5 +1,12 @@
 set -e
 
+# Test GHC 8.6.3
+
+echo GHC 8.6.3 ...
+stack clean
+stack setup --resolver lts-13.1
+stack build . --resolver lts-13.1 --test --force-dirty --ghc-options=-fforce-recomp
+
 # Test GHC 8.4.1
 
 if [[ $TRAVIS_OS_NAME != 'linux' ]]; then
