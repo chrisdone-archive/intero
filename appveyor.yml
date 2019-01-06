@@ -14,15 +14,12 @@ environment:
     TMP: "c:\\tmp"
 
   matrix:
-  - ARGS: ""
-  #- ARGS: "--resolver lts-2" # GHC 7.8.4
-  #- ARGS: "--resolver lts-3" # GHC 7.10.2
-  - ARGS: "--resolver lts-6" # GHC 7.10.3
-  - ARGS: "--resolver lts-7" # GHC 8.0.1
-  - ARGS: "--resolver lts-9" # GHC 8.0.2
-  - ARGS: "--resolver lts-11" # GHC 8.2.2
-  - ARGS: "--resolver lts-12" # GHC 8.4.x
   - ARGS: "--resolver lts-13" # GHC 8.6.x
+  - ARGS: "--resolver lts-12" # GHC 8.4.x
+  - ARGS: "--resolver lts-11" # GHC 8.2.2
+  - ARGS: "--resolver lts-9" # GHC 8.0.2
+  - ARGS: "--resolver lts-7" # GHC 8.0.1
+  - ARGS: "--resolver lts-6" # GHC 7.10.3
 
 test_script:
 
