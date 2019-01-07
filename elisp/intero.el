@@ -3178,10 +3178,11 @@ suggestions are available."
           ;; Add a note if we found a suggestion to make
           (when note
             (setf (flycheck-error-message msg)
-                  (concat text
-                          "\n\n"
-                          (propertize "(Hit `C-c C-r' in the Haskell buffer to apply suggestions)"
-                                      'face 'font-lock-warning-face)))))))
+                  (concat text "\n\n"
+                          (propertize
+                           (substitute-command-keys
+                            "(Hit `\\[intero-apply-suggestions]' in the Haskell buffer to apply suggestions)")
+                           'face 'font-lock-warning-face)))))))
   (setq intero-lighter
         (if (null intero-suggestions)
             " Intero"
