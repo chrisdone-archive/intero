@@ -1,4 +1,4 @@
-# intero [![Build Status](https://travis-ci.org/chrisdone/intero.svg)](https://travis-ci.org/chrisdone/intero) [![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/github/chrisdone/path?svg=true)](https://ci.appveyor.com/project/chrisdone/intero)
+# intero [![Build Status](https://travis-ci.org/chrisdone/intero.svg)](https://travis-ci.org/chrisdone/intero) ![Build status](https://ci.appveyor.com/api/projects/status/23bdffi0bmycxn50?svg=true)
 
 Complete interactive development program for Haskell
 
