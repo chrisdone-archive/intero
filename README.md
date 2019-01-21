@@ -25,9 +25,12 @@ Key binding | Description
 
 ## Install requirements
 
-Make sure you have this package installed on Linux:
+Make sure you have `libtinfo` installed:
 
-    libtinfo-dev
+OS | Package
+--- | ---
+Debian derivatives | `libtinfo-dev`
+Fedora derivatives | `ncurses-devel`
 
 (People on other platforms please contribute the equivalent
 dependency.)
