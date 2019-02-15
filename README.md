@@ -4,9 +4,10 @@ Complete interactive development program for Haskell
 
 # Intero for your favourite editors
 
-Although not supported by the Intero maintainers, integrations with other editors exist:
+There are various editor integrations for the Intero binary, with the
+Emacs one being the officially supported one:
 
-* [Emacs](https://github.com/chrisdone/intero/blob/master/EMACS.md)
+* [Emacs](https://github.com/chrisdone/intero/blob/master/EMACS.md) [officially supported]
 * [Neovim](https://github.com/parsonsmatt/intero-neovim)
 * [Haskero](https://gitlab.com/vannnns/haskero) (Visual Studio Code)
 * [Haskelly](https://github.com/haskelly-dev/Haskelly) (Visual Studio Code)
