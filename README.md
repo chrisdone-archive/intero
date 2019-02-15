@@ -2,7 +2,21 @@
 
 Complete interactive development program for Haskell
 
-## Intero for Emacs
+# Intero for your favourite editors
+
+Although not supported by the Intero maintainers, integrations with other editors exist:
+
+* [Emacs][#intero-for-emacs]
+* [Neovim](https://github.com/parsonsmatt/intero-neovim)
+* [Haskero](https://gitlab.com/vannnns/haskero) (Visual Studio Code)
+* [Haskelly](https://github.com/haskelly-dev/Haskelly) (Visual Studio Code)
+* [SublimeText](https://github.com/dariusf/sublime-intero)
+* [IntelliJ](https://plugins.jetbrains.com/plugin/8258-intellij-haskell)
+
+If you would like to build support into a new editor or IDE, please see
+[TOOLING.md](https://github.com/commercialhaskell/intero/blob/master/TOOLING.md).
+
+# Intero for Emacs
 
 [![MELPA](https://melpa.org/packages/intero-badge.svg)](https://melpa.org/#/intero) [![MELPA Stable](https://stable.melpa.org/packages/intero-badge.svg)](https://stable.melpa.org/#/intero)
 
@@ -61,14 +75,4 @@ unless a parent directory of that file is also listed in
 precedence. You can therefore blacklist `/` to disable `intero` in all
 projects unless they are whitelisted.
 
-## Intero support for other editors and IDEs
 
-Although not supported by the Intero maintainers, integrations with other editors exist:
-
-* [intero-neovim](https://github.com/parsonsmatt/intero-neovim)
-* [haskero](https://gitlab.com/vannnns/haskero) (vscode)
-* [Haskelly](https://github.com/haskelly-dev/Haskelly) (vscode)
-* [sublime-intero](https://github.com/dariusf/sublime-intero)
-
-If you would like to build support into a new editor or IDE, please see
-[TOOLING.md](https://github.com/commercialhaskell/intero/blob/master/TOOLING.md).
