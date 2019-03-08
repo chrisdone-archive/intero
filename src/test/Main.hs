@@ -419,7 +419,7 @@ completion = do
              (atFile
                 ":complete-at"
                 "X.hs"
-                         -- All these type annotations are required for GHC 8.6.3
+                         -- All these type annotations are required for GHC 8.6.4
                          -- to accept the input without error.
                 "{-# OPTIONS -fdefer-type-errors #-}\nmodule X where\ng a = fiiila (filu :: Char) a (fi :: Int)\n where fiiila _ _ _ = 123"
                 (2, 14, 2, 17, "fi")
