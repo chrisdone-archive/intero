@@ -1,11 +1,11 @@
 set -e
 
-# Test GHC 8.6.3
+# Test GHC 8.6.4
 
-echo GHC 8.6.3 ...
+echo GHC 8.6.4 ...
 stack clean
-stack setup --resolver lts-13.1
-stack build . --resolver lts-13.1 --test --force-dirty --ghc-options=-fforce-recomp
+stack setup --resolver lts-13.11
+stack build . --resolver lts-13.11 --test --force-dirty --ghc-options=-fforce-recomp
 
 # Test GHC 8.4.1
 

@@ -1,7 +1,7 @@
 name:
   intero
 version:
-  0.1.38
+  0.1.39
 synopsis:
   Complete interactive development program for Haskell
 license:
@@ -73,7 +73,7 @@ executable intero
     bytestring,
     directory,
     filepath,
-    ghc >= 7.8 && <= 8.6.3,
+    ghc >= 7.8 && <= 8.6.4,
     ghc-paths,
     haskeline,
     process,
