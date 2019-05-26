@@ -23,6 +23,7 @@ Make sure you have `libtinfo` installed:
 
 OS | Package
 --- | ---
+Arch Linux | `ncurses`
 Debian derivatives | `libtinfo-dev`
 Fedora derivatives | `ncurses-devel`
 
