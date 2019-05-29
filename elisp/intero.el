@@ -2241,6 +2241,7 @@ Installing intero-%s for GHC %s ...
            (concat "intero-" intero-package-version)
            "--flag" "haskeline:-terminfo"
            "--resolver" (concat "ghc-" ghc-version)
+           "haskeline-0.7.5.0"
            "ghc-paths-0.1.0.9" "mtl-2.2.2" "network-2.7.0.0" "random-1.1" "syb-0.7"))
       (0
        (message "Installed successfully! Starting Intero in a moment ...")
