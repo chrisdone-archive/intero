@@ -3500,6 +3500,7 @@ Equivalent to 'warn', but label the warning as coming from intero."
                    (intero-help-refresh)))
        'keymap (let ((map (make-sparse-keymap)))
                  (define-key map [mouse-1] 'push-button)
+                 (define-key map (kbd "RET") 'push-button)
                  map))
       (insert " ")
       (insert-text-button
@@ -3507,6 +3508,7 @@ Equivalent to 'warn', but label the warning as coming from intero."
        'buffer (current-buffer)
        'keymap (let ((map (make-sparse-keymap)))
                  (define-key map [mouse-1] 'push-button)
+                 (define-key map (kbd "RET") 'push-button)
                  map)
        'action (lambda (&rest ignore)
                  (setq intero-help-entries
@@ -3518,6 +3520,7 @@ Equivalent to 'warn', but label the warning as coming from intero."
        'buffer (current-buffer)
        'keymap (let ((map (make-sparse-keymap)))
                  (define-key map [mouse-1] 'push-button)
+                 (define-key map (kbd "RET") 'push-button)
                  map)
        'action (lambda (&rest ignore)
                  (pop intero-help-entries)
