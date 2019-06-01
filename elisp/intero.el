@@ -1261,7 +1261,7 @@ be activated after evaluation.  PROMPT-OPTIONS are passed to
 (defun intero-repl-after-load ()
   "Set the command to run after load."
   (interactive)
-  (if (eq major-mode 'intero-repl-mode)
+  (if (derived-mode-p 'intero-repl-mode)
       (setq intero-repl-send-after-load
             (read-from-minibuffer
              "Command to run: "
