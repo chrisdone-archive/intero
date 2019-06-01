@@ -923,10 +923,11 @@ Should only be used in the repl"
   "Company source for intero, with the standard COMMAND and ARG args.
 Other arguments are IGNORED."
   (interactive (list 'interactive))
-  (cl-case command
-    (interactive (company-begin-backend 'intero-company))
-    (prefix
-     (unless (intero-gave-up 'backend)
+  (when (and (or intero-mode (derived-mode-p 'intero-repl-mode))
+             (not (intero-gave-up 'backend)))
+    (cl-case command
+      (interactive (company-begin-backend 'intero-company))
+      (prefix
        (or (let ((hole (intero-grab-hole)))
              (when hole
                (save-excursion
@@ -936,9 +937,8 @@ Other arguments are IGNORED."
              (when prefix-info
                (cl-destructuring-bind
                    (beg end prefix _type) prefix-info
-                 prefix))))))
-    (candidates
-     (unless (intero-gave-up 'backend)
+                 prefix)))))
+      (candidates
        (let ((beg-end (intero-grab-hole)))
          (if beg-end
              (cons :async
