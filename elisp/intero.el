@@ -1702,14 +1702,15 @@ The path returned is canonicalized and stripped of any text properties."
 
 (defun intero-temp-file-origin-buffer (temp-file)
   "Get the original buffer that TEMP-FILE was created for."
-  (or
-   (gethash (intero-canonicalize-path temp-file)
-            intero-temp-file-buffer-mapping)
-   (cl-loop
-    for buffer in (buffer-list)
-    when (string= (intero-canonicalize-path temp-file)
-                  (buffer-local-value 'intero-temp-file-name buffer))
-    return buffer)))
+  (let ((canonical-path (intero-canonicalize-path temp-file)))
+    (or
+     (gethash canonical-path
+              intero-temp-file-buffer-mapping)
+     (cl-loop
+      for buffer in (buffer-list)
+      when (string= canonical-path
+                    (buffer-local-value 'intero-temp-file-name buffer))
+      return buffer))))
 
 (defun intero-unmangle-file-path (file)
   "If FILE is an intero temp file, return the original source path, otherwise FILE."
