@@ -1883,9 +1883,12 @@ type as arguments."
                  (intero-async-call
                   'backend
                   (concat ":load " (intero-path-for-ghci (intero-temp-file-name)))))
-               (intero-async-call
-                'backend
-                ":set -fobject-code")
+               (mapc
+                 (lambda (flag)
+                   (intero-async-call
+                    'backend
+                    (append ":set " flag)))
+                 (intero-ghci-output-flags))
                (replace-regexp-in-string
                 "\n$" ""
                 (intero-blocking-call
@@ -2328,7 +2331,10 @@ Uses the default stack config file, or STACK-YAML file if given."
            (options (plist-get process-info :options))
            (process (plist-get process-info :process)))
       (set-process-query-on-exit-flag process nil)
-      (process-send-string process ":set -fobject-code\n")
+      (mapc
+       (lambda (flag)
+         (process-send-string process (append ":set " flag "\n")))
+       (intero-ghci-output-flags))
       (process-send-string process ":set -fdefer-type-errors\n")
       (process-send-string process ":set -fdiagnostics-color=never\n")
       (process-send-string process ":set prompt \"\\4\"\n")
@@ -2659,6 +2665,14 @@ For debugging purposes, try running the following in your terminal:
     (or intero-ghc-version
         (setq intero-ghc-version
               (intero-ghc-version-raw)))))
+
+(defun intero-ghci-output-flags ()
+  "Get the appropriate ghci output flags for the current GHC version"
+  (with-current-buffer (intero-buffer 'backend)
+    (let ((current-version (mapcar #'string-to-number (split-string intero-ghc-version "\\."))))
+    (if (intero-version>= '(8 4 1) current-version)
+        '("-fno-code" "-fwrite-interface")
+        '("-fobject-code")))))
 
 (defun intero-ghc-version-raw ()
   "Get the GHC version used by the project."

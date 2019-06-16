@@ -70,7 +70,11 @@ collectInfo ms loaded =
             Nothing -> return True
             Just mi ->
               do let fp =
+#if MIN_VERSION_ghc(8,0,4)
+                       ml_hi_file (ms_location (modinfoSummary mi))
+#else
                        ml_obj_file (ms_location (modinfoSummary mi))
+#endif
                      last' = modinfoLastUpdate mi
                  exists <- doesFileExist fp
                  if exists
