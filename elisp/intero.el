@@ -2432,7 +2432,7 @@ default when nil)."
             (list "--stack-yaml" stack-yaml))
           (list "--with-ghc"
                 with-ghc
-                "--docker-run-args=--interactive=true --tty=false"
+                "--docker-run-args=--interactive=true"
                 )
           (when no-build
             (list "--no-build"))
