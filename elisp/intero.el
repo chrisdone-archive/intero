@@ -415,15 +415,13 @@ You can use this to kill them or look inside."
 (defun intero-fontify-expression (expression)
   "Return a haskell-fontified version of EXPRESSION."
   (intero-with-temp-buffer
-    (when (fboundp 'haskell-mode)
-      (let ((flycheck-checkers nil)
-            (haskell-mode-hook nil))
-        (haskell-mode)))
-    (insert expression)
-    (if (fboundp 'font-lock-ensure)
-        (font-lock-ensure)
-      (font-lock-fontify-buffer))
-    (buffer-string)))
+   (insert expression)
+   (when (fboundp 'haskell-mode)
+     (delay-mode-hooks (haskell-mode))
+     (if (fboundp 'font-lock-ensure)
+         (font-lock-ensure)
+       (font-lock-fontify-buffer)))
+   (buffer-string)))
 
 (defun intero-uses-at ()
   "Highlight where the identifier at point is used."
