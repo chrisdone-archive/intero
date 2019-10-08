@@ -13,6 +13,7 @@ Emacs one being the officially supported one:
 * [Haskelly](https://github.com/haskelly-dev/Haskelly) (Visual Studio Code)
 * [SublimeText](https://github.com/dariusf/sublime-intero)
 * [IntelliJ](https://plugins.jetbrains.com/plugin/8258-intellij-haskell)
+* [Howl](https://github.com/dgaw/howl-intero)
 
 If you would like to build support into a new editor or IDE, please see
 [TOOLING.md](https://github.com/commercialhaskell/intero/blob/master/TOOLING.md).
