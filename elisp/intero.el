@@ -2259,7 +2259,7 @@ Guess: You might need the \"tinfo\" package, e.g. libtinfo-dev.
 
 WHAT TO DO NEXT
 
-If you don't want to Intero to try installing itself again for
+If you don't want Intero to try installing itself again for
 this project, just keep this buffer around in your Emacs.
 
 If you'd like to try again next time you try use an Intero
@@ -2306,7 +2306,7 @@ problem.
 
 WHAT TO DO NEXT
 
-If you don't want to Intero to try installing itself again for
+If you don't want Intero to try installing itself again for
 this project, just keep this buffer around in your Emacs.
 
 If you'd like to try again next time you try use an Intero
