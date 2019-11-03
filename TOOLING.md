@@ -17,13 +17,13 @@ between package sets.**
 
 Standard:
 
-    $ stack build intero  --copy-compiler-tool 
+    $ stack build intero --copy-compiler-tool 
     
 The ` --copy-compiler-tool` flag installs intero to a GHC-version-specific location that matches your current resolver. You won't have to install it again for the same GHC version, just new ones.
 
 From source:
 
-    $ git clone https://github.com/commercialhaskell/intero.git
+    $ git clone https://github.com/chrisdone/intero.git
     $ cd intero
     $ stack build intero --copy-compiler-tool 
 
@@ -39,7 +39,7 @@ To run it plainly use:
 
     $ stack exec intero
 
-You'll have to run `stack build intero  --copy-compiler-tool ` within each separate GHC
+You'll have to run `stack build intero --copy-compiler-tool ` within each separate GHC
 version you use, this ensures that the intero you launch correctly
 matches the GHC version that you're working with.
 
