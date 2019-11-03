@@ -1,32 +1,14 @@
-# intero [![Build Status](https://travis-ci.org/chrisdone/intero.svg)](https://travis-ci.org/chrisdone/intero) [![Build status](https://ci.appveyor.com/api/projects/status/23bdffi0bmycxn50?svg=true)](https://ci.appveyor.com/project/chrisdone/intero)
+# intero 
 
-Complete interactive development program for Haskell
+The intero project has reached the end of its life cycle. 🌇 
 
-# Intero for your favourite editors
+* I will not be maintaining it any longer.
+* Minimal pull requests will be accepted for a few months.
+* After which, I will archive the project.
 
-There are various editor integrations for the Intero binary, with the
-Emacs one being the officially supported one:
+If an individual or group would like to fork take over the project, they are welcome to do so. I will update this README to point to those alternatives.
 
-* [Emacs](https://github.com/chrisdone/intero/blob/master/EMACS.md) [officially supported]
-* [Neovim](https://github.com/parsonsmatt/intero-neovim)
-* [Haskero](https://gitlab.com/vannnns/haskero) (Visual Studio Code)
-* [Haskelly](https://github.com/haskelly-dev/Haskelly) (Visual Studio Code)
-* [SublimeText](https://github.com/dariusf/sublime-intero)
-* [IntelliJ](https://plugins.jetbrains.com/plugin/8258-intellij-haskell)
-* [Howl](https://github.com/dgaw/howl-intero)
+Alternatives:
 
-If you would like to build support into a new editor or IDE, please see
-[TOOLING.md](https://github.com/commercialhaskell/intero/blob/master/TOOLING.md).
-
-## Install requirements
-
-Make sure you have `libtinfo` installed:
-
-OS | Package
---- | ---
-Arch Linux | `ncurses`
-Debian derivatives | `libtinfo-dev`
-Fedora derivatives | `ncurses-devel`
-
-(People on other platforms please contribute the equivalent
-dependency.)
+* [Dante](https://github.com/jyp/dante)
+* [haskell-ide-engine](https://github.com/haskell/haskell-ide-engine)
