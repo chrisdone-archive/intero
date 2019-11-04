@@ -12,3 +12,4 @@ Alternatives:
 
 * [Dante](https://github.com/jyp/dante)
 * [haskell-ide-engine](https://github.com/haskell/haskell-ide-engine)
+* [ghcide](https://github.com/digital-asset/ghcide)
