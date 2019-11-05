@@ -1,4 +1,4 @@
-# intero 
+# intero [![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
 
 The intero project has reached the end of its life cycle. 🌇 
 
