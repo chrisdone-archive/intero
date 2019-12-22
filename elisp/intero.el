@@ -1886,7 +1886,7 @@ type as arguments."
                  (lambda (flag)
                    (intero-async-call
                     'backend
-                    (append ":set " flag)))
+                    (concat ":set " flag)))
                  (intero-ghci-output-flags))
                (replace-regexp-in-string
                 "\n$" ""
@@ -2332,7 +2332,7 @@ Uses the default stack config file, or STACK-YAML file if given."
       (set-process-query-on-exit-flag process nil)
       (mapc
        (lambda (flag)
-         (process-send-string process (append ":set " flag "\n")))
+         (process-send-string process (concat ":set " flag "\n")))
        (intero-ghci-output-flags))
       (process-send-string process ":set -fdefer-type-errors\n")
       (process-send-string process ":set -fdiagnostics-color=never\n")
