@@ -2668,7 +2668,7 @@ For debugging purposes, try running the following in your terminal:
 (defun intero-ghci-output-flags ()
   "Get the appropriate ghci output flags for the current GHC version"
   (with-current-buffer (intero-buffer 'backend)
-    (let ((current-version (mapcar #'string-to-number (split-string intero-ghc-version "\\."))))
+    (let ((current-version (mapcar #'string-to-number (split-string (intero-ghc-version) "\\."))))
     (if (intero-version>= '(8 4 1) current-version)
         '("-fno-code" "-fwrite-interface")
         '("-fobject-code")))))
